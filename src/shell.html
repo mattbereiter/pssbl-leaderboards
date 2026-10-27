@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PSSBL Leaderboards</title>
+<meta name="description" content="FanGraphs-style leaderboards, player pages, standings and league constants for the Puget Sound Senior Baseball League, 2015–present.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%233c8a2e'/%3E%3Cpath d='M8 23V12M14 23V8M20 23v-7M26 23V14' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+:root {
+  color-scheme: light;
+  --color-bg: #f4f6f2; --color-panel: #ffffff; --color-fg: #1c211b; --color-fg-muted: #5c6559; --color-border-line: #dde2d9;
+  --color-ok: #2e7d32; --color-warn: #a86400; --color-bad: #c62828;
+  --font-anthropic-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-anthropic-serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --cds-font-size-caption: .8125rem; --cds-font-size-body: .9375rem; --cds-font-size-heading: 1.0625rem; --cds-font-size-title: 1.75rem;
+  --cds-font-weight-medium: 600;
+  --cds-gap-xs: 4px; --cds-gap-sm: 8px; --cds-gap-md: 12px; --cds-gap-lg: 20px; --cds-gap-xl: 32px;
+  --cds-pad-xs: 4px; --cds-pad-sm: 8px; --cds-pad-md: 14px; --cds-pad-lg: 20px; --cds-pad-xl: 28px;
+  --cds-radius: 8px; --cds-dur-slow: 300ms; --cds-ease-out: cubic-bezier(.2,.8,.2,1);
+  --cds-surface-popover: var(--color-panel); --cds-border: var(--color-border-line); --cds-shadow-popover: 0 6px 24px rgba(0,0,0,.16);
+  --cds-text-secondary: var(--color-fg-muted);
+  --cds-chart-grid: color-mix(in srgb, var(--color-fg) 9%, transparent);
+  --cds-chart-axis: color-mix(in srgb, var(--color-fg) 35%, transparent);
+  --cds-chart-reference: color-mix(in srgb, var(--color-fg) 45%, transparent);
+  --cds-chart-muted: color-mix(in srgb, var(--color-fg) 25%, transparent);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --color-bg: #111411; --color-panel: #1a1e19; --color-fg: #e6eae4; --color-fg-muted: #9ba398; --color-border-line: #2d332b;
+    --color-ok: #66bb6a; --color-warn: #ffb74d; --color-bad: #ef5350;
+    --cds-shadow-popover: 0 6px 24px rgba(0,0,0,.5);
+  }
+}
+html, body { margin: 0; background: var(--color-bg); color: var(--color-fg); font-family: var(--font-anthropic-sans); -webkit-text-size-adjust: 100%; }
+#dash-root { --dash-gutter: 16px; padding: 16px var(--dash-gutter) 8px; }
+.dash-skeleton { position: relative; color: transparent !important; min-height: 1.2em; }
+.dash-skeleton > * { visibility: hidden; }
+.dash-skeleton::after { content: ""; position: absolute; inset: 4px; border-radius: 6px; background: linear-gradient(90deg, color-mix(in srgb, var(--color-fg) 6%, transparent), color-mix(in srgb, var(--color-fg) 12%, transparent), color-mix(in srgb, var(--color-fg) 6%, transparent)); background-size: 200% 100%; animation: skel 1.4s linear infinite; }
+span.dash-skeleton { display: inline-block; min-width: 12rem; }
+@keyframes skel { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .dash-skeleton::after { animation: none; } }
+.site-foot { max-width: 1500px; margin: 0 auto; padding: 8px 16px 28px; font: .75rem/1.5 var(--font-anthropic-sans); color: var(--color-fg-muted); }
+.site-foot a { color: inherit; }
+</style>
+<script src="d3.min.js"></script>
+<script>
+/* Stand-in for the Claude dashboard runtime: loads the files listed in data/manifest.json
+   and tells the page whenever one arrives or the width changes. */
+(() => {
+  const listeners = [], store = {};
+  let manifest = null;
+  const manifestP = fetch('data/manifest.json', { cache: 'no-cache' }).then((r) => r.json()).then((m) => {
+    manifest = m;
+    const f = document.getElementById('site-updated');
+    if (f && m.updated) f.textContent = 'Data updated ' + d3.utcFormat('%b %-d, %Y')(new Date(m.updated + 'T00:00:00Z'));
+    return m;
+  });
+  let queued = false;
+  const notify = () => {
+    if (queued) return; queued = true;
+    requestAnimationFrame(() => { queued = false; for (const fn of listeners) { try { fn(); } catch (e) { console.error(e); } } });
+  };
+  function load(id) {
+    store[id] = { status: 'loading', data: [], message: '', refreshing: false };
+    manifestP.then((m) => {
+      const file = m.datasets[id];
+      if (!file) throw new Error('No data file for ' + id);
+      return fetch('data/' + file).then((r) => {
+        if (!r.ok) throw new Error(file + ': HTTP ' + r.status);
+        return file.endsWith('.json') ? r.json() : r.text().then((t) => d3.csvParse(t));
+      });
+    }).then((d) => {
+      store[id] = { status: 'ok', data: Array.isArray(d) ? d : (d.rows || d.data || d), message: '', refreshing: false };
+      notify();
+    }).catch((e) => {
+      console.error(e);
+      store[id] = { status: 'error', data: [], message: String(e.message || e), refreshing: false };
+      notify();
+    });
+    return store[id];
+  }
+  window.dash = {
+    data: (id) => store[id] || load(id),
+    onData: (fn) => { listeners.push(fn); try { fn(); } catch (e) { console.error(e); } },
+    colors: ['#3c8a2e', '#d9822b', '#2f6fb3', '#b0457a', '#7a5cc2', '#2a9d8f', '#c9a227', '#7d8a79'],
+    setLink: (name) => { try { history.replaceState(null, '', '#' + name); } catch (e) {} },
+    params: () => ({}), setParams() {}, resetParams() {}, refresh() {}, calc() {}, loader() {},
+  };
+  let w = 0;
+  addEventListener('resize', () => {
+    const el = document.getElementById('dash-root');
+    const nw = el ? el.clientWidth : 0;
+    if (nw !== w) { w = nw; notify(); }
+  });
+})();
+</script>
+</head>
+<body>
+<div id="dash-root">
+<!--PAGE-->
+</div>
+<footer class="site-foot"><span id="site-updated"></span> · Stats from <a href="https://pssbl.com" target="_blank" rel="noopener">pssbl.com</a> · Unofficial fan site, not affiliated with the PSSBL.</footer>
+</body>
+</html>

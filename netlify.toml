@@ -1,0 +1,9 @@
+# Netlify settings: no build step, just publish the public/ folder.
+[build]
+  publish = "public"
+  command = ""
+
+[[headers]]
+  for = "/data/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600, must-revalidate"

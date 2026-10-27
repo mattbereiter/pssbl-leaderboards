@@ -1,0 +1,877 @@
+<style>
+#dash-root { --dash-gutter: clamp(0.75rem, 2.5vw, 2rem); }
+.pg { --fg-green: #3c8a2e; --fg-green-ink: color-mix(in srgb, #4caf32 62%, var(--color-fg)); --fg-gold: color-mix(in srgb, #c69331 24%, var(--color-panel)); --fg-sort: color-mix(in srgb, #4caf32 9%, var(--color-panel)); --fg-hover: color-mix(in srgb, var(--color-fg) 5%, var(--color-panel));
+  font-family: var(--font-anthropic-sans); color: var(--color-fg); max-width: 1500px; margin-inline: auto; font-size: var(--cds-font-size-body); }
+.pg *, .pg *::before, .pg *::after { box-sizing: border-box; }
+.pg-top { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; background: var(--fg-green); color: #fff; border-radius: var(--cds-radius); overflow: hidden; overflow: clip; min-width: 0; }
+.pg-brand { display: flex; align-items: baseline; gap: .4rem; padding: var(--cds-pad-sm) var(--cds-pad-md); font-weight: 700; letter-spacing: -.01em; font-size: var(--cds-font-size-heading); white-space: nowrap; }
+.pg-brand small { font-weight: 400; opacity: .85; font-size: var(--cds-font-size-caption); }
+.pg-nav { display: flex; flex-wrap: wrap; margin-left: auto; }
+.pg-nav button { all: unset; cursor: pointer; padding: var(--cds-pad-sm) var(--cds-pad-md); font-weight: 600; font-size: var(--cds-font-size-caption); text-transform: uppercase; letter-spacing: .04em; color: #fff; opacity: .88; }
+.pg-nav button:hover { opacity: 1; background: rgba(0,0,0,.12); }
+.pg-nav button[aria-selected="true"] { opacity: 1; background: rgba(0,0,0,.25); box-shadow: inset 0 -3px 0 #fff; }
+.pg-nav button:focus-visible { outline: 2px solid #fff; outline-offset: -4px; }
+.pg-lede { margin: var(--cds-gap-md) 0 var(--cds-gap-md); color: var(--color-fg-muted); line-height: 1.5; min-height: 1.5em; }
+.pg-lede b { color: var(--color-fg); font-weight: 600; }
+.pg-page[hidden], .pg-ctrl[hidden] { display: none; }
+.pg-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md); margin-bottom: var(--cds-gap-md); min-width: 0; }
+.pg-card h2, .pg-card h3 { margin: 0 0 var(--cds-gap-xs); font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); }
+.pg-note { margin: 0 0 var(--cds-gap-sm); color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+.pg-ctrls { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm) var(--cds-gap-md); align-items: end; margin-bottom: var(--cds-gap-sm); }
+.pg-ctrl { display: flex; flex-direction: column; gap: 2px; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.pg-ctrl select, .pg-ctrl input { font: inherit; font-size: var(--cds-font-size-body); color: var(--color-fg); background: var(--color-bg); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: 4px 8px; min-height: 2rem; max-width: 100%; }
+.pg-seg { display: inline-flex; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); overflow: hidden; }
+.pg-seg button { all: unset; cursor: pointer; padding: 5px 12px; font-size: var(--cds-font-size-caption); font-weight: 600; color: var(--color-fg); min-height: 2rem; box-sizing: border-box; display: inline-flex; align-items: center; }
+.pg-seg button + button { border-left: 1px solid var(--color-border-line); }
+.pg-seg button[aria-pressed="true"] { background: var(--fg-green); color: #fff; }
+.pg-seg button:focus-visible { outline: 2px solid var(--fg-green-ink); outline-offset: -2px; }
+.pg-grouptabs { display: flex; gap: 0; border-bottom: 2px solid var(--fg-green); margin-bottom: 0; flex-wrap: wrap; }
+.pg-grouptabs button { all: unset; cursor: pointer; padding: 6px 14px; font-size: var(--cds-font-size-caption); font-weight: 600; color: var(--color-fg-muted); border-radius: var(--cds-radius) var(--cds-radius) 0 0; }
+.pg-grouptabs button[aria-pressed="true"] { background: var(--fg-green); color: #fff; }
+.pg-grouptabs .pg-count { margin-left: auto; align-self: center; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); padding: 0 4px; }
+.pg-tblwrap { max-height: 72vh; overflow: auto; border: 1px solid var(--color-border-line); border-top: 0; border-radius: 0 0 var(--cds-radius) var(--cds-radius); min-height: 8rem; position: relative; }
+.pg-tblwrap.short { max-height: none; min-height: 0; }
+.pg-tbl { border-collapse: separate; border-spacing: 0; width: 100%; font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; }
+.pg-tbl th, .pg-tbl td { padding: 4px 7px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--color-border-line); background: var(--color-panel); }
+.pg-tbl thead th { position: sticky; top: 0; z-index: 2; font-weight: 700; color: var(--color-fg); background: color-mix(in srgb, var(--color-fg) 7%, var(--color-panel)); border-bottom: 1px solid var(--color-fg-muted); }
+.pg-tbl thead th button { all: unset; cursor: pointer; display: block; width: 100%; text-align: inherit; }
+.pg-tbl thead th button:focus-visible { outline: 2px solid var(--fg-green-ink); }
+.pg-tbl thead th[aria-sort] { box-shadow: inset 0 -3px 0 var(--fg-green); }
+.pg-tbl th.l, .pg-tbl td.l { text-align: left; }
+.pg-tbl .rk { color: var(--color-fg-muted); width: 2.4rem; min-width: 2.4rem; text-align: right; }
+.pg-tbl .sticky1 { position: sticky; left: 0; z-index: 1; }
+.pg-tbl .sticky2 { position: sticky; left: 2.4rem; z-index: 1; box-shadow: 1px 0 0 var(--color-border-line); }
+.pg-tbl thead .sticky1, .pg-tbl thead .sticky2 { z-index: 3; }
+.pg-tbl td.srt { background: var(--fg-sort); font-weight: 600; }
+.pg-tbl tbody tr:hover td { background: var(--fg-hover); }
+.pg-tbl tr.me td { background: var(--fg-gold); }
+.pg-tbl tr.me td.name a::after { content: " ★"; color: #c69331; }
+.pg-tbl tr.champ td.name::after { content: " 🏆"; }
+.pg-tbl tr.career td { font-weight: 700; border-top: 2px solid var(--color-fg-muted); }
+.pg-tbl a, .pg-link { color: var(--fg-green-ink); text-decoration: none; font-weight: 600; cursor: pointer; background: none; border: 0; padding: 0; font: inherit; }
+.pg-tbl a:hover, .pg-link:hover { text-decoration: underline; }
+.pg-tbl .dim { color: var(--color-fg-muted); }
+.pg-empty { padding: var(--cds-pad-lg); text-align: center; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+.pg-failed { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 8rem; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+.pg-failed::before { content: ""; width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); }
+.pg-leaders { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: var(--cds-gap-sm); margin-bottom: var(--cds-gap-md); }
+.pg-lcard { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-sm) var(--cds-pad-md); min-height: 9.5rem; }
+.pg-lcard h4 { margin: 0 0 4px; font-size: var(--cds-font-size-caption); text-transform: uppercase; letter-spacing: .05em; color: var(--fg-green-ink); font-weight: 700; }
+.pg-lcard ol { margin: 0; padding: 0; list-style: none; font-size: var(--cds-font-size-caption); }
+.pg-lcard li { display: flex; gap: 6px; padding: 2px 0; border-bottom: 1px dotted var(--color-border-line); align-items: baseline; }
+.pg-lcard li:last-child { border-bottom: 0; }
+.pg-lcard li .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pg-lcard li .t { color: var(--color-fg-muted); }
+.pg-lcard li .v { font-variant-numeric: tabular-nums; font-weight: 700; }
+.pg-lcard li.me { background: var(--fg-gold); }
+.pg-lcard li:first-child .v { color: var(--fg-green-ink); }
+.pg-phead { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); align-items: end; justify-content: space-between; }
+.pg-pname { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; line-height: 1.1; }
+.pg-pname.me::after { content: " ★"; color: #c69331; }
+.pg-psub { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); margin-top: 4px; }
+.pg-strip { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); margin-top: var(--cds-gap-md); }
+.pg-stat { min-width: 4.5rem; }
+.pg-stat .k { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); text-transform: uppercase; letter-spacing: .04em; }
+.pg-stat .v { font-family: var(--font-anthropic-serif); font-size: var(--cds-font-size-title); font-variant-numeric: tabular-nums; line-height: 1.15; }
+.pg-search { position: relative; min-width: min(100%, 18rem); }
+.pg-search input { width: 100%; }
+.pg-sugg { position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); max-height: 18rem; overflow: auto; margin-top: 2px; }
+.pg-sugg[hidden] { display: none; }
+.pg-sugg button { all: unset; display: block; width: 100%; box-sizing: border-box; padding: 6px 10px; cursor: pointer; font-size: var(--cds-font-size-caption); }
+.pg-sugg button:hover, .pg-sugg button:focus-visible { background: var(--fg-hover); }
+.pg-sugg button span { color: var(--color-fg-muted); }
+.pg-chart { position: relative; min-height: 200px; margin-bottom: var(--cds-gap-sm); }
+.pg-chart svg text { fill: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+.pg-tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); white-space: nowrap; z-index: 5; }
+.pg-tip .h { color: var(--cds-text-secondary); }
+.pg-legend { display: flex; gap: var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin-bottom: 4px; flex-wrap: wrap; }
+.pg-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+.pg-divgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 36rem), 1fr)); gap: var(--cds-gap-md); }
+.pg-divgrid .pg-card { margin: 0; }
+.pg-gloss { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 2px var(--cds-gap-lg); font-size: var(--cds-font-size-caption); line-height: 1.45; margin: 0; }
+.pg-gloss div { padding: 5px 0; border-bottom: 1px dotted var(--color-border-line); }
+.pg-gloss dt { font-weight: 700; display: inline; }
+.pg-gloss dd { display: inline; margin: 0; color: var(--color-fg-muted); }
+.pg-gloss dd::before { content: " — "; }
+[data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+[data-dash-source-state=empty] { color: transparent; }
+
+.pg { container-type: inline-size; }
+.pg-pager { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; padding-top: var(--cds-pad-sm); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.pg-pager label { display: inline-flex; gap: 6px; align-items: center; margin-right: auto; }
+.pg-pager select { font: inherit; color: var(--color-fg); background: var(--color-bg); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: 2px 6px; min-height: 2rem; }
+.pg-pager button { all: unset; cursor: pointer; min-width: 2rem; min-height: 2rem; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); color: var(--color-fg); font-weight: 700; box-sizing: border-box; }
+.pg-pager button:disabled { opacity: .35; cursor: default; }
+.pg-pager button:not(:disabled):hover { background: var(--fg-hover); }
+.pg-pager button:focus-visible { outline: 2px solid var(--fg-green-ink); }
+.pg-pager .pi { font-variant-numeric: tabular-nums; padding: 0 4px; color: var(--color-fg); }
+.pg-tbl .ghost th { height: 0; padding-top: 0; padding-bottom: 0; line-height: 0; font-size: 0; border: 0; visibility: hidden; }
+.pg-stack { overflow: auto; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); }
+.pg-stack .pg-tbl { width: auto; }
+.pg-stack .pg-tbl + .pg-tbl tbody tr:first-child td { border-top: 0; }
+@container (max-width: 760px) {
+  .pg-top { flex-direction: column; }
+  .pg-brand { padding-bottom: 0; }
+  .pg-brand small { display: none; }
+  .pg-nav { margin-left: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; width: 100%; min-width: 0; max-width: 100%; }
+  .pg-nav::-webkit-scrollbar { display: none; }
+  .pg-nav button { flex: none; padding: 10px 12px; }
+  .pg-ctrls { display: grid; grid-template-columns: 1fr 1fr; gap: var(--cds-gap-sm); }
+  .pg-ctrl.wide { grid-column: 1 / -1; }
+  .pg-ctrl select, .pg-ctrl input { width: 100%; }
+  .pg-seg { display: flex; }
+  .pg-seg button { flex: 1; justify-content: center; }
+  .pg-leaders { grid-auto-flow: column; grid-template-columns: none; grid-auto-columns: minmax(12.5rem, 72%); overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 4px; scrollbar-width: thin; }
+  .pg-lcard { scroll-snap-align: start; }
+  .pg-card { padding: var(--cds-pad-sm); }
+  .pg-tbl .col-div { display: none; }
+  .pg-tbl td.name { max-width: 8.5rem; overflow: hidden; text-overflow: ellipsis; }
+  .pg-tbl .rk { width: 2rem; min-width: 2rem; }
+  .pg-tbl .sticky2 { left: 2rem; }
+  .pg-tblwrap { max-height: 64vh; }
+  .pg-grouptabs .pg-count { flex-basis: 100%; margin: 4px 0 2px; order: 9; }
+  .pg-grouptabs button { flex: 1; text-align: center; }
+  .pg-stat .v { font-size: var(--cds-font-size-heading); }
+  .pg-pname { font-size: var(--cds-font-size-heading); }
+  .pg-pager label { flex-basis: 100%; }
+}
+</style>
+
+<div class="pg">
+  <header class="pg-top" id="top">
+    <div class="pg-brand">PSSBL <span style="font-weight:400">Leaderboards</span> <small>Puget Sound Senior Baseball League</small></div>
+    <nav class="pg-nav" role="tablist" aria-label="Sections">
+      <button role="tab" id="tab-leaders" data-tab="leaders" aria-selected="true">Leaders</button>
+      <button role="tab" id="tab-players" data-tab="players" aria-selected="false">Players</button>
+      <button role="tab" id="tab-standings" data-tab="standings" aria-selected="false">Standings</button>
+      <button role="tab" id="tab-guts" data-tab="guts" aria-selected="false">Guts!</button>
+      <button role="tab" id="tab-me" data-tab="me" aria-selected="false">★ My page</button>
+    </nav>
+  </header>
+
+  <p class="pg-lede" id="lede"><span class="dash-skeleton">—</span></p>
+
+  <!-- LEADERS -->
+  <section class="pg-page" id="leaders">
+    <div class="pg-ctrls">
+      <div class="pg-ctrl wide">Stats<div class="pg-seg" id="lb-type"><button data-v="bat" aria-pressed="true">Batting</button><button data-v="pit" aria-pressed="false">Pitching</button></div></div>
+      <label class="pg-ctrl">Season<select id="lb-season" aria-label="Season" data-source="guts"></select></label>
+      <label class="pg-ctrl" id="lb-range-ctrl">Dates<select id="lb-range" aria-label="Date range"></select></label>
+      <label class="pg-ctrl" id="lb-from-ctrl">From<input id="lb-from" type="date" aria-label="From date"></label>
+      <label class="pg-ctrl" id="lb-to-ctrl">To<input id="lb-to" type="date" aria-label="To date"></label>
+      <label class="pg-ctrl">Division<select id="lb-div" aria-label="Division"></select></label>
+      <label class="pg-ctrl">Team<select id="lb-team" aria-label="Team"></select></label>
+      <label class="pg-ctrl"><span id="lb-min-label">Min PA</span><select id="lb-min" aria-label="Minimum"></select></label>
+      <label class="pg-ctrl wide">Player<input id="lb-q" type="search" placeholder="Search name" aria-label="Search player"></label>
+    </div>
+    <div class="pg-leaders" id="lb-cards"></div>
+    <div class="pg-card" id="lb-card" style="padding-bottom: var(--cds-pad-sm)">
+      <h2 id="lb-title">Batting leaders</h2>
+      <p class="pg-note" id="lb-note">Click a column to sort, a name for the player page.</p>
+      <div class="pg-grouptabs" id="lb-group"><button data-v="dash" aria-pressed="true">Dashboard</button><button data-v="std" aria-pressed="false">Standard</button><button data-v="adv" aria-pressed="false">Advanced</button><span class="pg-count" id="lb-count"></span></div>
+      <div class="pg-tblwrap dash-skeleton" id="lb-wrap"><table class="pg-tbl" id="lb-table" data-source="batting" data-row-key="key"></table></div>
+      <div class="pg-pager" id="lb-pager"><label>Rows per page <select id="lb-size" aria-label="Rows per page"><option>25</option><option selected>50</option><option>100</option><option>250</option></select></label><button type="button" data-p="first" aria-label="First page">«</button><button type="button" data-p="prev" aria-label="Previous page">‹</button><span class="pi" id="lb-pageinfo"></span><button type="button" data-p="next" aria-label="Next page">›</button><button type="button" data-p="last" aria-label="Last page">»</button></div>
+    </div>
+  </section>
+
+  <!-- PLAYERS -->
+  <section class="pg-page" id="players" hidden>
+    <div class="pg-card" id="p-head">
+      <div class="pg-phead">
+        <div>
+          <h2 class="pg-pname" id="p-name">—</h2>
+          <div class="pg-psub" id="p-sub"></div>
+        </div>
+        <div class="pg-ctrl pg-search wide">Find a player
+          <input id="p-q" type="search" placeholder="Type a name…" aria-label="Find a player" autocomplete="off">
+          <div class="pg-sugg" id="p-sugg" hidden></div>
+        </div>
+      </div>
+      <div class="pg-strip" id="p-strip"></div>
+    </div>
+    <div class="pg-grouptabs" id="p-group" style="margin-bottom: var(--cds-gap-md); border-bottom-width: 0"><button data-v="dash" aria-pressed="true">Dashboard</button><button data-v="std" aria-pressed="false">Standard</button><button data-v="adv" aria-pressed="false">Advanced</button></div>
+    <div class="pg-card" id="p-bat">
+      <h3>Batting</h3>
+      <p class="pg-note">wRC+ by team-season (dot size = PA). 100 is division average; higher is better.</p>
+      <div class="pg-chart" id="p-bat-chart"></div>
+      <div class="pg-stack" id="p-bat-tables"></div>
+    </div>
+    <div class="pg-card" id="p-pit">
+      <h3>Pitching</h3>
+      <p class="pg-note">ERA- and FIP- by team-season. 100 is division average; lower is better.</p>
+      <div class="pg-chart" id="p-pit-chart"></div>
+      <div class="pg-stack" id="p-pit-tables"></div>
+    </div>
+  </section>
+
+  <!-- STANDINGS -->
+  <section class="pg-page" id="standings" hidden>
+    <div class="pg-ctrls">
+      <label class="pg-ctrl">Season<select id="st-season" aria-label="Season" data-source="guts"></select></label>
+    </div>
+    <p class="pg-note">Regular-season records from final scores. xW is the Pythagorean (Pythagenpat) win total from runs scored and allowed; Luck = actual wins − xW. Team wRC+, FIP and WAR come from the full-season player lines, playoffs included. 🏆 won the division's last playoff game. Click a team to see its leaderboard.</p>
+    <div class="pg-divgrid" id="st-grid"></div>
+  </section>
+
+  <!-- GUTS -->
+  <section class="pg-page" id="guts" hidden>
+    <div class="pg-card">
+      <h2>Guts! — league constants</h2>
+      <p class="pg-note">Every division-season is its own run environment (like the AL and NL), so wRC+, FIP, ERA- and WAR are always measured against the player's own division that year.</p>
+      <div class="pg-ctrls"><label class="pg-ctrl">Season<select id="gu-season" aria-label="Season" data-source="guts"></select></label></div>
+      <div class="pg-tblwrap" id="gu-wrap" style="border-top:1px solid var(--color-border-line); border-radius: var(--cds-radius)"><table class="pg-tbl" id="gu-table" data-row-key="key"></table></div>
+    </div>
+    <div class="pg-card" id="glossary">
+      <h2>Glossary &amp; method</h2>
+      <p class="pg-note">Built from pssbl.com's cumulative player stats (regular season + playoffs). PSSBL doesn't track fielding positions, batted balls or pitch-level data, so WAR here is a simplified version: hitters get offense + baserunning only (oWAR), pitchers get FIP-based WAR.</p>
+      <dl class="pg-gloss">
+        <div><dt>PA</dt><dd>Plate appearances: AB + BB + HBP + SF + SH.</dd></div>
+        <div><dt>BB% / K%</dt><dd>Walks or strikeouts per plate appearance (per batter faced for pitchers).</dd></div>
+        <div><dt>ISO</dt><dd>Isolated power: SLG − AVG.</dd></div>
+        <div><dt>BABIP</dt><dd>Batting average on balls in play: (H − HR) / (AB − K − HR + SF).</dd></div>
+        <div><dt>wOBA</dt><dd>Weighted on-base average: each way of reaching base weighted by its run value (weights in Guts).</dd></div>
+        <div><dt>wRAA</dt><dd>Runs above division average from hitting: (wOBA − lg wOBA) / wOBA scale × PA.</dd></div>
+        <div><dt>wRC / wRC+</dt><dd>Runs created; wRC+ scales it so 100 is division average and 150 is 50% better. The best single number for a hitter.</dd></div>
+        <div><dt>wSB</dt><dd>Stolen-base runs above average, using the division's run value of a caught stealing.</dd></div>
+        <div><dt>Off</dt><dd>wRAA + wSB: total offensive runs above average.</dd></div>
+        <div><dt>oWAR</dt><dd>Offensive wins above replacement: (Off + replacement runs) ÷ runs-per-win. No fielding or position credit.</dd></div>
+        <div><dt>Qualified</dt><dd>2 PA or 0.5 IP per team game (career: 150 PA / 50 IP), the same bar as the PSSBL Tracker.</dd></div>
+        <div><dt>IP</dt><dd>Innings pitched; .1 and .2 are one and two outs.</dd></div>
+        <div><dt>TBF</dt><dd>Batters faced, estimated as outs + H + BB + HBP (PSSBL rarely records it).</dd></div>
+        <div><dt>LOB%</dt><dd>Share of runners stranded: (H + BB + HBP − R) / (H + BB + HBP − 1.4 × HR).</dd></div>
+        <div><dt>FIP</dt><dd>Fielding-independent pitching: (13·HR + 3·(BB + HBP) − 2·K) / IP + the division's FIP constant. Strips out defense — which matters a lot in adult-league ball.</dd></div>
+        <div><dt>E-F</dt><dd>ERA − FIP. Big positive numbers suggest bad luck or bad defense behind the pitcher.</dd></div>
+        <div><dt>ERA- / FIP-</dt><dd>ERA or FIP as a percent of division ERA; 100 is average, lower is better.</dd></div>
+        <div><dt>WAR (pitching)</dt><dd>FanGraphs-style FIP WAR: runs saved vs division RA9 by FIP, converted with a pitcher-specific runs-per-win, plus replacement level by role.</dd></div>
+        <div><dt>R/W</dt><dd>Runs per win: 9 × (R/IP) × 1.5 + 3. High-scoring divisions need more runs to buy a win.</dd></div>
+        <div><dt>xW / Luck</dt><dd>Pythagenpat expected wins from RS and RA; Luck is wins above that.</dd></div>
+      </dl>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const MATT = '8048';
+  const STR = new Set(['key', 'pid', 'Name', 'Team', 'tid', 'ptid', 'Division', 'Date', 'kind', 'gameId']);
+  const DS = { bat: { cur: 'batting', hist: 'batting_hist', career: 'bat_career' }, pit: { cur: 'pitching', hist: 'pitching_hist', career: 'pit_career' } };
+
+  // ---------- data access (typed once per load, tracked for redraw checks) ----------
+  let touched = new Set();
+  const refIds = new WeakMap(); let refN = 0;
+  const refId = (o) => (o && typeof o === 'object') ? (refIds.get(o) || (refIds.set(o, ++refN), refN)) : String(o);
+  const cache = {};
+  const memo = new Map();
+  const statusOf = (id) => { touched.add(id); return dash.data(id).status; };
+  const bad = (id) => { const s = statusOf(id); return s === 'error' || s === 'declined'; };
+  const rowsOf = (id) => {
+    touched.add(id);
+    const d = dash.data(id);
+    if (d.status !== 'ok' || !Array.isArray(d.data)) return null;
+    if (cache[id] && cache[id].src === d.data) return cache[id].rows;
+    const rows = new Array(d.data.length);
+    for (let i = 0; i < d.data.length; i++) {
+      const r = d.data[i], o = {};
+      for (const k in r) {
+        const v = r[k];
+        if (STR.has(k)) o[k] = v == null ? '' : String(v);
+        else if (v === '' || v == null) o[k] = null;
+        else if (v === true || v === 'true') o[k] = true;
+        else if (v === false || v === 'false') o[k] = false;
+        else { const n = Number(v); o[k] = Number.isNaN(n) ? v : n; }
+      }
+      rows[i] = o;
+    }
+    cache[id] = { src: d.data, rows };
+    return rows;
+  };
+  const memoize = (key, deps, fn) => {
+    const m = memo.get(key);
+    if (m && m.deps.length === deps.length && m.deps.every((d, i) => d === deps[i])) return m.val;
+    const val = fn(); memo.set(key, { deps, val }); return val;
+  };
+  const seasonRows = (id, season) => { const rows = rowsOf(id); return rows && memoize(id + '|' + season, [rows], () => rows.filter((r) => r.Season === season)); };
+  const pidRows = (id, pid) => { const rows = rowsOf(id); return rows && memoize(id + '#' + pid, [rows], () => rows.filter((r) => r.pid === pid)); };
+
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const enc = (s) => encodeURIComponent(String(s));
+  const $ = (s) => document.querySelector(s);
+
+  // ---------- formats ----------
+  const R3 = new Set(['AVG', 'OBP', 'SLG', 'OPS', 'ISO', 'BABIP', 'wOBA', 'Pct']);
+  const PCT = new Set(['BB%', 'K%', 'K-BB%', 'LOB%']);
+  const F2 = new Set(['K/9', 'BB/9', 'HR/9', 'ERA', 'FIP', 'E-F', 'WHIP', 'BB/K', 'RS/G', 'RA/G', 'R/G', 'RA9', 'cFIP', 'R/W', 'wOBAScale', 'wBB', 'wHBP', 'w1B', 'w2B', 'w3B', 'wHR']);
+  const F1 = new Set(['Off', 'oWAR', 'WAR', 'pWAR', 'wRAA', 'wSB', 'wRC', 'pythW', 'pythL', 'Luck', 'GB', 'runSB', 'IP']);
+  const fmt = (c, v) => {
+    if (v == null || v === '') return '';
+    if (typeof v !== 'number') return String(v);
+    if (R3.has(c)) { const s = v.toFixed(3); return Math.abs(v) < 1 ? s.replace(/^(-?)0\./, '$1.') : s; }
+    if (PCT.has(c)) return v.toFixed(1) + ' %';
+    if (F2.has(c)) return v.toFixed(2);
+    if (F1.has(c)) return v.toFixed(1);
+    if (c === 'R/PA' || c === 'runCS') return v.toFixed(3);
+    if (c === 'repR/PA') return v.toFixed(4);
+    return String(v);
+  };
+  const BAT = {
+    dash: ['G', 'PA', 'HR', 'R', 'RBI', 'SB', 'BB%', 'K%', 'ISO', 'BABIP', 'AVG', 'OBP', 'SLG', 'wOBA', 'wRC+', 'Off', 'oWAR'],
+    std: ['G', 'AB', 'PA', 'H', '1B', '2B', '3B', 'HR', 'R', 'RBI', 'BB', 'IBB', 'SO', 'HBP', 'SF', 'SH', 'GDP', 'SB', 'CS', 'AVG'],
+    adv: ['PA', 'BB%', 'K%', 'BB/K', 'AVG', 'OBP', 'SLG', 'OPS', 'ISO', 'BABIP', 'wOBA', 'wRAA', 'wRC', 'wRC+', 'wSB'],
+  };
+  const PIT = {
+    dash: ['W', 'L', 'SV', 'G', 'GS', 'IP', 'K/9', 'BB/9', 'HR/9', 'BABIP', 'LOB%', 'ERA', 'FIP', 'E-F', 'WAR'],
+    std: ['W', 'L', 'ERA', 'G', 'GS', 'CG', 'SHO', 'SV', 'HLD', 'IP', 'TBF', 'H', 'R', 'ER', 'HR', 'BB', 'IBB', 'HBP', 'WP', 'SO'],
+    adv: ['K/9', 'BB/9', 'K%', 'BB%', 'K-BB%', 'AVG', 'WHIP', 'BABIP', 'LOB%', 'ERA-', 'FIP-', 'FIP', 'E-F', 'WAR'],
+  };
+  const LOW = {
+    bat: new Set(['K%', 'SO', 'CS', 'GDP']),
+    pit: new Set(['L', 'ERA', 'FIP', 'ERA-', 'FIP-', 'BB/9', 'HR/9', 'BB%', 'AVG', 'WHIP', 'BABIP', 'H', 'R', 'ER', 'HR', 'BB', 'IBB', 'HBP', 'WP', 'E-F']),
+  };
+  const DEF = {
+    G: 'Games', PA: 'Plate appearances', AB: 'At bats', H: 'Hits', HR: 'Home runs', R: 'Runs', RBI: 'Runs batted in', SB: 'Stolen bases', CS: 'Caught stealing',
+    'BB%': 'Walk rate', 'K%': 'Strikeout rate', ISO: 'Isolated power (SLG − AVG)', BABIP: 'Batting average on balls in play', wOBA: 'Weighted on-base average',
+    'wRC+': 'Weighted runs created, 100 = division average', Off: 'Offensive runs above average (wRAA + wSB)', oWAR: 'Offensive wins above replacement',
+    wRAA: 'Weighted runs above average', wRC: 'Weighted runs created', wSB: 'Stolen-base runs above average', 'BB/K': 'Walks per strikeout',
+    W: 'Wins', L: 'Losses', SV: 'Saves', HLD: 'Holds', GS: 'Games started', IP: 'Innings pitched', 'K/9': 'Strikeouts per 9', 'BB/9': 'Walks per 9', 'HR/9': 'Home runs per 9',
+    'LOB%': 'Left-on-base rate', ERA: 'Earned run average', FIP: 'Fielding-independent pitching', 'E-F': 'ERA minus FIP', WAR: 'Wins above replacement (FIP-based)',
+    'ERA-': 'ERA vs division, 100 = average, lower is better', 'FIP-': 'FIP vs division, 100 = average, lower is better', 'K-BB%': 'Strikeout minus walk rate',
+    WHIP: 'Walks + hits per inning', TBF: 'Batters faced (estimated)', AVG: 'Batting average',
+  };
+
+  // ---------- state ----------
+  const L = { type: 'bat', season: null, div: 'All', team: 'All', min: 'q', group: 'dash', q: '', sort: 'oWAR', dir: -1, page: 0, size: 50, range: 'full', from: null, to: null };
+  const P = { pid: MATT, group: 'dash' };
+  const S = { season: null };
+  const G = { season: null };
+  let tab = 'leaders';
+  const pages = ['leaders', 'players', 'standings', 'guts'];
+
+  function showTab(t, link = true) {
+    if (t === 'me') { P.pid = MATT; t = 'players'; }
+    const changed = t !== tab;
+    tab = t;
+    pages.forEach((p) => { $('#' + p).hidden = p !== t; });
+    document.querySelectorAll('.pg-nav button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
+    if (link) dash.setLink(t);
+    render();
+    if (changed || t === 'players') { const top = $('#top'); if (top.getBoundingClientRect().top < 0) top.scrollIntoView({ block: 'start' }); }
+  }
+  document.querySelectorAll('.pg-nav button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+  const seg = (sel, onPick) => {
+    const el = $(sel);
+    el.addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (b) onPick(b.dataset.v); });
+    return (v) => el.querySelectorAll('button[data-v]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === v)));
+  };
+  const upd = (fn) => { fn(); L.page = 0; render(); };
+  const setType = seg('#lb-type', (v) => { if (L.type !== v) upd(() => { L.type = v; L.sort = v === 'bat' ? 'oWAR' : 'WAR'; L.dir = -1; L.min = 'q'; L.team = 'All'; }); });
+  const setGroup = seg('#lb-group', (v) => upd(() => { L.group = v; }));
+  const setPGroup = seg('#p-group', (v) => { P.group = v; render(); });
+
+  $('#lb-season').addEventListener('change', (e) => upd(() => { L.season = e.target.value === 'Career' ? 'Career' : Number(e.target.value); L.team = 'All'; L.range = 'full'; L.from = L.to = null; }));
+  $('#lb-range').addEventListener('change', (e) => upd(() => { L.range = e.target.value; if (L.range !== 'custom') L.from = L.to = null; }));
+  const onDate = (el, k) => {
+    el.addEventListener('change', () => {
+      if (el.value && !(el.validity.valid && el.value >= el.min && el.value <= el.max)) return;
+      upd(() => {
+        const sp = rangeSpec() || {};
+        if (L.range !== 'custom') { L.from = sp.from || null; L.to = sp.to || null; }
+        L[k] = el.value || null;
+        if (L.from && L.to && L.from > L.to) { if (k === 'from') L.to = L.from; else L.from = L.to; }
+        L.range = (L.from || L.to) ? 'custom' : 'full';
+      });
+    });
+    el.addEventListener('blur', () => render());
+  };
+  onDate($('#lb-from'), 'from'); onDate($('#lb-to'), 'to');
+  $('#lb-div').addEventListener('change', (e) => upd(() => { L.div = e.target.value; L.team = 'All'; }));
+  $('#lb-team').addEventListener('change', (e) => upd(() => { L.team = e.target.value; }));
+  $('#lb-min').addEventListener('change', (e) => upd(() => { L.min = e.target.value; }));
+  $('#lb-size').addEventListener('change', (e) => upd(() => { L.size = Number(e.target.value); }));
+  let qT;
+  $('#lb-q').addEventListener('input', (e) => { clearTimeout(qT); const v = e.target.value.trim().toLowerCase(); qT = setTimeout(() => upd(() => { L.q = v; }), 120); });
+  $('#lb-pager').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-p]');
+    if (!b || b.disabled) return;
+    const last = Number(b.closest('.pg-pager').dataset.last || 0);
+    L.page = { first: 0, prev: L.page - 1, next: L.page + 1, last }[b.dataset.p];
+    render();
+    $('#lb-wrap').scrollTop = 0;
+  });
+  $('#st-season').addEventListener('change', (e) => { S.season = Number(e.target.value); render(); });
+  $('#gu-season').addEventListener('change', (e) => { G.season = e.target.value === 'All' ? 'All' : Number(e.target.value); render(); });
+
+  $('#lb-table').addEventListener('click', (e) => {
+    const th = e.target.closest('thead th[data-col]');
+    if (th) {
+      const f = th.dataset.col;
+      upd(() => {
+        if (['Name', 'Team', 'Division'].includes(f)) L.dir = L.sort === f ? -L.dir : 1;
+        else L.dir = L.sort === f ? -L.dir : (LOW[L.type].has(f) ? 1 : -1);
+        L.sort = f;
+      });
+      return;
+    }
+    const t = e.target.closest('a[data-tid]');
+    if (t) { e.preventDefault(); upd(() => { L.team = t.dataset.tid; }); }
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.pg')) return;
+    const a = e.target.closest('[data-pid]');
+    if (a) { e.preventDefault(); P.pid = a.dataset.pid; $('#p-sugg').hidden = true; $('#p-q').value = ''; showTab('players'); return; }
+    const t = e.target.closest('#st-grid a[data-tid], #players a[data-tid]');
+    if (t) { e.preventDefault(); L.season = Number(t.dataset.season); L.div = t.dataset.div; L.team = t.dataset.tid; L.page = 0; showTab('leaders'); return; }
+    if (!e.target.closest('.pg-search')) $('#p-sugg').hidden = true;
+  });
+
+  // ---------- helpers ----------
+  const seasonsAvail = () => { const g = rowsOf('guts'); return g && memoize('seasons', [g], () => [...new Set(g.map((r) => r.Season))].sort((a, b) => b - a)); };
+  const fillSelect = (el, opts, value) => {
+    const key = JSON.stringify(opts);
+    if (el._k !== key) { el.replaceChildren(...opts.map(([v, t]) => new Option(t, v))); el._k = key; }
+    if (el.value !== String(value)) el.value = String(value);
+  };
+  const cmp = (f, dir) => (a, b) => {
+    const x = a[f], y = b[f];
+    if (x == null && y == null) return 0;
+    if (x == null) return 1;
+    if (y == null) return -1;
+    if (typeof x === 'string') return dir * x.localeCompare(y);
+    return dir * (x - y);
+  };
+  const failed = (el) => { el.classList.remove('dash-skeleton'); el.innerHTML = '<div class="pg-failed">Failed to load</div>'; };
+  const sourceFor = (type, season, latest) => season === 'Career' ? DS[type].career : (season === latest ? DS[type].cur : DS[type].hist);
+
+
+  // ---------- DATE RANGE (rebuilt from box scores) ----------
+  const RANGES = [['full', 'Full season'], ['reg', 'Regular season'], ['post', 'Playoffs'], ['m4', 'April'], ['m5', 'May'], ['m6', 'June'], ['m7', 'July'], ['m8', 'August'], ['m9', 'September'], ['custom', 'Custom dates']];
+  function rangeSpec() {
+    if (L.season === 'Career' || L.season == null || L.range === 'full') return null;
+    const y = L.season;
+    if (L.range === 'reg') return { po: 0 };
+    if (L.range === 'post') return { po: 1 };
+    if (L.range[0] === 'm') {
+      const m = Number(L.range.slice(1)), mm = String(m).padStart(2, '0');
+      return { from: `${y}-${mm}-01`, to: `${y}-${mm}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0')}` };
+    }
+    return (L.from || L.to) ? { from: L.from, to: L.to } : null;
+  }
+  const fmtDay = (d) => d3.utcFormat('%b %-d')(new Date(d + 'T00:00:00Z'));
+  function rangeLabel(sp) {
+    if (!sp) return '';
+    if (L.range !== 'custom') return RANGES.find(([v]) => v === L.range)[1];
+    return `${sp.from ? fmtDay(sp.from) : 'start'} – ${sp.to ? fmtDay(sp.to) : 'end'}`;
+  }
+  const SUMS = { bat: ['AB', 'R', 'H', '2B', '3B', 'HR', 'RBI', 'SB', 'CS', 'BB', 'SO', 'GDP', 'HBP', 'SH', 'SF', 'CI'], pit: ['GS', 'Outs', 'W', 'L', 'SV', 'CG', 'H', 'R', 'ER', 'HR', 'IBB', 'BB', 'SO', 'HBP', 'WP'] };
+  const rd = (x, n) => (x == null || !Number.isFinite(x)) ? null : Math.round(x * 10 ** n) / 10 ** n;
+  function batLine(a, gc, tg) {
+    const s = a.s, AB = s.AB, H = s.H, D = s['2B'], T = s['3B'], HR = s.HR, BB = s.BB, HBP = s.HBP, SF = s.SF, SO = s.SO, SB = s.SB, CS = s.CS;
+    const pa = AB + BB + HBP + SF + s.SH + s.CI, s1 = H - D - T - HR, tb = s1 + 2 * D + 3 * T + 4 * HR;
+    const avg = AB ? H / AB : null, od = AB + BB + HBP + SF, obp = od ? (H + BB + HBP) / od : null, slg = AB ? tb / AB : null, bip = AB - SO - HR + SF;
+    const wden = AB + BB + SF + HBP, woba = wden ? (gc.wBB * BB + gc.wHBP * HBP + gc.w1B * s1 + gc.w2B * D + gc.w3B * T + gc.wHR * HR) / wden : null;
+    const wraa = woba != null ? (woba - gc.wOBA) / gc.wOBAScale * pa : 0;
+    const wsb = SB * gc.runSB + CS * gc.runCS - gc.lgwSB * (s1 + BB + HBP), rpa = gc['R/PA'];
+    return { key: a.key, Season: a.Season, pid: a.pid, Name: a.Name, Team: a.Team, tid: a.tid, Division: a.Division, TG: tg, G: a.g.size, PA: pa, AB, H, '1B': s1, '2B': D, '3B': T, HR, R: s.R, RBI: s.RBI, BB, IBB: 0, SO, HBP, SF, SH: s.SH, GDP: s.GDP, SB, CS,
+      'BB%': pa ? rd(100 * BB / pa, 1) : null, 'K%': pa ? rd(100 * SO / pa, 1) : null, 'BB/K': SO ? rd(BB / SO, 2) : null,
+      AVG: rd(avg, 3), OBP: rd(obp, 3), SLG: rd(slg, 3), OPS: pa ? rd((obp || 0) + (slg || 0), 3) : null, ISO: AB ? rd(slg - avg, 3) : null, BABIP: bip > 0 ? rd((H - HR) / bip, 3) : null,
+      wOBA: rd(woba, 3), wRAA: rd(wraa, 1), wSB: rd(wsb, 1), wRC: rd(wraa + rpa * pa, 1), 'wRC+': pa ? Math.round(100 * (wraa / pa + rpa) / rpa) : null,
+      Off: rd(wraa + wsb, 1), oWAR: rd((wraa + wsb + gc['repR/PA'] * pa) / gc['R/W'], 1), Qual: pa >= 2 * tg };
+  }
+  function pitLine(a, gc, tg) {
+    const s = a.s, outs = s.Outs, ip = outs / 3, G = a.g.size, H = s.H, BB = s.BB, HBP = s.HBP, HR = s.HR, SO = s.SO, tbf = outs + H + BB + HBP;
+    const fip = ip ? (13 * HR + 3 * (BB + HBP) - 2 * SO) / ip + gc.cFIP : null, era = ip ? 9 * s.ER / ip : null;
+    let war = null;
+    if (ip) {
+      const fipr9 = fip + (gc.RA9 - gc.ERA), ipg = ip / Math.max(1, G);
+      const drpw = ((((18 - ipg) * gc.RA9 + ipg * fipr9) / 18) + 2) * 1.5, gsr = s.GS / Math.max(1, G);
+      war = ((gc.RA9 - fipr9) / drpw + (0.03 * (1 - gsr) + 0.12 * gsr)) * ip / 9;
+    }
+    const lob = H + BB + HBP - 1.4 * HR, bip = H - HR + outs - SO, ab = tbf - BB - HBP;
+    return { key: a.key, Season: a.Season, pid: a.pid, Name: a.Name, Team: a.Team, tid: a.tid, Division: a.Division, TG: tg, W: s.W, L: s.L, SV: s.SV, HLD: null, G, GS: s.GS, CG: s.CG, SHO: null,
+      IP: Math.floor(outs / 3) + (outs % 3) / 10, Outs: outs, TBF: tbf, H, R: s.R, ER: s.ER, HR, BB, IBB: s.IBB, SO, HBP, WP: s.WP,
+      'K/9': ip ? rd(9 * SO / ip, 2) : null, 'BB/9': ip ? rd(9 * BB / ip, 2) : null, 'HR/9': ip ? rd(9 * HR / ip, 2) : null,
+      'K%': tbf ? rd(100 * SO / tbf, 1) : null, 'BB%': tbf ? rd(100 * BB / tbf, 1) : null, 'K-BB%': tbf ? rd(100 * (SO - BB) / tbf, 1) : null,
+      AVG: ab > 0 ? rd(H / ab, 3) : null, WHIP: ip ? rd((H + BB) / ip, 2) : null, BABIP: bip > 0 ? rd((H - HR) / bip, 3) : null, 'LOB%': lob > 0 ? rd(100 * (H + BB + HBP - s.R) / lob, 1) : null,
+      ERA: rd(era, 2), FIP: rd(fip, 2), 'ERA-': ip ? Math.round(100 * era / gc.ERA) : null, 'FIP-': ip ? Math.round(100 * fip / gc.ERA) : null, 'E-F': ip ? rd(era - fip, 2) : null,
+      WAR: rd(war, 1), Qual: ip >= 0.5 * tg };
+  }
+  function aggregateBox(box, guts, season, type, sp) {
+    const gc = new Map();
+    for (const r of guts) if (r.Season === season) gc.set(r.Division, r);
+    const TG = new Map(), acc = new Map(), games = new Set();
+    for (const r of box) {
+      if (sp.po != null && r.PO !== sp.po) continue;
+      if (sp.from && r.Date < sp.from) continue;
+      if (sp.to && r.Date > sp.to) continue;
+      games.add(r.gameId);
+      if (r.kind === 'bat') { const pt = r.ptid || r.tid; let g = TG.get(pt); if (!g) TG.set(pt, g = new Set()); g.add(r.gameId); }
+      if (r.kind !== type) continue;
+      const key = `${season}-${r.pid}-${r.tid}`;
+      let a = acc.get(key);
+      if (!a) { a = { key, Season: season, pid: r.pid, Name: r.Name, Team: r.Team, tid: r.tid, Division: r.Division, g: new Set(), s: {} }; for (const c of SUMS[type]) a.s[c] = 0; acc.set(key, a); }
+      a.g.add(r.gameId);
+      for (const c of SUMS[type]) a.s[c] += r[c] || 0;
+    }
+    const rows = [];
+    for (const a of acc.values()) {
+      const g = gc.get(a.Division);
+      if (!g) continue;
+      const tg = TG.has(a.tid) ? TG.get(a.tid).size : 0;
+      rows.push(type === 'bat' ? batLine(a, g, tg) : pitLine(a, g, tg));
+    }
+    return { rows, games: games.size };
+  }
+
+  // ---------- LEADERS ----------
+  function passMin(r) {
+    if (L.min === 'q') return r.Qual === true;
+    const n = Number(L.min);
+    return L.type === 'bat' ? r.PA >= n : (r.Outs || 0) / 3 >= n;
+  }
+  function renderLeaders() {
+    setType(L.type); setGroup(L.group);
+    $('#lb-min-label').textContent = L.type === 'bat' ? 'Min PA' : 'Min IP';
+    const mins = L.type === 'bat' ? [0, 10, 25, 50, 100, 200] : [0, 5, 10, 20, 40, 80];
+    fillSelect($('#lb-min'), [['q', 'Qualified'], ...mins.map((m) => [m, `${m}+`])], L.min);
+    const wrap = $('#lb-wrap'), table = $('#lb-table');
+    const seasons = seasonsAvail();
+    if (!seasons) { if (bad('guts')) failed(wrap); return; }
+    if (L.season == null) L.season = seasons[0];
+    fillSelect($('#lb-season'), [...seasons.map((s) => [s, s]), ['Career', `Career (${seasons[seasons.length - 1]}–${seasons[0]})`]], L.season);
+    const career = L.season === 'Career';
+    // date range controls
+    ['#lb-range-ctrl', '#lb-from-ctrl', '#lb-to-ctrl'].forEach((c) => { $(c).hidden = career; });
+    const sp = rangeSpec();
+    if (!career) {
+      fillSelect($('#lb-range'), RANGES, L.range);
+      const fe = $('#lb-from'), te = $('#lb-to');
+      fe.min = te.min = `${L.season}-01-01`; fe.max = te.max = `${L.season}-12-31`;
+      if (fe !== document.activeElement) fe.value = (sp && sp.from) || '';
+      if (te !== document.activeElement) te.value = (sp && sp.to) || '';
+    }
+    const cards = $('#lb-cards');
+    const id = sp ? 'box_' + L.season : sourceFor(L.type, L.season, seasons[0]);
+    $('#lb-title').textContent = `${L.type === 'bat' ? 'Batting' : 'Pitching'} leaders · ${career ? 'career' : L.season}${sp ? ' · ' + rangeLabel(sp) : ''}`;
+    if (bad(id) || (sp && bad('guts'))) { failed(wrap); wrap.prepend(table); table.replaceChildren(); return; }
+    let inSeason, rangeGames = null;
+    if (sp) {
+      const box = rowsOf(id), gr = rowsOf('guts');
+      const res = box && gr && memoize('range', [box, gr, L.type, JSON.stringify(sp)], () => aggregateBox(box, gr, L.season, L.type, sp));
+      inSeason = res ? res.rows : null;
+      if (res) rangeGames = res.games;
+    } else inSeason = career ? rowsOf(id) : seasonRows(id, L.season);
+    if (!inSeason) { wrap.classList.add('dash-skeleton'); cards.classList.add('dash-skeleton'); return; }
+    wrap.classList.remove('dash-skeleton'); cards.classList.remove('dash-skeleton');
+    wrap.querySelector('.pg-failed')?.remove();
+    // each value in the season tables cites its row; date-range lines are added up from box scores here, so the table and cards cite the box scores as a whole
+    const cite = !sp;
+    if (cite) { table.setAttribute('data-source', id); table.setAttribute('data-row-key', 'key'); wrap.removeAttribute('data-source'); cards.removeAttribute('data-source'); }
+    else { table.removeAttribute('data-source'); table.removeAttribute('data-row-key'); wrap.setAttribute('data-source', `${id} guts`); cards.setAttribute('data-source', `${id} guts`); }
+    $('#lb-note').textContent = sp
+      ? `Added up from ${d3.format(',')(rangeGames)} box scores in this range. wRC+, FIP and WAR compare to full-season division averages; box scores don't record intentional walks, and qualifying is 2 PA or 0.5 IP per team game in the range.`
+      : 'Click a column to sort, a name for the player page.';
+
+    const divs = memoize('divs|' + id + L.season, [inSeason], () => [...new Set(inSeason.map((r) => r.Division))].sort());
+    if (L.div !== 'All' && !divs.includes(L.div)) L.div = 'All';
+    fillSelect($('#lb-div'), [['All', 'All divisions'], ...divs.map((d) => [d, d])], L.div);
+    const inDiv = L.div === 'All' ? inSeason : memoize('div|' + id + L.season + L.div, [inSeason], () => inSeason.filter((r) => r.Division === L.div));
+    const teams = memoize('teams|' + id + L.season + L.div, [inDiv], () => [...new Map(inDiv.map((r) => [r.tid, `${r.Team}${L.div === 'All' ? ' (' + r.Division + ')' : ''}`])).entries()].sort((a, b) => a[1].localeCompare(b[1])));
+    if (L.team !== 'All' && !teams.some(([t]) => t === L.team)) L.team = 'All';
+    fillSelect($('#lb-team'), [['All', career ? 'All (last team)' : 'All teams'], ...teams], L.team);
+    const inTeam = L.team === 'All' ? inDiv : inDiv.filter((r) => r.tid === L.team);
+    const cols = (L.type === 'bat' ? BAT : PIT)[L.group];
+    const fixed = ['Name', 'Team', 'Division', ...(career ? ['Seasons'] : [])];
+    if (!cols.includes(L.sort) && !fixed.includes(L.sort)) { L.sort = L.type === 'bat' ? (cols.includes('oWAR') ? 'oWAR' : cols.includes('wRC+') ? 'wRC+' : 'PA') : (cols.includes('WAR') ? 'WAR' : 'IP'); L.dir = -1; }
+    const shown = memoize('shown', [inTeam, L.min, L.q, L.sort, L.dir, L.type], () =>
+      inTeam.filter((r) => (passMin(r) || r.pid === MATT) && (!L.q || r.Name.toLowerCase().includes(L.q))).sort(cmp(L.sort, L.dir)));
+    const hidden = inTeam.length - shown.length;
+    const nPages = Math.max(1, Math.ceil(shown.length / L.size));
+    if (L.page >= nPages) L.page = nPages - 1;
+    if (L.page < 0) L.page = 0;
+    const start = L.page * L.size;
+    const slice = shown.slice(start, start + L.size);
+    $('#lb-count').textContent = `${d3.format(',')(shown.length)} players${L.min === 'q' && hidden ? ` · ${d3.format(',')(hidden)} below the qualifying bar hidden` : ''}`;
+
+    const sortAttr = (c) => c === L.sort ? ` aria-sort="${L.dir > 0 ? 'ascending' : 'descending'}"` : '';
+    const fa = (c) => ` data-col="${esc(c)}"${cite ? ` data-field="${esc(c)}"` : ''}`;
+    const thead = `<thead><tr><th class="rk sticky1">#</th>`
+      + `<th${fa('Name')} class="l sticky2"${sortAttr('Name')}><button type="button">Name</button></th>`
+      + `<th${fa('Team')} class="l"${sortAttr('Team')}><button type="button">${career ? 'Last team' : 'Team'}</button></th>`
+      + `<th${fa('Division')} class="l col-div"${sortAttr('Division')}><button type="button">Div</button></th>`
+      + (career ? `<th${fa('Seasons')}${sortAttr('Seasons')}><button type="button">Yrs</button></th>` : '')
+      + cols.map((c) => `<th${fa(c)}${sortAttr(c)} title="${esc(DEF[c] || c)}"><button type="button">${esc(c)}</button></th>`).join('')
+      + `</tr></thead>`;
+    let body = '';
+    for (let i = 0; i < slice.length; i++) {
+      const r = slice[i];
+      body += `<tr data-key="${esc(r.key)}"${r.pid === MATT ? ' class="me"' : ''}><td class="rk sticky1">${start + i + 1}</td><td class="l sticky2 name"><a href="#" data-pid="${esc(r.pid)}">${esc(r.Name)}</a></td><td class="l"><a href="#" data-tid="${esc(r.tid)}">${esc(r.Team)}</a></td><td class="l dim col-div">${esc(r.Division)}</td>${career ? `<td>${r.Seasons}</td>` : ''}`;
+      for (const c of cols) body += `<td${c === L.sort ? ' class="srt"' : ''}>${esc(fmt(c, r[c]))}</td>`;
+      body += '</tr>';
+    }
+    table.innerHTML = thead + `<tbody>${body}</tbody>` + (shown.length ? '' : `<caption class="pg-empty" style="caption-side:bottom">No players match these filters.</caption>`);
+
+    const pager = $('#lb-pager');
+    pager.dataset.last = nPages - 1;
+    $('#lb-pageinfo').textContent = shown.length ? `${d3.format(',')(start + 1)}–${d3.format(',')(start + slice.length)} of ${d3.format(',')(shown.length)}` : '';
+    pager.querySelector('[data-p=first]').disabled = pager.querySelector('[data-p=prev]').disabled = L.page === 0;
+    pager.querySelector('[data-p=next]').disabled = pager.querySelector('[data-p=last]').disabled = L.page >= nPages - 1;
+    if ($('#lb-size').value !== String(L.size)) $('#lb-size').value = String(L.size);
+    renderLeaderCards(inTeam, cite ? id : null);
+  }
+
+  function renderLeaderCards(pool, id) {
+    const box = $('#lb-cards');
+    const html = memoize('cards', [pool, L.type, id], () => {
+      const q = pool.filter((r) => r.Qual === true);
+      const defs = L.type === 'bat'
+        ? [['oWAR', -1, pool], ['wRC+', -1, q], ['HR', -1, pool], ['AVG', -1, q], ['SB', -1, pool]]
+        : [['WAR', -1, pool], ['FIP', 1, q], ['ERA', 1, q], ['SO', -1, pool], ['K-BB%', -1, q]];
+      return defs.map(([f, dir, set]) => {
+        const top = [];
+        for (const r of set) {
+          if (r[f] == null) continue;
+          top.push(r); top.sort(cmp(f, dir)); if (top.length > 5) top.pop();
+        }
+        const mk = (r, fld) => id ? ` data-source="${id}" data-field="${esc(fld)}" data-where="key=${enc(r.key)}"` : '';
+        const items = top.map((r) => `<li${r.pid === MATT ? ' class="me"' : ''}><span class="n"><a class="pg-link" href="#" data-pid="${esc(r.pid)}"${mk(r, 'Name')}>${esc(r.Name)}</a> <span class="t">${esc(r.Team)}</span></span><span class="v"${mk(r, f)}>${esc(fmt(f, r[f]))}</span></li>`).join('');
+        const qual = set === q ? ' · qualified' : '';
+        return `<div class="pg-lcard"><h4>${esc(f)}<span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--color-fg-muted)">${qual}</span></h4><ol>${items || '<li class="t">No qualifiers yet</li>'}</ol></div>`;
+      }).join('');
+    });
+    if (box._html !== html) { box.innerHTML = html; box._html = html; }
+  }
+
+  // ---------- LEDE ----------
+  function renderLede() {
+    const el = $('#lede');
+    const seasons = seasonsAvail();
+    if (!seasons) return;
+    const b = rowsOf('batting'), p = rowsOf('pitching');
+    if (!b || !p) { if (bad('batting')) el.textContent = ''; return; }
+    const html = memoize('lede', [b, p], () => {
+      const y = seasons[0];
+      const pick = (rows, f) => rows.reduce((best, r) => (r.Season === y && r[f] != null && (!best || r[f] > best[f])) ? r : best, null);
+      const tb = pick(b, 'oWAR'), tp = pick(p, 'WAR');
+      if (!tb || !tp) return '';
+      const me = b.filter((r) => r.Season === y && r.pid === MATT);
+      const k = (r) => `key=${enc(r.key)}`;
+      let h = `<b>${y}:</b> <span data-source="batting" data-field="Name" data-where="${k(tb)}">${esc(tb.Name)}</span> (${esc(tb.Team)}, ${esc(tb.Division)}) led every PSSBL hitter at <b data-source="batting" data-field="oWAR" data-where="${k(tb)}">${fmt('oWAR', tb.oWAR)}</b> oWAR; <span data-source="pitching" data-field="Name" data-where="${k(tp)}">${esc(tp.Name)}</span> (${esc(tp.Team)}, ${esc(tp.Division)}) led pitchers at <b data-source="pitching" data-field="WAR" data-where="${k(tp)}">${fmt('WAR', tp.WAR)}</b> WAR.`;
+      if (me.length) h += ` Your wRC+: ${me.map((r) => `<b data-source="batting" data-field="wRC+" data-where="${k(r)}">${fmt('wRC+', r['wRC+'])}</b> with the ${esc(r.Team)}`).join(', ')}.`;
+      return h;
+    });
+    if (el._html !== html) { el.innerHTML = html; el._html = html; }
+  }
+
+  // ---------- PLAYERS ----------
+  const pq = $('#p-q'), sugg = $('#p-sugg');
+  const playerIndex = () => {
+    const bc = rowsOf('bat_career'), pc = rowsOf('pit_career');
+    if (!bc || !pc) return null;
+    return memoize('pindex', [bc, pc], () => {
+      const m = new Map();
+      for (const r of bc) m.set(r.pid, r);
+      for (const r of pc) { const cur = m.get(r.pid); if (!cur || r.To > cur.To) m.set(r.pid, r); }
+      return [...m.values()].map((r) => ({ pid: r.pid, Name: r.Name, n: r.Name.toLowerCase(), Team: r.Team, Division: r.Division, To: r.To }));
+    });
+  };
+  let sT;
+  pq.addEventListener('input', () => {
+    clearTimeout(sT);
+    sT = setTimeout(() => {
+      const list = playerIndex();
+      const q = pq.value.trim().toLowerCase();
+      if (q.length < 2) { sugg.hidden = true; return; }
+      if (!list) { sugg.innerHTML = '<div class="pg-empty">Loading players…</div>'; sugg.hidden = false; return; }
+      const hits = [];
+      for (const r of list) { if (r.n.includes(q)) hits.push(r); }
+      hits.sort((a, b) => (b.n.startsWith(q) - a.n.startsWith(q)) || b.To - a.To);
+      sugg.innerHTML = hits.length ? hits.slice(0, 25).map((r) => `<button type="button" data-pid="${esc(r.pid)}">${esc(r.Name)} <span>· ${esc(r.Team)} (${esc(r.Division)}) ${r.To}</span></button>`).join('') : '<div class="pg-empty">No player found</div>';
+      sugg.hidden = false;
+    }, 80);
+  });
+  pq.addEventListener('keydown', (e) => { if (e.key === 'Enter') sugg.querySelector('button')?.click(); if (e.key === 'Escape') sugg.hidden = true; });
+
+  function seasonTableHTML(src, rows, cols, head) {
+    const pre = ['Season', 'Team', 'Division'];
+    const thead = `<thead><tr${head ? '' : ' class="ghost"'}>${pre.map((c) => `<th data-field="${c}" class="l">${c === 'Division' ? 'Div' : c}</th>`).join('')}${cols.map((c) => `<th data-field="${esc(c)}" title="${esc(DEF[c] || c)}">${esc(c)}</th>`).join('')}</tr></thead>`;
+    const body = rows.map((r) => `<tr data-key="${esc(r.key)}"${r.pid === MATT ? ' class="me-row"' : ''}><td class="l">${r.Season}</td><td class="l"><a href="#" data-tid="${esc(r.tid)}" data-season="${r.Season}" data-div="${esc(r.Division)}">${esc(r.Team)}</a></td><td class="l dim">${esc(r.Division)}</td>${cols.map((c) => `<td>${esc(fmt(c, r[c]))}</td>`).join('')}</tr>`).join('');
+    return `<table class="pg-tbl" data-source="${src}" data-row-key="key">${thead}<tbody>${body}</tbody></table>`;
+  }
+  function careerTableHTML(src, row, cols) {
+    return `<table class="pg-tbl" data-source="${src}" data-row-key="key"><thead><tr class="ghost"><th class="l">Span</th><th class="l" data-field="Seasons">Seasons</th><th class="l"></th>${cols.map((c) => `<th data-field="${esc(c)}">${esc(c)}</th>`).join('')}</tr></thead><tbody><tr class="career" data-key="${esc(row.key)}"><td class="l">Career</td><td class="l">${row.Seasons}</td><td class="l dim">${row.From}–${row.To}</td>${cols.map((c) => `<td>${esc(fmt(c, row[c]))}</td>`).join('')}</tr></tbody></table>`;
+  }
+  function alignStack(box) {
+    const tables = [...box.querySelectorAll('table')];
+    const firsts = tables.map((t) => t.tBodies[0] && t.tBodies[0].rows[0]).filter(Boolean);
+    if (firsts.length < 2) return;
+    const n = Math.max(...firsts.map((r) => r.cells.length));
+    const ws = [];
+    for (let i = 0; i < n; i++) ws[i] = Math.ceil(Math.max(...firsts.map((r) => r.cells[i] ? r.cells[i].getBoundingClientRect().width : 0)));
+    firsts.forEach((r) => [...r.cells].forEach((c, i) => { c.style.minWidth = ws[i] + 'px'; }));
+    const tw = Math.max(...tables.map((t) => t.getBoundingClientRect().width));
+    tables.forEach((t) => { t.style.width = tw + 'px'; });
+  }
+  function renderStack(box, type, hist, cur, careerRow, cols) {
+    const ds = DS[type];
+    const parts = [];
+    if (hist.length) parts.push(seasonTableHTML(ds.hist, hist, cols, true));
+    if (cur.length) parts.push(seasonTableHTML(ds.cur, cur, cols, !hist.length));
+    if (careerRow) parts.push(careerTableHTML(ds.career, careerRow, cols));
+    const html = parts.join('');
+    if (box._html === html) return;
+    box.innerHTML = html; box._html = html;
+    alignStack(box);
+  }
+
+  function dotChart(el, rows, series, opts) {
+    const W = el.clientWidth || 600;
+    const k = JSON.stringify([W, rows.map((r) => r.key), series, opts]);
+    if (el._k === k) return;
+    el._k = k;
+    const H = 200, m = { t: 12, r: 16, b: 26, l: 40 };
+    el.innerHTML = '';
+    el.setAttribute('data-source', opts.src);
+    if (!rows.length) return;
+    const ys = rows.flatMap((r) => series.map((s) => r[s.f])).filter((v) => v != null);
+    if (!ys.length) return;
+    const seasons = [...new Set(rows.map((r) => r.Season))].sort((a, b) => a - b);
+    const x = d3.scalePoint(seasons, [m.l + 14, W - m.r - 14]).padding(seasons.length === 1 ? 0.5 : 0);
+    const lo = Math.min(opts.ref, d3.min(ys)), hi = Math.max(opts.ref, d3.max(ys));
+    const pad = Math.max(10, (hi - lo) * 0.12);
+    const y = d3.scaleLinear([lo - pad, hi + pad], [H - m.b, m.t]).nice(5);
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('height', H).attr('viewBox', `0 0 ${W} ${H}`);
+    const yt = y.ticks(5);
+    svg.append('g').selectAll('line').data(yt).join('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y).attr('y2', y).attr('stroke', 'var(--cds-chart-grid)');
+    svg.append('g').selectAll('text').data(yt).join('text').attr('x', m.l - 6).attr('y', (d) => y(d) + 4).attr('text-anchor', 'end').text((d) => d);
+    svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(opts.ref)).attr('y2', y(opts.ref)).attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '4 3');
+    svg.append('text').attr('x', W - m.r).attr('y', y(opts.ref) - 4).attr('text-anchor', 'end').text('avg ' + opts.ref);
+    const step = Math.ceil(seasons.length / Math.max(1, Math.floor((W - m.l - m.r) / 44)));
+    svg.append('g').selectAll('text').data(seasons.filter((_, i) => i % step === 0)).join('text').attr('x', x).attr('y', H - 8).attr('text-anchor', 'middle').text((d) => d);
+    svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', H - m.b).attr('y2', H - m.b).attr('stroke', 'var(--cds-chart-axis)');
+    const tip = d3.select(el).append('div').attr('class', 'pg-tip').style('display', 'none');
+    const rmax = d3.max(rows, (r) => r[opts.size] || 0) || 1;
+    const rs = d3.scaleSqrt([0, rmax], [3, 9]);
+    const byS = d3.group(rows, (r) => r.Season);
+    series.forEach((s, si) => {
+      const col = dash.colors[s.c];
+      const pts = rows.filter((r) => r[s.f] != null).map((r) => {
+        const sib = byS.get(r.Season); const kk = sib.indexOf(r); const off = (kk - (sib.length - 1) / 2) * 12;
+        return { r, cx: x(r.Season) + off + (series.length > 1 ? (si - 0.5) * 6 : 0), cy: y(r[s.f]) };
+      });
+      svg.append('g').selectAll('circle').data(pts).join('circle')
+        .attr('cx', (d) => d.cx).attr('cy', (d) => d.cy).attr('r', (d) => rs(d.r[opts.size] || 0))
+        .attr('fill', s.hollow ? 'var(--color-panel)' : col).attr('stroke', col).attr('stroke-width', 2).attr('fill-opacity', s.hollow ? 1 : 0.85)
+        .on('pointerenter', function (ev, d) {
+          d3.select(this).attr('stroke-width', 3.5);
+          tip.style('display', null).html(`<div class="h">${d.r.Season} · ${esc(d.r.Team)} (${esc(d.r.Division)})</div>${series.map((z) => `<div><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dash.colors[z.c]};margin-right:5px"></i>${esc(z.f)} <b>${esc(fmt(z.f, d.r[z.f]))}</b></div>`).join('')}<div class="h">${esc(opts.size)} ${esc(fmt(opts.size, d.r[opts.size]))}</div>`);
+          const tw = tip.node().offsetWidth;
+          tip.style('left', Math.max(0, Math.min(W - tw, d.cx + 10)) + 'px').style('top', Math.max(0, d.cy - 50) + 'px');
+        })
+        .on('pointerleave', function () { d3.select(this).attr('stroke-width', 2); tip.style('display', 'none'); });
+    });
+    if (opts.legend) d3.select(el).insert('div', 'svg').attr('class', 'pg-legend').html(series.map((s) => `<span><i style="background:${s.hollow ? 'transparent' : dash.colors[s.c]};border:2px solid ${dash.colors[s.c]}"></i>${esc(s.f)}</span>`).join(''));
+  }
+
+  function renderPlayers() {
+    setPGroup(P.group);
+    if (bad('bat_career') || bad('batting_hist')) { $('#p-name').textContent = ''; failed($('#p-strip')); return; }
+    const bc = rowsOf('bat_career'), pc = rowsOf('pit_career');
+    const nm = $('#p-name');
+    if (!bc || !pc) { nm.classList.add('dash-skeleton'); $('#p-strip').innerHTML = '<span class="dash-skeleton">—</span>'; }
+    const bcr = bc && memoize('bcr' + P.pid, [bc], () => bc.find((r) => r.pid === P.pid) || null);
+    const pcr = pc && memoize('pcr' + P.pid, [pc], () => pc.find((r) => r.pid === P.pid) || null);
+    const head = bcr && pcr ? (bcr.To >= pcr.To ? bcr : pcr) : (bcr || pcr);
+    if (head) {
+      nm.classList.remove('dash-skeleton');
+      nm.textContent = head.Name; nm.classList.toggle('me', P.pid === MATT);
+      nm.setAttribute('data-source', head === bcr ? 'bat_career' : 'pit_career'); nm.setAttribute('data-field', 'Name'); nm.setAttribute('data-where', `key=${enc(head.key)}`);
+      const from = Math.min(bcr ? bcr.From : 9999, pcr ? pcr.From : 9999), to = Math.max(bcr ? bcr.To : 0, pcr ? pcr.To : 0);
+      $('#p-sub').innerHTML = `${to}: ${esc(head.Team)} (${esc(head.Division)}) · on file ${from}–${to} · <a class="pg-link" href="https://pssbl.com/#!/player/${enc(P.pid)}" target="_blank" rel="noopener">pssbl.com profile ↗</a>`;
+      const st = (src, row, f) => row && row[f] != null ? `<div class="pg-stat"><div class="k">Career ${esc(f)}</div><div class="v" data-source="${src}" data-field="${esc(f)}" data-where="key=${enc(row.key)}">${esc(fmt(f, row[f]))}</div></div>` : '';
+      const strip = [];
+      if (bcr && bcr.PA > 0) strip.push(...['PA', 'AVG', 'OBP', 'SLG', 'wRC+', 'oWAR'].map((f) => st('bat_career', bcr, f)));
+      if (pcr && pcr.Outs > 0) strip.push(...['IP', 'ERA', 'FIP', 'K%', 'WAR'].map((f) => st('pit_career', pcr, f)));
+      const sh = strip.join('');
+      const sEl = $('#p-strip'); if (sEl._html !== sh) { sEl.innerHTML = sh; sEl._html = sh; }
+    } else if (bc && pc) { nm.classList.remove('dash-skeleton'); nm.textContent = 'Player not found'; }
+
+    const parts = { bat: [bcr, BAT, 'PA', [{ f: 'wRC+', c: 0 }], false], pit: [pcr, PIT, 'IP', [{ f: 'FIP-', c: 0 }, { f: 'ERA-', c: 1, hollow: true }], true] };
+    for (const type of ['bat', 'pit']) {
+      const [crow, COLS, size, series, legend] = parts[type];
+      const ds = DS[type];
+      const card = $(type === 'bat' ? '#p-bat' : '#p-pit');
+      const box = $(type === 'bat' ? '#p-bat-tables' : '#p-pit-tables');
+      const chart = $(type === 'bat' ? '#p-bat-chart' : '#p-pit-chart');
+      if (bc && pc && !crow) { card.hidden = true; continue; }
+      card.hidden = false;
+      const h = pidRows(ds.hist, P.pid), c = pidRows(ds.cur, P.pid);
+      if (!h || !c) { box.classList.add('dash-skeleton'); box.style.minHeight = '6rem'; chart.classList.add('dash-skeleton'); continue; }
+      box.classList.remove('dash-skeleton'); box.style.minHeight = ''; chart.classList.remove('dash-skeleton');
+      const ord = (a, b) => a.Season - b.Season || (type === 'bat' ? b.PA - a.PA : b.Outs - a.Outs);
+      const hs = [...h].sort(ord), cs = [...c].sort(ord);
+      renderStack(box, type, hs, cs, crow, COLS[P.group]);
+      dotChart(chart, [...hs, ...cs], series, { ref: 100, size, src: `${ds.hist} ${ds.cur}`, legend });
+    }
+  }
+
+  // ---------- STANDINGS ----------
+  const ST_COLS = ['GP', 'W', 'L', 'T', 'Pct', 'GB', 'RS', 'RA', 'Diff', 'pythW', 'Luck', 'wRC+', 'FIP', 'oWAR', 'pWAR'];
+  const ST_LABEL = { pythW: 'xW' };
+  function renderStandings() {
+    const grid = $('#st-grid');
+    if (bad('standings')) { failed(grid); return; }
+    const rows = rowsOf('standings'), seasons = seasonsAvail();
+    if (!rows || !seasons) { if (!grid._html) grid.innerHTML = '<div class="pg-card dash-skeleton" style="min-height:14rem"></div>'; return; }
+    if (S.season == null) S.season = seasons[0];
+    fillSelect($('#st-season'), seasons.map((s) => [s, s]), S.season);
+    const html = memoize('stand' + S.season, [rows], () => d3.groups(rows.filter((r) => r.Season === S.season), (r) => r.Division).sort((a, b) => a[0].localeCompare(b[0])).map(([d, rs]) => {
+      rs.sort((a, b) => a.Rank - b.Rank);
+      const head = `<thead><tr><th data-field="Team" class="l sticky1">Team</th>${ST_COLS.map((c) => `<th data-field="${c}" title="${esc(DEF[c] || '')}">${ST_LABEL[c] || c}</th>`).join('')}</tr></thead>`;
+      const body = rs.map((r) => `<tr data-key="${esc(r.key)}"${r.Champion ? ' class="champ"' : ''}><td class="l name sticky1"><a href="#" data-tid="${esc(r.tid)}" data-season="${r.Season}" data-div="${esc(r.Division)}">${esc(r.Team)}</a></td>${ST_COLS.map((c) => `<td>${esc(fmt(c, r[c]))}</td>`).join('')}</tr>`).join('');
+      return `<div class="pg-card" id="div-${esc(d)}"><h3>${esc(d)}</h3><div class="pg-tblwrap short" style="border-top:1px solid var(--color-border-line);border-radius:var(--cds-radius)"><table class="pg-tbl" data-source="standings" data-row-key="key">${head}<tbody>${body}</tbody></table></div></div>`;
+    }).join(''));
+    if (grid._html !== html) { grid.innerHTML = html; grid._html = html; }
+  }
+
+  // ---------- GUTS ----------
+  const GU_COLS = ['Teams', 'PA', 'IP', 'AVG', 'OBP', 'SLG', 'wOBA', 'R/PA', 'R/G', 'ERA', 'RA9', 'cFIP', 'R/W', 'runSB', 'runCS', 'repR/PA', 'wOBAScale', 'wBB', 'wHBP', 'w1B', 'w2B', 'w3B', 'wHR'];
+  function renderGuts() {
+    const wrap = $('#gu-wrap'), t = $('#gu-table');
+    if (bad('guts')) { failed(wrap); return; }
+    const rows = rowsOf('guts'), seasons = seasonsAvail();
+    if (!rows) { wrap.classList.add('dash-skeleton'); return; }
+    wrap.classList.remove('dash-skeleton');
+    if (G.season == null) G.season = seasons[0];
+    fillSelect($('#gu-season'), [['All', 'All seasons'], ...seasons.map((s) => [s, s])], G.season);
+    const html = memoize('guts' + G.season, [rows], () => {
+      const sel = (G.season === 'All' ? rows : rows.filter((r) => r.Season === G.season)).slice().sort((a, b) => b.Season - a.Season || a.Division.localeCompare(b.Division));
+      return `<thead><tr><th data-field="Season" class="l">Season</th><th data-field="Division" class="l">Division</th>${GU_COLS.map((c) => `<th data-field="${esc(c)}">${esc(c === 'wOBAScale' ? 'wOBA scale' : c)}</th>`).join('')}</tr></thead><tbody>${sel.map((r) => `<tr data-key="${esc(r.key)}"><td class="l">${r.Season}</td><td class="l">${esc(r.Division)}</td>${GU_COLS.map((c) => `<td>${esc(fmt(c, r[c]))}</td>`).join('')}</tr>`).join('')}</tbody>`;
+    });
+    if (t._html !== html) { t.innerHTML = html; t._html = html; }
+  }
+
+  // ---------- render loop: redraw only when something this view uses changed ----------
+  const root = document.querySelector('.pg');
+  let lastSig = '';
+  const sig = () => JSON.stringify([tab, L, P, S, G, [...touched].sort().map((id) => { const d = dash.data(id); return [id, d.status, d.refreshing ? 1 : 0, refId(d.data)]; }), tab === 'players' ? Math.round(root.clientWidth / 8) : 0]);
+  function render() {
+    touched = new Set();
+    renderLede();
+    if (tab === 'leaders') renderLeaders();
+    else if (tab === 'players') renderPlayers();
+    else if (tab === 'standings') renderStandings();
+    else if (tab === 'guts') renderGuts();
+    lastSig = sig();
+  }
+  let first = true;
+  dash.onData(() => {
+    if (lastSig && sig() === lastSig) return;
+    render();
+    if (first && seasonsAvail()) {
+      first = false;
+      const h = location.hash.slice(1);
+      if (pages.includes(h) && h !== tab) showTab(h, false);
+    }
+  });
+})();
+</script>
