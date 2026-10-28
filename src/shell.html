@@ -60,7 +60,9 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   let queued = false;
   const notify = () => {
     if (queued) return; queued = true;
-    requestAnimationFrame(() => { queued = false; for (const fn of listeners) { try { fn(); } catch (e) { console.error(e); } } });
+    const run = () => { queued = false; for (const fn of listeners) { try { fn(); } catch (e) { console.error(e); } } };
+    // background tabs pause requestAnimationFrame, so fall back to a plain timer there
+    if (document.hidden) setTimeout(run, 0); else requestAnimationFrame(run);
   };
   function load(id) {
     store[id] = { status: 'loading', data: [], message: '', refreshing: false };
