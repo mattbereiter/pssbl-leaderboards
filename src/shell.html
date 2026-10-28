@@ -67,7 +67,8 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     manifestP.then((m) => {
       const file = m.datasets[id];
       if (!file) throw new Error('No data file for ' + id);
-      return fetch('data/' + file).then((r) => {
+      // the version stamp changes on every data update, so a browser never pairs a new page with stale cached data
+      return fetch('data/' + file + (m.version ? '?v=' + encodeURIComponent(m.version) : '')).then((r) => {
         if (!r.ok) throw new Error(file + ': HTTP ' + r.status);
         return file.endsWith('.json') ? r.json() : r.text().then((t) => d3.csvParse(t));
       });

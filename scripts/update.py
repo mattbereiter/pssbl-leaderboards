@@ -43,7 +43,8 @@ latest = max(g['Season'] for g in guts)
 os.makedirs(DATA, exist_ok=True)
 for old in glob.glob(f'{DATA}/*'):
     os.remove(old)
-manifest = {'updated': datetime.date.today().isoformat(), 'latest': latest, 'datasets': {}}
+manifest = {'updated': datetime.date.today().isoformat(), 'version': datetime.datetime.now().strftime('%Y%m%d%H%M%S'),
+            'latest': latest, 'datasets': {}}
 for kind, src in (('batting', 'pssbl_batting.csv'), ('pitching', 'pssbl_pitching.csv')):
     rows = list(csv.DictReader(open(f'{BUILD}/{src}')))
     cols = list(rows[0].keys())

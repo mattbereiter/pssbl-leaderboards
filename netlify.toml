@@ -4,6 +4,6 @@
   command = ""
 
 [[headers]]
-  for = "/data/*"
+  for = "/data/*"  # always revalidate so updates show up right away
   [headers.values]
-    Cache-Control = "public, max-age=3600, must-revalidate"
+    Cache-Control = "public, max-age=0, must-revalidate"
