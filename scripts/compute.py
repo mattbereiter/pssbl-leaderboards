@@ -157,7 +157,7 @@ for y in seasons:
                 'wOBA': r(woba,3), 'wRAA': r(wraa,1), 'wSB': r(wsb,1), 'wRC': r(wraa + lgRPA*pa,1),
                 'wRC+': r(wrcp,0) if wrcp is not None else None, 'Off': r(wraa+wsb,1),
                 'oWAR': r((wraa + wsb + repPA*pa)/RPW,1),
-                'oWAR/162': r((wraa + wsb + repPA*pa)/RPW * 162/tg,1) if tg else None,
+                'oWAR/600': r((wraa + wsb + repPA*pa)/RPW * 600/pa,1) if pa else None,
                 'Qual': pa >= QUAL_PA_PER_G * tg,
                 '_lgRPA': lgRPA,
             })
@@ -197,7 +197,7 @@ for y in seasons:
                 'ERA-': r(100*era/lgERA,0) if ip else None, 'FIP-': r(100*fip/lgERA,0) if ip else None,
                 'E-F': r(era-fip,2) if ip else None,
                 'WAR': r(war,1),
-                'WAR/162': r(war * 162/tg,1) if (war is not None and tg) else None,
+                'WAR/200': r(war * 200/ip,1) if (war is not None and ip) else None,
                 'Qual': ip >= QUAL_IP_PER_G * tg,
                 '_lgERA': lgERA,
             })
@@ -296,7 +296,7 @@ def career_bat():
             'wRC': r(S['wRAA'] + S['lgR'],1),
             'wRC+': r(100*(S['wRAA'] + S['lgR'])/S['lgR'],0) if S['lgR'] else None,
             'Off': r(S['wRAA'] + S['wSB'],1), 'oWAR': r(S['oWAR'],1),
-            'oWAR/162': r(S['oWAR'] * 162/S['TG'],1) if S['TG'] else None,
+            'oWAR/600': r(S['oWAR'] * 600/pa,1) if pa else None,
             'Qual': pa >= 150,
         })
     return out
@@ -331,7 +331,7 @@ def career_pit():
             'ERA': r(era,2), 'FIP': r(fip,2),
             'ERA-': r(100*era/lgera,0) if ip else None, 'FIP-': r(100*fip/lgera,0) if ip else None,
             'E-F': r(era-fip,2) if ip else None, 'WAR': r(S['WAR'],1),
-            'WAR/162': r(S['WAR'] * 162/S['TG'],1) if S['TG'] else None,
+            'WAR/200': r(S['WAR'] * 200/ip,1) if ip else None,
             'Qual': ip >= 50,
         })
     return out

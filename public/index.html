@@ -336,7 +336,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
         <div><dt>wSB</dt><dd>Stolen-base runs above average, using the division's run value of a caught stealing.</dd></div>
         <div><dt>Off</dt><dd>wRAA + wSB: total offensive runs above average.</dd></div>
         <div><dt>oWAR</dt><dd>Offensive wins above replacement: (Off + replacement runs) ÷ runs-per-win. No fielding or position credit.</dd></div>
-        <div><dt>oWAR/162 · WAR/162</dt><dd>WAR on a big-league scale: the player's WAR × 162 ÷ his team's games (or the team games in the chosen date range). A 2.0 oWAR over a 22-game season is about 14.7 per 162. Small samples swing these a lot.</dd></div>
+        <div><dt>oWAR/600 · WAR/200</dt><dd>WAR per full MLB season of playing time: oWAR × 600 ÷ PA for hitters, WAR × 200 ÷ IP for pitchers. It's a rate, so part-timers aren't penalized; hitters run high because a PSSBL plate appearance is worth far more runs than an MLB one. Tiny samples swing wildly, so use it with the qualified filter.</dd></div>
         <div><dt>Qualified</dt><dd>2 PA or 0.5 IP per team game (career: 150 PA / 50 IP), the same bar as the PSSBL Tracker.</dd></div>
         <div><dt>IP</dt><dd>Innings pitched; .1 and .2 are one and two outs.</dd></div>
         <div><dt>TBF</dt><dd>Batters faced, estimated as outs + H + BB + HBP (PSSBL rarely records it).</dd></div>
@@ -403,7 +403,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   const R3 = new Set(['AVG', 'OBP', 'SLG', 'OPS', 'ISO', 'BABIP', 'wOBA', 'Pct']);
   const PCT = new Set(['BB%', 'K%', 'K-BB%', 'LOB%']);
   const F2 = new Set(['K/9', 'BB/9', 'HR/9', 'ERA', 'FIP', 'E-F', 'WHIP', 'BB/K', 'RS/G', 'RA/G', 'R/G', 'RA9', 'cFIP', 'R/W', 'wOBAScale', 'wBB', 'wHBP', 'w1B', 'w2B', 'w3B', 'wHR']);
-  const F1 = new Set(['Off', 'oWAR', 'WAR', 'oWAR/162', 'WAR/162', 'pWAR', 'wRAA', 'wSB', 'wRC', 'pythW', 'pythL', 'Luck', 'GB', 'runSB', 'IP']);
+  const F1 = new Set(['Off', 'oWAR', 'WAR', 'oWAR/600', 'WAR/200', 'pWAR', 'wRAA', 'wSB', 'wRC', 'pythW', 'pythL', 'Luck', 'GB', 'runSB', 'IP']);
   const fmt = (c, v) => {
     if (v == null || v === '') return '';
     if (typeof v !== 'number') return String(v);
@@ -416,14 +416,14 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     return String(v);
   };
   const BAT = {
-    dash: ['G', 'PA', 'HR', 'R', 'RBI', 'SB', 'BB%', 'K%', 'ISO', 'BABIP', 'AVG', 'OBP', 'SLG', 'wOBA', 'wRC+', 'Off', 'oWAR', 'oWAR/162'],
+    dash: ['G', 'PA', 'HR', 'R', 'RBI', 'SB', 'BB%', 'K%', 'ISO', 'BABIP', 'AVG', 'OBP', 'SLG', 'wOBA', 'wRC+', 'Off', 'oWAR', 'oWAR/600'],
     std: ['G', 'AB', 'PA', 'H', '1B', '2B', '3B', 'HR', 'R', 'RBI', 'BB', 'IBB', 'SO', 'HBP', 'SF', 'SH', 'GDP', 'SB', 'CS', 'AVG'],
     adv: ['PA', 'BB%', 'K%', 'BB/K', 'AVG', 'OBP', 'SLG', 'OPS', 'ISO', 'BABIP', 'wOBA', 'wRAA', 'wRC', 'wRC+', 'wSB'],
   };
   const PIT = {
-    dash: ['W', 'L', 'SV', 'G', 'GS', 'IP', 'K/9', 'BB/9', 'HR/9', 'BABIP', 'LOB%', 'ERA', 'FIP', 'E-F', 'WAR', 'WAR/162'],
+    dash: ['W', 'L', 'SV', 'G', 'GS', 'IP', 'K/9', 'BB/9', 'HR/9', 'BABIP', 'LOB%', 'ERA', 'FIP', 'E-F', 'WAR', 'WAR/200'],
     std: ['W', 'L', 'ERA', 'G', 'GS', 'CG', 'SHO', 'SV', 'HLD', 'IP', 'TBF', 'H', 'R', 'ER', 'HR', 'BB', 'IBB', 'HBP', 'WP', 'SO'],
-    adv: ['K/9', 'BB/9', 'K%', 'BB%', 'K-BB%', 'AVG', 'WHIP', 'BABIP', 'LOB%', 'ERA-', 'FIP-', 'FIP', 'E-F', 'WAR', 'WAR/162'],
+    adv: ['K/9', 'BB/9', 'K%', 'BB%', 'K-BB%', 'AVG', 'WHIP', 'BABIP', 'LOB%', 'ERA-', 'FIP-', 'FIP', 'E-F', 'WAR', 'WAR/200'],
   };
   const LOW = {
     bat: new Set(['K%', 'SO', 'CS', 'GDP']),
@@ -437,7 +437,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     W: 'Wins', L: 'Losses', SV: 'Saves', HLD: 'Holds', GS: 'Games started', IP: 'Innings pitched', 'K/9': 'Strikeouts per 9', 'BB/9': 'Walks per 9', 'HR/9': 'Home runs per 9',
     'LOB%': 'Left-on-base rate', ERA: 'Earned run average', FIP: 'Fielding-independent pitching', 'E-F': 'ERA minus FIP', WAR: 'Wins above replacement (FIP-based)',
     'ERA-': 'ERA vs division, 100 = average, lower is better', 'FIP-': 'FIP vs division, 100 = average, lower is better', 'K-BB%': 'Strikeout minus walk rate',
-    'oWAR/162': 'oWAR scaled to a 162-game season: oWAR × 162 ÷ team games', 'WAR/162': 'WAR scaled to a 162-game season: WAR × 162 ÷ team games',
+    'oWAR/600': 'oWAR per 600 plate appearances (a full MLB season): oWAR × 600 ÷ PA', 'WAR/200': 'WAR per 200 innings (a full MLB starter season): WAR × 200 ÷ IP',
     WHIP: 'Walks + hits per inning', TBF: 'Batters faced (estimated)', AVG: 'Batting average',
   };
 
@@ -579,7 +579,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       AVG: rd(avg, 3), OBP: rd(obp, 3), SLG: rd(slg, 3), OPS: pa ? rd((obp || 0) + (slg || 0), 3) : null, ISO: AB ? rd(slg - avg, 3) : null, BABIP: bip > 0 ? rd((H - HR) / bip, 3) : null,
       wOBA: rd(woba, 3), wRAA: rd(wraa, 1), wSB: rd(wsb, 1), wRC: rd(wraa + rpa * pa, 1), 'wRC+': pa ? Math.round(100 * (wraa / pa + rpa) / rpa) : null,
       Off: rd(wraa + wsb, 1), oWAR: rd((wraa + wsb + gc['repR/PA'] * pa) / gc['R/W'], 1),
-      'oWAR/162': tg ? rd((wraa + wsb + gc['repR/PA'] * pa) / gc['R/W'] * 162 / tg, 1) : null, Qual: pa >= 2 * tg };
+      'oWAR/600': pa ? rd((wraa + wsb + gc['repR/PA'] * pa) / gc['R/W'] * 600 / pa, 1) : null, Qual: pa >= 2 * tg };
   }
   function pitLine(a, gc, tg) {
     const s = a.s, outs = s.Outs, ip = outs / 3, G = a.g.size, H = s.H, BB = s.BB, HBP = s.HBP, HR = s.HR, SO = s.SO, tbf = outs + H + BB + HBP;
@@ -597,7 +597,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       'K%': tbf ? rd(100 * SO / tbf, 1) : null, 'BB%': tbf ? rd(100 * BB / tbf, 1) : null, 'K-BB%': tbf ? rd(100 * (SO - BB) / tbf, 1) : null,
       AVG: ab > 0 ? rd(H / ab, 3) : null, WHIP: ip ? rd((H + BB) / ip, 2) : null, BABIP: bip > 0 ? rd((H - HR) / bip, 3) : null, 'LOB%': lob > 0 ? rd(100 * (H + BB + HBP - s.R) / lob, 1) : null,
       ERA: rd(era, 2), FIP: rd(fip, 2), 'ERA-': ip ? Math.round(100 * era / gc.ERA) : null, 'FIP-': ip ? Math.round(100 * fip / gc.ERA) : null, 'E-F': ip ? rd(era - fip, 2) : null,
-      WAR: rd(war, 1), 'WAR/162': (war != null && tg) ? rd(war * 162 / tg, 1) : null, Qual: ip >= 0.5 * tg };
+      WAR: rd(war, 1), 'WAR/200': (war != null && ip) ? rd(war * 200 / ip, 1) : null, Qual: ip >= 0.5 * tg };
   }
   function aggregateBox(box, guts, season, type, sp) {
     const gc = new Map();
