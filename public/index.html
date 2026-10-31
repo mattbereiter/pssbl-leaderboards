@@ -781,21 +781,20 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       return [...m.values()].map((r) => ({ pid: r.pid, Name: r.Name, n: r.Name.toLowerCase(), Team: r.Team, Division: r.Division, To: r.To }));
     });
   };
-  let sT;
-  pq.addEventListener('input', () => {
-    clearTimeout(sT);
-    sT = setTimeout(() => {
-      const list = playerIndex();
-      const q = pq.value.trim().toLowerCase();
-      if (q.length < 2) { sugg.hidden = true; return; }
-      if (!list) { sugg.innerHTML = '<div class="pg-empty">Loading players…</div>'; sugg.hidden = false; return; }
-      const hits = [];
-      for (const r of list) { if (r.n.includes(q)) hits.push(r); }
-      hits.sort((a, b) => (b.n.startsWith(q) - a.n.startsWith(q)) || b.To - a.To);
-      sugg.innerHTML = hits.length ? hits.slice(0, 25).map((r) => `<button type="button" data-pid="${esc(r.pid)}">${esc(r.Name)} <span>· ${esc(r.Team)} (${esc(r.Division)}) ${r.To}</span></button>`).join('') : '<div class="pg-empty">No player found</div>';
-      sugg.hidden = false;
-    }, 80);
-  });
+  let sT, sWaiting = false;
+  function suggest() {
+    const list = playerIndex();
+    const q = pq.value.trim().toLowerCase();
+    sWaiting = false;
+    if (q.length < 2) { sugg.hidden = true; return; }
+    if (!list) { sugg.innerHTML = '<div class="pg-empty">Loading players…</div>'; sugg.hidden = false; sWaiting = true; return; }
+    const hits = [];
+    for (const r of list) { if (r.n.includes(q)) hits.push(r); }
+    hits.sort((a, b) => (b.n.startsWith(q) - a.n.startsWith(q)) || b.To - a.To);
+    sugg.innerHTML = hits.length ? hits.slice(0, 25).map((r) => `<button type="button" data-pid="${esc(r.pid)}">${esc(r.Name)} <span>· ${esc(r.Team)} (${esc(r.Division)}) ${r.To}</span></button>`).join('') : '<div class="pg-empty">No player found</div>';
+    sugg.hidden = false;
+  }
+  pq.addEventListener('input', () => { clearTimeout(sT); sT = setTimeout(suggest, 80); });
   pq.addEventListener('keydown', (e) => { if (e.key === 'Enter') sugg.querySelector('button')?.click(); if (e.key === 'Escape') sugg.hidden = true; });
 
   function seasonTableHTML(src, rows, cols, head) {
@@ -881,6 +880,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
 
   function renderPlayers() {
     setPGroup(P.group);
+    if (sWaiting && playerIndex()) suggest(); // typed before the player list arrived
     if (bad('bat_career') || bad('batting_hist')) { $('#p-name').textContent = ''; failed($('#p-strip')); return; }
     const bc = rowsOf('bat_career'), pc = rowsOf('pit_career');
     const nm = $('#p-name');

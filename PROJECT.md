@@ -8,7 +8,7 @@ about 74 teams in 10 divisions. It was built for Matt Bereiter, who plays in the
 | Live site | https://pssbl-leaderboards.netlify.app |
 | Repo | https://github.com/mattbereiter/pssbl-leaderboards (private, branch `main`) |
 | Hosting | Netlify project `pssbl-leaderboards`, team "Matt Bereiter"; auto-deploys every push to `main` |
-| Local clone | `C:\Users\matth\Gamechanger\pssbl-leaderboards` for now; Matt plans to move it to `C:\Users\matth\Projects\` |
+| Local clone | `C:\Users\matth\Projects\pssbl-leaderboards` |
 | Sibling project | PSSBL Tracker (`mattbereiter/pssbl-tracker`): Matt's personal schedule/scorecard app, same API |
 | Claude dashboard copy | A version also lives as a Claude dashboard artifact (private to Matt) using the same `src/page.html`. Claude Code can't update it; mention it if the page changes. |
 
@@ -43,6 +43,8 @@ scripts/           # data pipeline, Python 3 stdlib only
   build_box.py     # raw/box -> build/: per-game player lines for the date filter
   update.py        # runs fetch + compute + build_box, splits/copies into public/data, stamps manifest, rebuilds page
   build_page.py    # src/shell.html + src/page.html -> public/index.html
+  verify.py        # sample players, compare counting stats with pssbl.com Career*; update.py runs it
+tests/             # Playwright smoke tests (npm test); serve.py serves public/ for them
 analysis/          # one-off research (pandas/scipy/matplotlib); reads public/data and build/
   transfer.py         # does performance carry across divisions? + division difficulty ranking
   viz_transfer.py     # chart: Rocky -> Cascade/Sierra, hitting + pitching
@@ -83,6 +85,10 @@ Base URL: `https://pssbl.com/PHP/fetchData.php?type=…` (public and CORS-enable
 4. **No intentional walks in box scores.** Date-range wOBA treats all walks as unintentional.
 5. **Late corrections happen.** The league edits box scores after the fact (e.g., a Denali game added after Oct 10).
    `update.py` re-downloads the whole latest season, not just new games.
+6. **Text encoding.** pssbl.com sends UTF-8, but some names arrive double-encoded (`JosÃ©` for José).
+   - **Fix:** every pipeline read goes through `fetch.load()` (UTF-8, then `fix_text()` repairs the double encoding),
+     and every write says `encoding='utf-8'`. Python on Windows defaults to cp1252, which can't even read the
+     raw files (`“Skip” Williams` crashes it), so never use a bare `open()`. `tests/data.spec.js` fails on garbled text.
 
 ## Sabermetric method (compute.py)
 
@@ -137,8 +143,10 @@ Every number is relative to the **player's own division that season**, treated l
 
 ## Verifying the data
 
-1. **Season lines vs. pssbl.com:** sum `public/data/*` lines per player-season and compare with `CareerBatting` /
-   `CareerPitching`. The last audit (Oct 27, 2026) checked 82 random players: 625 player-seasons, 100% exact.
+1. **Season lines vs. pssbl.com:** `python scripts/verify.py [n] [--seed s]` sums `public/data/*` lines per
+   player-season and compares counting stats with `CareerBatting` / `CareerPitching` (n random hitters and
+   pitchers, plus Matt). `update.py` runs it after every online refresh and stops on a mismatch.
+   Oct 31, 2026: 42 players, 163 player-seasons, 0 mismatches (the Oct 27 audit of 625 seasons was also exact).
 2. **Box scores vs. season totals:** rebuild a full season from `box_YYYY.csv` and compare with the season lines.
    Expect about 95%+ exact; the remainder is missing games.
 3. **Spot check:** Matt 2026 Beavers (Adams) should read .292/.390/.333, 82 wRC+.
@@ -168,10 +176,6 @@ These come from same-player, same-season pairs across divisions.
 - **Personal copy on a public site:** the summary line says "Your wRC+" and the nav has "★ My page", which read oddly
   to other league members. Consider "Matt Bereiter" wording.
 - **Hitter scale:** if oWAR/600 feels inflated, the alternative Matt considered was a PSSBL full season of about 100 PA.
-- **No tests yet:** add Playwright smoke tests (leaderboard renders, date range, player page, standings, guts,
-  no console errors, hidden-tab load).
 - **Older seasons:** the API has seasons before 2015; `fetch.py` / `update.py` use `FIRST = 2015`.
 - **Scheduled refresh:** during the season, a weekly `update.py` + push (e.g., a scheduled task or GitHub Action
   running Python) would keep the site current. Not set up.
-- **Repo location:** the local clone is in `C:\Users\matth\Gamechanger\`; Matt intends to move it to `Projects\`.
-  Moving it doesn't affect GitHub or Netlify.

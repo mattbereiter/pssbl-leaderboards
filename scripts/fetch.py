@@ -11,9 +11,27 @@ RAW = os.path.join(ROOT, 'raw')
 API = 'https://pssbl.com/PHP/fetchData.php?'
 WORKERS = 6  # be gentle with the league's server
 
+def fix_text(s):
+    """Undo pssbl.com's double-encoded UTF-8 (it sends 'JosÃ©' for 'José'). Correct text passes through."""
+    if 'Ã' in s or 'Â' in s or 'â€' in s:
+        try: return s.encode('cp1252').decode('utf-8')
+        except UnicodeError: pass
+    return s
+
+def _fix(x):
+    if isinstance(x, str): return fix_text(x)
+    if isinstance(x, list): return [_fix(v) for v in x]
+    if isinstance(x, dict): return {k: _fix(v) for k, v in x.items()}
+    return x
+
+def load(path):
+    """Read a cached API file. Always UTF-8: Windows' default (cp1252) can't decode what pssbl.com sends."""
+    with open(path, encoding='utf-8') as f:
+        return _fix(json.load(f))
+
 def get(query, path, force=False):
     if not force and os.path.exists(path) and os.path.getsize(path) > 2:
-        return json.load(open(path))
+        return load(path)
     for attempt in range(4):
         try:
             with urllib.request.urlopen(API + query, timeout=60) as r:
@@ -22,7 +40,7 @@ def get(query, path, force=False):
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, 'wb') as f:
                 f.write(body)
-            return data
+            return _fix(data)
         except Exception as e:  # network blip or empty answer: retry, then give up on this file
             if attempt == 3:
                 print(f'  ! {query}: {e}', file=sys.stderr)

@@ -1,5 +1,6 @@
 """Per-game player lines (box scores) for the date-range filter, one CSV per season."""
 import json, glob, os, csv, datetime, collections
+from fetch import load  # UTF-8 + repairs pssbl.com's double-encoded names
 ROOT=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW=os.path.join(ROOT,'raw'); OUT=os.path.join(ROOT,'build')
 def i(x):
@@ -8,24 +9,24 @@ def i(x):
 meta={}   # gameId -> (season, date, playoff)
 for f in glob.glob(f'{RAW}/Games_*_20*.json'):
     y=int(f[-9:-5])
-    for g in json.load(open(f)):
+    for g in load(f):
         if g['outcome']!='finished': continue
         d=datetime.datetime.strptime(g['dateTime'],'%b %d %Y, %I:%M %p').date().isoformat()
         meta[g['gameId']]=(y,d,0 if g['playoffRound'] in ('0','',None) else 1)
 tdiv={}
 for f in glob.glob(f'{RAW}/TeamNames_*.json'):
     y=int(f[-9:-5])
-    for t in json.load(open(f)): tdiv[(y,t['teamId'])]=(t['teamName'].strip(),t['divisionName'])
+    for t in load(f): tdiv[(y,t['teamId'])]=(t['teamName'].strip(),t['divisionName'])
 CUM={'b':set(),'p':set()}; CUM_BY={'b':collections.defaultdict(list),'p':collections.defaultdict(list)}
 for kind,fn in (('b','batting'),('p','pitching')):
-    for r in csv.DictReader(open(f'{OUT}/pssbl_{fn}.csv')):
+    for r in csv.DictReader(open(f'{OUT}/pssbl_{fn}.csv',encoding='utf-8')):
         k=(int(r['Season']),r['pid'],r['tid']); CUM[kind].add(k); CUM_BY[kind][(k[0],k[1])].append(k)
 BC=['kind','Date','Season','gameId','PO','pid','Name','tid','ptid','Team','Division','GS','AB','R','H','2B','3B','HR','RBI','SB','CS','BB','SO','GDP','HBP','SH','SF','CI','Outs','W','L','SV','CG','ER','IBB','WP']
 per=collections.defaultdict(list); missing=collections.Counter(); total=collections.Counter()
 for gid,(y,d,po) in meta.items():
     total[y]+=1
     try:
-        b=json.load(open(f'{RAW}/box/BattingStats_{gid}.json')); p=json.load(open(f'{RAW}/box/PitchingStats_{gid}.json'))
+        b=load(f'{RAW}/box/BattingStats_{gid}.json'); p=load(f'{RAW}/box/PitchingStats_{gid}.json')
     except Exception: b,p=[],[]
     if not b and not p: missing[y]+=1; continue
     agg={}
@@ -56,7 +57,7 @@ for gid,(y,d,po) in meta.items():
         per[y].append(row)
 for y in sorted(per):
     rows=sorted(per[y],key=lambda r:(r['Date'],r['gameId']))
-    with open(f'{OUT}/pssbl_box_{y}.csv','w',newline='') as f:
+    with open(f'{OUT}/pssbl_box_{y}.csv','w',newline='',encoding='utf-8') as f:
         w=csv.DictWriter(f,BC); w.writeheader(); w.writerows(rows)
     print(y,len(rows),'games',total[y],'missing',missing[y],f"{os.path.getsize(f'{OUT}/pssbl_box_{y}.csv')/1e6:.2f}MB")
-json.dump({y:{'games':total[y],'missing':missing[y]} for y in total},open(f'{OUT}/box_coverage.json','w'))
+json.dump({y:{'games':total[y],'missing':missing[y]} for y in total},open(f'{OUT}/box_coverage.json','w',encoding='utf-8'))

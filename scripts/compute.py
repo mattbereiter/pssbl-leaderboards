@@ -5,6 +5,7 @@ method already used in Matt's PSSBL Tracker app (FanGraphs linear weights,
 wOBA scale 1.20, division-specific FIP constant).
 """
 import json, glob, os, collections, math, datetime
+from fetch import load  # UTF-8 + repairs pssbl.com's double-encoded names
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW = os.path.join(ROOT, 'raw')      # pssbl.com API cache (scripts/fetch.py fills it)
@@ -37,16 +38,16 @@ def ipnote(outs): return outs // 3 + (outs % 3) / 10
 # player appeared for most (ties: the most recent appearance). Stats themselves are untouched.
 _tdiv = {}
 for f in glob.glob(f'{RAW}/TeamNames_*.json'):
-    for t in json.load(open(f)): _tdiv[(int(f[-9:-5]), t['teamId'])] = (t['teamName'].strip(), t['divisionName'])
+    for t in load(f): _tdiv[(int(f[-9:-5]), t['teamId'])] = (t['teamName'].strip(), t['divisionName'])
 _when = {}
 for f in glob.glob(f'{RAW}/Games_*_20*.json'):
-    for g in json.load(open(f)):
+    for g in load(f):
         if g['outcome'] == 'finished':
             _when[g['gameId']] = (int(f[-9:-5]), datetime.datetime.strptime(g['dateTime'], '%b %d %Y, %I:%M %p'))
 _apps = collections.defaultdict(lambda: collections.defaultdict(list))
 for gid, (y, dt) in _when.items():
     for kind, typ in (('b', 'BattingStats'), ('p', 'PitchingStats')):
-        try: rows = json.load(open(f'{RAW}/box/{typ}_{gid}.json'))
+        try: rows = load(f'{RAW}/box/{typ}_{gid}.json')
         except Exception: continue
         for x in {(z['playerId'], z['teamId']) for z in rows}:
             _apps[(kind, y, x[0], _tdiv.get((y, x[1]), ('', ''))[1])][x[1]].append(dt)
@@ -72,9 +73,9 @@ bat_rows, pit_rows, guts, standings = [], [], [], []
 for y in seasons:
     for fb in sorted(glob.glob(f'{RAW}/CumulativeBatting_*_{y}.json')):
         d = fb.split('_')[-2]
-        B = main_team('b', y, d, json.load(open(fb)))
-        P = main_team('p', y, d, json.load(open(f'{RAW}/CumulativePitching_{d}_{y}.json')))
-        G = json.load(open(f'{RAW}/Games_{d}_{y}.json'))
+        B = main_team('b', y, d, load(fb))
+        P = main_team('p', y, d, load(f'{RAW}/CumulativePitching_{d}_{y}.json'))
+        G = load(f'{RAW}/Games_{d}_{y}.json')
         if not B and not P: continue
 
         # ---- batting base
@@ -346,13 +347,13 @@ def dump(name, rows):
     p = os.path.join(OUT, name)
     if name.endswith('.csv'):
         cols = list(rows[0].keys())
-        with open(p, 'w', newline='') as f:
+        with open(p, 'w', newline='', encoding='utf-8') as f:
             w = csv.writer(f)
             w.writerow(cols)
             for z in rows:
                 w.writerow(['' if z.get(c) is None else ('true' if z[c] is True else 'false' if z[c] is False else z[c]) for c in cols])
     else:
-        json.dump(rows, open(p, 'w'), separators=(',', ':'))
+        json.dump(rows, open(p, 'w', encoding='utf-8'), separators=(',', ':'))
     print(name, len(rows), f'{os.path.getsize(p)/1e6:.2f} MB')
 
 dump('pssbl_batting.csv', bat_rows)
