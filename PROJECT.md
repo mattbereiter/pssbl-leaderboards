@@ -21,6 +21,8 @@ There are four tabs plus a shortcut. All are rendered by `src/page.html` (one sc
     name search, and a **date range** (full season, regular season, playoffs, a month, or custom From/To).
   - **Table:** sortable columns, 50 rows per page, and top-5 leader cards above it (the cards follow every filter,
     including the name search).
+  - **Projected → Adams / Sierra** (Season menu): the projection below for everyone whose last three seasons include
+    another division. Division becomes "From division"; Qualified = at least half their own numbers (eff PA ≥ k).
   - **Header line:** the top hitter and pitcher of the latest season. It's league news, not addressed to Matt.
 - **Players.** Season-by-season tables with a career row, a wRC+ dot chart (hitters) and ERA-/FIP- chart (pitchers),
   career stat strip, name search, and a link to the player's pssbl.com page. The "★ Matt" tab opens Matt (pid 8048).
@@ -136,6 +138,8 @@ writes `translations.json` and registers it in the manifest (bumping `version`).
 - **Checks:** `tests/projection.spec.js` pins AJ Hansen (Adams .347/.467/.508, 132 wRC+; Sierra .357/.457/.519, 129)
   and Cameron Lobb (Adams FIP- 81, 4.14 FIP; Sierra 86, 4.77), which match the pandas script exactly.
   Offsets match `project_to_adams.py` to < 1e-6.
+- **Leaders board** (`season=ProjAdams` / `ProjSierra`): `projRows()` runs `project()` for every such player;
+  columns are recent PA/IP, effective PA/IP, Own% (shrink) and the projected line. Default sort wRC+ / FIP- (low first).
 - **Shown only** when the player's last three seasons include a division other than Adams/Sierra. The card states the
   PA/IP it rests on, the own-numbers vs average split, and the caveats (self-selected two-division players, environment
   mixed with competition, no age data).
@@ -204,8 +208,8 @@ These come from same-player, same-season pairs across divisions.
 
 ## Open ideas and known loose ends
 
-- **Translations:** done as the Players-page "Projected in Adams / Sierra" card (Oct 31, 2026). Still open: a
-  Leaders-tab "Translate to: Adams" toggle to compare a whole division, or other target divisions.
+- **Translations:** done as the Players-page "Projected in Adams / Sierra" card (Oct 31, 2026). The Leaders tab also has
+  "Projected → Adams / Sierra" boards. Still open: other target divisions.
 - **UX review (Oct 31, 2026), still open:** Players should open on search, not Matt; inline stat definitions
   ("Qualified" threshold, Standings/Guts tooltips); Standings tables clip at desktop width; arrow keys in player search;
   44px tap targets and 16px inputs on phones; a Retry on failed loads.

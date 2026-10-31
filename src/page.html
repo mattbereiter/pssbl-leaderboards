@@ -119,6 +119,7 @@
 #p-proj-body .pg-note { margin: 4px 0 0; }
 #p-proj-body .pg-stack { width: fit-content; max-width: 100%; }
 .pg-proj-fine { margin: var(--cds-gap-sm) 0 0; }
+.pg-grouptabs.proj button { display: none; }
 @container (max-width: 760px) {
   .pg-top { flex-direction: column; }
   .pg-brand { padding-bottom: 0; }
@@ -173,7 +174,7 @@
       <label class="pg-ctrl" id="lb-range-ctrl">Dates<select id="lb-range" aria-label="Date range"></select></label>
       <label class="pg-ctrl" id="lb-from-ctrl">From<input id="lb-from" type="date" aria-label="From date"></label>
       <label class="pg-ctrl" id="lb-to-ctrl">To<input id="lb-to" type="date" aria-label="To date"></label>
-      <label class="pg-ctrl">Division<select id="lb-div" aria-label="Division"></select></label>
+      <label class="pg-ctrl"><span id="lb-div-label">Division</span><select id="lb-div" aria-label="Division"></select></label>
       <label class="pg-ctrl">Team<select id="lb-team" aria-label="Team"></select></label>
       <label class="pg-ctrl"><span id="lb-min-label">Min PA</span><select id="lb-min" aria-label="Minimum"></select></label>
       <label class="pg-ctrl wide">Player<input id="lb-q" type="search" placeholder="Search name" aria-label="Search player"></label>
@@ -393,7 +394,11 @@
   const setGroup = seg('#lb-group', (v) => upd(() => { L.group = v; }));
   const setPGroup = seg('#p-group', (v) => { P.group = v; render(); });
 
-  $('#lb-season').addEventListener('change', (e) => upd(() => { L.season = e.target.value === 'Career' ? 'Career' : Number(e.target.value); L.team = keepTeam(); L.range = 'full'; L.from = L.to = null; }));
+  $('#lb-season').addEventListener('change', (e) => upd(() => {
+    const v = e.target.value, was = isProj(L.season);
+    L.season = v === 'Career' || isProj(v) ? v : Number(v); L.team = keepTeam(); L.range = 'full'; L.from = L.to = null;
+    if (was !== isProj(L.season)) { L.sort = isProj(L.season) ? projSort(L.type) : defSort(L.type); L.dir = isProj(L.season) && L.type === 'pit' ? 1 : -1; L.min = 'q'; }
+  }));
   $('#lb-range').addEventListener('change', (e) => upd(() => { L.range = e.target.value; if (L.range !== 'custom') L.from = L.to = null; }));
   const onDate = (el, k) => {
     el.addEventListener('change', () => {
@@ -474,7 +479,7 @@
   // ---------- DATE RANGE (rebuilt from box scores) ----------
   const RANGES = [['full', 'Full season'], ['reg', 'Regular season'], ['post', 'Playoffs'], ['m4', 'April'], ['m5', 'May'], ['m6', 'June'], ['m7', 'July'], ['m8', 'August'], ['m9', 'September'], ['custom', 'Custom dates']];
   function rangeSpec() {
-    if (L.season === 'Career' || L.season == null || L.range === 'full') return null;
+    if (typeof L.season !== 'number' || L.range === 'full') return null;
     const y = L.season;
     if (L.range === 'reg') return { po: 0 };
     if (L.range === 'post') return { po: 1 };
@@ -565,16 +570,16 @@
     const wrap = $('#lb-wrap'), table = $('#lb-table');
     const seasons = seasonsAvail();
     if (!seasons) { if (bad('guts')) failed(wrap); return; }
-    if (L.season == null || (L.season !== 'Career' && !seasons.includes(L.season))) L.season = seasons[0];
+    if (L.season == null || (L.season !== 'Career' && !isProj(L.season) && !seasons.includes(L.season))) L.season = seasons[0];
     if (!RANGES.some(([v]) => v === L.range)) L.range = 'full';
     const qEl = $('#lb-q');
     if (qEl !== document.activeElement && qEl.value.trim().toLowerCase() !== L.q) qEl.value = L.q;
-    fillSelect($('#lb-season'), [...seasons.map((s) => [s, s]), ['Career', `Career (${seasons[seasons.length - 1]}–${seasons[0]})`]], L.season);
-    const career = L.season === 'Career';
+    fillSelect($('#lb-season'), [...seasons.map((s) => [s, s]), ['Career', `Career (${seasons[seasons.length - 1]}–${seasons[0]})`], ...PROJ_TARGETS.map((T) => ['Proj' + T, `Projected → ${T}`])], L.season);
+    const career = L.season === 'Career', proj = isProj(L.season) ? L.season.slice(4) : null;
     // date range controls
-    ['#lb-range-ctrl', '#lb-from-ctrl', '#lb-to-ctrl'].forEach((c) => { $(c).hidden = career; });
+    ['#lb-range-ctrl', '#lb-from-ctrl', '#lb-to-ctrl'].forEach((c) => { $(c).hidden = career || !!proj; });
     const sp = rangeSpec();
-    if (!career) {
+    if (!career && !proj) {
       fillSelect($('#lb-range'), RANGES, L.range);
       const fe = $('#lb-from'), te = $('#lb-to');
       fe.min = te.min = `${L.season}-01-01`; fe.max = te.max = `${L.season}-12-31`;
@@ -582,41 +587,46 @@
       if (te !== document.activeElement) te.value = (sp && sp.to) || '';
     }
     const cards = $('#lb-cards');
-    const id = sp ? 'box_' + L.season : sourceFor(L.type, L.season, seasons[0]);
-    $('#lb-title').textContent = `${L.type === 'bat' ? 'Batting' : 'Pitching'} leaders · ${career ? 'career' : L.season}${sp ? ' · ' + rangeLabel(sp) : ''}`;
-    if (bad(id) || (sp && bad('guts'))) { failed(wrap); wrap.prepend(table); table.replaceChildren(); return; }
+    const id = sp ? 'box_' + L.season : proj ? DS[L.type].hist : sourceFor(L.type, L.season, seasons[0]);
+    $('#lb-title').textContent = `${L.type === 'bat' ? 'Batting' : 'Pitching'} leaders · ${career ? 'career' : proj ? 'projected in ' + proj : L.season}${sp ? ' · ' + rangeLabel(sp) : ''}`;
+    $('#lb-div-label').textContent = proj ? 'From division' : 'Division';
+    $('#lb-group').classList.toggle('proj', !!proj);
+    if (bad(id) || (sp && bad('guts')) || (proj && (bad(DS[L.type].cur) || bad('translations')))) { failed(wrap); wrap.prepend(table); table.replaceChildren(); return; }
     let inSeason, rangeGames = null;
     if (sp) {
       const box = rowsOf(id), gr = rowsOf('guts');
       const res = box && gr && memoize('range', [box, gr, L.type, JSON.stringify(sp)], () => aggregateBox(box, gr, L.season, L.type, sp));
       inSeason = res ? res.rows : null;
       if (res) rangeGames = res.games;
-    } else inSeason = career ? rowsOf(id) : seasonRows(id, L.season);
+    } else inSeason = proj ? projRows(L.type, proj) : career ? rowsOf(id) : seasonRows(id, L.season);
     if (!inSeason) { wrap.classList.add('dash-skeleton'); cards.classList.add('dash-skeleton'); return; }
     wrap.classList.remove('dash-skeleton'); cards.classList.remove('dash-skeleton');
     wrap.querySelector('.pg-failed')?.remove();
     // each value in the season tables cites its row; date-range lines are added up from box scores here, so the table and cards cite the box scores as a whole
-    const cite = !sp;
-    if (cite) { table.setAttribute('data-source', id); table.setAttribute('data-row-key', 'key'); wrap.removeAttribute('data-source'); cards.removeAttribute('data-source'); }
+    const cite = !sp && !proj;
+    if (proj) { table.removeAttribute('data-source'); table.removeAttribute('data-row-key'); wrap.setAttribute('data-source', `${DS[L.type].hist} ${DS[L.type].cur} translations`); cards.setAttribute('data-source', wrap.getAttribute('data-source')); }
+    else if (cite) { table.setAttribute('data-source', id); table.setAttribute('data-row-key', 'key'); wrap.removeAttribute('data-source'); cards.removeAttribute('data-source'); }
     else { table.removeAttribute('data-source'); table.removeAttribute('data-row-key'); wrap.setAttribute('data-source', `${id} guts`); cards.setAttribute('data-source', `${id} guts`); }
     $('#lb-note').textContent = sp
       ? `Added up from ${d3.format(',')(rangeGames)} box scores in this range. wRC+, FIP and WAR compare to full-season division averages; box scores don't record intentional walks, and qualifying is 2 PA or 0.5 IP per team game in the range.`
       : 'Click a column to sort, a name for the player page.';
+    if (proj) $('#lb-note').textContent = projNote(L.type, proj);
 
-    const divs = memoize('divs|' + id + L.season, [inSeason], () => [...new Set(inSeason.map((r) => r.Division))].sort());
+    const divs = memoize('divs|' + id + L.season, [inSeason], () => [...new Set(inSeason.flatMap((r) => r.Divs || [r.Division]))].sort());
     if (L.div !== 'All' && !divs.includes(L.div)) L.div = 'All';
     fillSelect($('#lb-div'), [['All', 'All divisions'], ...divs.map((d) => [d, d])], L.div);
-    const inDiv = L.div === 'All' ? inSeason : memoize('div|' + id + L.season + L.div, [inSeason], () => inSeason.filter((r) => r.Division === L.div));
-    const teams = memoize('teams|' + id + L.season + L.div, [inDiv], () => [...new Map(inDiv.map((r) => [r.tid, `${r.Team}${L.div === 'All' ? ' (' + r.Division + ')' : ''}`])).entries()].sort((a, b) => a[1].localeCompare(b[1])));
+    const inDiv = L.div === 'All' ? inSeason : memoize('div|' + id + L.season + L.div, [inSeason], () => inSeason.filter((r) => (r.Divs || [r.Division]).includes(L.div)));
+    const teams = memoize('teams|' + id + L.season + L.div, [inDiv], () => [...new Map(inDiv.map((r) => [r.tid, `${r.Team}${L.div === 'All' || proj ? ' (' + (r.TeamDiv || r.Division) + ')' : ''}`])).entries()].sort((a, b) => a[1].localeCompare(b[1])));
     const wcpOn = L.div === WCP.div;
     if (L.team !== 'All' && !(wcpOn && L.team === WCP.id) && !teams.some(([t]) => t === L.team)) L.team = 'All';
     fillSelect($('#lb-team'), [['All', career ? 'All (last team)' : 'All teams'], ...teams, ...(wcpOn ? [[WCP.id, WCP.label]] : [])], L.team);
     const pilots = L.team === WCP.id;
     const inTeam = L.team === 'All' ? inDiv : pilots ? memoize('wcp|' + id + L.season, [inSeason], () => inSeason.filter((r) => WCP.pids.has(r.pid))) : inDiv.filter((r) => r.tid === L.team);
-    table.classList.toggle('show-div', pilots);
+    table.classList.toggle('show-div', pilots || !!proj);
     if (pilots) $('#lb-note').textContent = 'Every Pilot, from every division. Divisions differ in strength, so compare by wRC+, FIP-, ERA- and WAR, not raw AVG or ERA. ' + $('#lb-note').textContent;
-    const cols = (L.type === 'bat' ? BAT : PIT)[L.group];
+    const cols = proj ? PROJ[L.type].board : (L.type === 'bat' ? BAT : PIT)[L.group];
     const fixed = ['Name', 'Team', 'Division', ...(career ? ['Seasons'] : [])];
+    if (proj && !cols.includes(L.sort) && !fixed.includes(L.sort)) { L.sort = projSort(L.type); L.dir = L.type === 'pit' ? 1 : -1; }
     if (!cols.includes(L.sort) && !fixed.includes(L.sort)) { L.sort = L.type === 'bat' ? (cols.includes('oWAR') ? 'oWAR' : cols.includes('wRC+') ? 'wRC+' : 'PA') : (cols.includes('WAR') ? 'WAR' : 'IP'); L.dir = -1; }
     const shown = memoize('shown', [inTeam, L.min, L.q, L.sort, L.dir, L.type], () =>
       inTeam.filter((r) => (passMin(r) || r.pid === MATT) && (!L.q || r.Name.toLowerCase().includes(L.q))).sort(cmp(L.sort, L.dir)));
@@ -626,14 +636,14 @@
     if (L.page < 0) L.page = 0;
     const start = L.page * L.size;
     const slice = shown.slice(start, start + L.size);
-    $('#lb-count').textContent = `${d3.format(',')(shown.length)} players${L.min === 'q' && hidden ? ` · ${d3.format(',')(hidden)} below the qualifying bar hidden` : ''}`;
+    $('#lb-count').textContent = `${d3.format(',')(shown.length)} players${L.min === 'q' && hidden ? ` · ${d3.format(',')(hidden)} ${proj ? 'with under half their own numbers' : 'below the qualifying bar'} hidden` : ''}`;
 
     const sortAttr = (c) => c === L.sort ? ` aria-sort="${L.dir > 0 ? 'ascending' : 'descending'}"` : '';
     const fa = (c) => ` data-col="${esc(c)}"${cite ? ` data-field="${esc(c)}"` : ''}`;
     const thead = `<thead><tr><th class="rk sticky1">#</th>`
       + `<th${fa('Name')} class="l sticky2"${sortAttr('Name')}><button type="button">Name</button></th>`
       + `<th${fa('Team')} class="l"${sortAttr('Team')}><button type="button">${career ? 'Last team' : 'Team'}</button></th>`
-      + `<th${fa('Division')} class="l col-div"${sortAttr('Division')}><button type="button">Div</button></th>`
+      + `<th${fa('Division')} class="l col-div"${sortAttr('Division')}><button type="button">${proj ? 'From' : 'Div'}</button></th>`
       + (career ? `<th${fa('Seasons')}${sortAttr('Seasons')}><button type="button">Yrs</button></th>` : '')
       + cols.map((c) => `<th${fa(c)}${sortAttr(c)} title="${esc(DEF[c] || c)}"><button type="button">${esc(c)}</button></th>`).join('')
       + `</tr></thead>`;
@@ -654,14 +664,16 @@
     if ($('#lb-size').value !== String(L.size)) $('#lb-size').value = String(L.size);
     // cards follow the name search too, so they never contradict the table
     const inQ = L.q ? memoize('inQ', [inTeam, L.q], () => inTeam.filter((r) => r.Name.toLowerCase().includes(L.q))) : inTeam;
-    renderLeaderCards(inQ, cite ? id : null);
+    renderLeaderCards(inQ, cite ? id : null, !!proj);
   }
 
-  function renderLeaderCards(pool, id) {
+  function renderLeaderCards(pool, id, proj) {
     const box = $('#lb-cards');
-    const html = memoize('cards', [pool, L.type, id], () => {
+    const html = memoize('cards', [pool, L.type, id, proj], () => {
       const q = pool.filter((r) => r.Qual === true);
-      const defs = L.type === 'bat'
+      const defs = proj ? (L.type === 'bat'
+        ? [['wRC+', -1, q], ['wOBA', -1, q], ['OBP', -1, q], ['SLG', -1, q], ['AVG', -1, q]]
+        : [['FIP-', 1, q], ['FIP', 1, q], ['K%', -1, q], ['BB%', 1, q]]) : L.type === 'bat'
         ? [['oWAR', -1, pool], ['wRC+', -1, q], ['HR', -1, pool], ['AVG', -1, q], ['SB', -1, pool]]
         : [['WAR', -1, pool], ['FIP', 1, q], ['ERA', 1, q], ['SO', -1, pool], ['K-BB%', -1, q]];
       return defs.map(([f, dir, set]) => {
@@ -672,7 +684,7 @@
         }
         const mk = (r, fld) => id ? ` data-source="${id}" data-field="${esc(fld)}" data-where="key=${enc(r.key)}"` : '';
         const items = top.map((r) => `<li${r.pid === MATT ? ' class="me"' : ''}><span class="n"><a class="pg-link" href="#players/${esc(r.pid)}" data-pid="${esc(r.pid)}"${mk(r, 'Name')}>${esc(r.Name)}</a> <span class="t">${esc(r.Team)}</span></span><span class="v"${mk(r, f)}>${esc(fmt(f, r[f]))}</span></li>`).join('');
-        const qual = set === q ? ' · qualified' : '';
+        const qual = set === q ? (proj ? ' · projected' : ' · qualified') : '';
         return `<div class="pg-lcard"><h4>${esc(f)}<span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--color-fg-muted)">${qual}</span></h4><ol>${items || `<li class="t">${pool.length ? 'No qualifiers yet' : 'No players match'}</li>`}</ol></div>`;
       }).join('');
     });
@@ -856,7 +868,52 @@
     bat: { w: 'PA', unit: 'PA', cols: ['AVG', 'OBP', 'SLG', 'wOBA', 'BB%', 'K%'], show: ['AVG', 'OBP', 'SLG', 'wOBA', 'wRC+', 'BB%', 'K%'], title: 'Hitting' },
     pit: { w: 'Outs', unit: 'IP', cols: ['FIP-', 'K%', 'BB%'], show: ['FIP-', 'FIP', 'K%', 'BB%'], title: 'Pitching' },
   };
+  PROJ.bat.board = ['PA', 'Eff PA', 'Own%', 'AVG', 'OBP', 'SLG', 'wOBA', 'wRC+', 'BB%', 'K%'];
+  PROJ.pit.board = ['IP', 'Eff IP', 'Own%', 'FIP-', 'FIP', 'K%', 'BB%'];
   const PROJ_TARGETS = ['Adams', 'Sierra'];
+  // Leaders "Projected → Adams/Sierra": the same projection for everyone whose recent seasons include another division
+  function isProj(v) { return typeof v === 'string' && v.startsWith('Proj') && PROJ_TARGETS.includes(v.slice(4)); }
+  function projSort(type) { return type === 'bat' ? 'wRC+' : 'FIP-'; }
+  function projData() {
+    touched.add('translations');
+    const t = dash.data('translations');
+    return t.status === 'ok' && t.data && t.data.seasons ? t.data : null;
+  }
+  function projRows(type, target) {
+    const tr = projData(), h = rowsOf(DS[type].hist), c = rowsOf(DS[type].cur);
+    if (!tr || !h || !c) return null;
+    return memoize('projrows' + type + target, [tr, h, c], () => {
+      const byPid = new Map(), w = PROJ[type].w;
+      for (const rows of [h, c]) for (const r of rows) {
+        if (!(String(r.Season) in tr.seasons)) continue;
+        let a = byPid.get(r.pid); if (!a) byPid.set(r.pid, a = []); a.push(r);
+      }
+      const out = [];
+      for (const [pid, rs] of byPid) {
+        const ls = projLines(type, rs, tr.seasons);
+        if (!ls.length || ls.every((l) => PROJ_TARGETS.includes(l.Division))) continue;
+        const p = project(type, ls, tr, target);
+        if (!p) continue;
+        const last = rs.reduce((b, r) => (!b || r.Season > b.Season || (r.Season === b.Season && r[w] > b[w]) ? r : b), null);
+        const divs = d3.rollups(ls, (v) => d3.sum(v, (l) => l.w), (l) => l.Division).sort((a, b) => b[1] - a[1]).map(([d]) => d);
+        const tot = d3.sum(ls, (l) => l.w);
+        const row = { key: `proj-${target}-${pid}`, pid, Name: last.Name, Team: last.Team, tid: last.tid, TeamDiv: last.Division, Division: divs.join(', '), Divs: divs,
+          'Own%': Math.round(100 * p.shrink), Qual: p.eff >= tr[type].k, 'K%': p['K%'], 'BB%': p['BB%'] };
+        if (type === 'bat') Object.assign(row, { PA: Math.round(tot), 'Eff PA': Math.round(p.eff), AVG: p.AVG, OBP: p.OBP, SLG: p.SLG, wOBA: p.wOBA, 'wRC+': Math.round(p['wRC+']) });
+        else { const outs = Math.round(tot * 3); Object.assign(row, { Outs: outs, IP: Math.floor(outs / 3) + (outs % 3) / 10, 'Eff IP': Math.round(p.eff), 'FIP-': Math.round(p['FIP-']), FIP: p.FIP }); }
+        out.push(row);
+      }
+      return out;
+    });
+  }
+  function projNote(type, target) {
+    const tr = projData();
+    if (!tr) return '';
+    const yrs = Object.keys(tr.seasons).map(Number).sort((a, b) => a - b), k = Math.round(tr[type].k), u = PROJ[type].unit;
+    return `A guess at next season in ${target} for everyone whose ${yrs[0]}–${String(yrs[yrs.length - 1]).slice(2)} seasons include another division (Adams and Sierra are about the same level). `
+      + `Seasons are weighted 5/4/3, translated with same-season two-division offsets, then pulled toward the ${target} average; Own% is how much is the player's own numbers. `
+      + `Qualified = at least half their own (${k} effective ${u}). A rough guide: two-division players are self-selected, and there's no age data.`;
+  }
   const ipStr = (ip) => { const outs = Math.round(ip * 3); return `${Math.floor(outs / 3)}.${outs % 3}`; };
   // one line per season-division in the weighted seasons: summed PA (or IP), PA/IP-weighted rates
   function projLines(type, rows, seasons) {
@@ -893,8 +950,7 @@
   }
   function renderProj() {
     const card = $('#p-proj');
-    touched.add('translations');
-    const t = dash.data('translations'), tr = t.status === 'ok' && t.data && t.data.seasons ? t.data : null;
+    const tr = projData();
     const raw = ['bat', 'pit'].map((type) => { const h = pidRows(DS[type].hist, P.pid), c = pidRows(DS[type].cur, P.pid); return h && c ? [...h, ...c] : null; });
     if (!tr || raw.includes(null)) { card.hidden = true; return; }
     const lines = { bat: projLines('bat', raw[0], tr.seasons), pit: projLines('pit', raw[1], tr.seasons) };
@@ -997,7 +1053,7 @@
     if (t === 'guts') { G.season = p.get('season') === 'All' ? 'All' : num(p.get('season')); return showTab(t); }
     // anything else is the leaderboard; unknown or bad values fall back to the defaults
     const type = p.get('type') === 'pit' ? 'pit' : 'bat';
-    Object.assign(L, LDEF, { type, sort: p.get('sort') || defSort(type), season: p.get('season') === 'Career' ? 'Career' : num(p.get('season')) });
+    Object.assign(L, LDEF, { type, sort: p.get('sort') || defSort(type), season: p.get('season') === 'Career' || isProj(p.get('season')) ? p.get('season') : num(p.get('season')) });
     if (RANGES.some(([v]) => v === p.get('range'))) L.range = p.get('range');
     const day = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v : null);
     if (L.range === 'custom') { L.from = day(p.get('from')); L.to = day(p.get('to')); if (!L.from && !L.to) L.range = 'full'; }
