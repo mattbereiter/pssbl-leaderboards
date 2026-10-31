@@ -480,7 +480,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     pit: new Set(['L', 'ERA', 'FIP', 'ERA-', 'FIP-', 'BB/9', 'HR/9', 'BB%', 'AVG', 'WHIP', 'BABIP', 'H', 'R', 'ER', 'HR', 'BB', 'IBB', 'HBP', 'WP', 'E-F']),
   };
   const DEF = {
-    Age: 'Age on June 30 of the season (career: in the last season played; projections: now)', G: 'Games', PA: 'Plate appearances', AB: 'At bats', H: 'Hits', HR: 'Home runs', R: 'Runs', RBI: 'Runs batted in', SB: 'Stolen bases', CS: 'Caught stealing',
+    Age: 'League age: season − birth year, as pssbl.com counts it (career: in the last season played; projections: now)', G: 'Games', PA: 'Plate appearances', AB: 'At bats', H: 'Hits', HR: 'Home runs', R: 'Runs', RBI: 'Runs batted in', SB: 'Stolen bases', CS: 'Caught stealing',
     'BB%': 'Walk rate', 'K%': 'Strikeout rate', ISO: 'Isolated power (SLG − AVG)', BABIP: 'Batting average on balls in play', wOBA: 'Weighted on-base average',
     'wRC+': 'Weighted runs created, 100 = division average', Off: 'Offensive runs above average (wRAA + wSB)', oWAR: 'Offensive wins above replacement',
     wRAA: 'Weighted runs above average', wRC: 'Weighted runs created', wSB: 'Stolen-base runs above average', 'BB/K': 'Walks per strikeout',
@@ -989,10 +989,10 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       nm.textContent = head.Name; nm.classList.toggle('me', P.pid === MATT);
       nm.setAttribute('data-source', head === bcr ? 'bat_career' : 'pit_career'); nm.setAttribute('data-field', 'Name'); nm.setAttribute('data-where', `key=${enc(head.key)}`);
       const from = Math.min(bcr ? bcr.From : 9999, pcr ? pcr.From : 9999), to = Math.max(bcr ? bcr.To : 0, pcr ? pcr.To : 0);
-      // Age − Season is the same in every season (age on June 30), so the current age follows from any line
+      // Age − Season is the same in every season (league age), so the current age follows from any line
       const ac = [bcr, pcr].find((r) => r && r.Age != null), nowY = (seasonsAvail() || [to])[0];
       const ageNow = ac ? ac.Age - ac.To + nowY : null;
-      $('#p-sub').innerHTML = `${ageNow == null ? '' : `<span id="p-age" title="Age on June 30, ${nowY}">Age ${ageNow}</span> · `}${to}: ${esc(head.Team)} (${esc(head.Division)}) · on file ${from}–${to} · <a class="pg-link" href="https://pssbl.com/#!/player/${enc(P.pid)}" target="_blank" rel="noopener">pssbl.com profile ↗</a>`;
+      $('#p-sub').innerHTML = `${ageNow == null ? '' : `<span id="p-age" title="League age in ${nowY} (${nowY} − birth year)">Age ${ageNow}</span> · `}${to}: ${esc(head.Team)} (${esc(head.Division)}) · on file ${from}–${to} · <a class="pg-link" href="https://pssbl.com/#!/player/${enc(P.pid)}" target="_blank" rel="noopener">pssbl.com profile ↗</a>`;
       const st = (src, row, f) => row && row[f] != null ? `<div class="pg-stat"><div class="k">Career ${esc(f)}</div><div class="v" data-source="${src}" data-field="${esc(f)}" data-where="key=${enc(row.key)}">${esc(fmt(f, row[f]))}</div></div>` : '';
       const strip = [];
       if (bcr && bcr.PA > 0) strip.push(...['PA', 'AVG', 'OBP', 'SLG', 'wRC+', 'oWAR'].map((f) => st('bat_career', bcr, f)));
