@@ -138,6 +138,11 @@ Every number is relative to the **player's own division that season**, treated l
     sync** if you change one.
   - **State objects:** `L` (leaders), `P` (players), `S` (standings), `G` (guts).
   - **Pagination:** `L.page` / `L.size`.
+  - **URL hash:** `hashFor()` writes the view into the hash after every render (`#leaders?type=pit&season=2023&div=Cascade`,
+    `#players/8013`, `#standings?season=2024`), leaving out defaults. `applyHash()` reads it on load and on
+    Back/Forward/hash changes; bad values fall back to defaults. A new tab or player is a Back step (`dash.setLink(h, true)`
+    → `pushState`); filter changes replace the current entry. Player and team links carry real hrefs, so ctrl-click
+    opens a new tab; plain clicks still go through the JS handlers (the Claude dashboard copy needs that).
   - **Matt:** `MATT = '8048'` (gold rows, ★ via CSS, always shown regardless of the qualified filter).
 - **Responsive:** `@container (max-width: 760px)` rules (the page sets `container-type: inline-size`).
   The nav scrolls sideways, filters go to a 2-column grid, and leader cards become a swipe strip.
@@ -174,8 +179,7 @@ These come from same-player, same-season pairs across divisions.
 ## Open ideas and known loose ends
 
 - **"Translations" tab:** convert any line between divisions using the offsets above. Matt showed interest.
-- **UX review (Oct 31, 2026), still open:** shareable URLs and Back button (put tab, player and filters in the hash,
-  use `pushState`, listen for `popstate`); Players should open on search, not Matt; inline stat definitions
+- **UX review (Oct 31, 2026), still open:** Players should open on search, not Matt; inline stat definitions
   ("Qualified" threshold, Standings/Guts tooltips); Standings tables clip at desktop width; arrow keys in player search;
   44px tap targets and 16px inputs on phones; a Retry on failed loads.
 - **Hitter scale:** if oWAR/600 feels inflated, the alternative Matt considered was a PSSBL full season of about 100 PA.

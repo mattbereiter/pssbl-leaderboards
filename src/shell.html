@@ -88,7 +88,8 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     data: (id) => store[id] || load(id),
     onData: (fn) => { listeners.push(fn); try { fn(); } catch (e) { console.error(e); } },
     colors: ['#3c8a2e', '#d9822b', '#2f6fb3', '#b0457a', '#7a5cc2', '#2a9d8f', '#c9a227', '#7d8a79'],
-    setLink: (name) => { try { history.replaceState(null, '', '#' + name); } catch (e) {} },
+    // push = a new Back step (tab or player change); otherwise the current entry is updated in place
+    setLink: (name, push) => { try { history[push ? 'pushState' : 'replaceState'](null, '', '#' + name); } catch (e) {} },
     params: () => ({}), setParams() {}, resetParams() {}, refresh() {}, calc() {}, loader() {},
   };
   let w = 0;

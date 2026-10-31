@@ -360,13 +360,12 @@
   let tab = 'leaders';
   const pages = ['leaders', 'players', 'standings', 'guts'];
 
-  function showTab(t, link = true) {
+  function showTab(t) {
     if (t === 'me') { P.pid = MATT; t = 'players'; }
     const changed = t !== tab;
     tab = t;
     pages.forEach((p) => { $('#' + p).hidden = p !== t; });
     document.querySelectorAll('.pg-nav button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
-    if (link) dash.setLink(t);
     render();
     if (changed || t === 'players') { const top = $('#top'); if (top.getBoundingClientRect().top < 0) top.scrollIntoView({ block: 'start' }); }
   }
@@ -427,14 +426,17 @@
       return;
     }
     const t = e.target.closest('a[data-tid]');
-    if (t) { e.preventDefault(); upd(() => { L.team = t.dataset.tid; }); }
+    if (t && !newTab(e)) { e.preventDefault(); upd(() => { L.team = t.dataset.tid; }); }
   });
+  // ctrl/cmd/shift-click on a real link: let the browser open its href in a new tab or window
+  const newTab = (e) => e.ctrlKey || e.metaKey || e.shiftKey || e.button > 0;
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.pg')) return;
+    if (newTab(e) && e.target.closest('a[href^="#"]')) return;
     const a = e.target.closest('[data-pid]');
     if (a) { e.preventDefault(); P.pid = a.dataset.pid; $('#p-sugg').hidden = true; $('#p-q').value = ''; showTab('players'); return; }
     const t = e.target.closest('#st-grid a[data-tid], #players a[data-tid]');
-    if (t) { e.preventDefault(); L.season = Number(t.dataset.season); L.div = t.dataset.div; L.team = t.dataset.tid; L.page = 0; showTab('leaders'); return; }
+    if (t) { e.preventDefault(); Object.assign(L, teamState(t.dataset.type || 'bat', Number(t.dataset.season), t.dataset.div, t.dataset.tid)); showTab('leaders'); return; }
     if (!e.target.closest('.pg-search')) $('#p-sugg').hidden = true;
   });
 
@@ -551,7 +553,10 @@
     const wrap = $('#lb-wrap'), table = $('#lb-table');
     const seasons = seasonsAvail();
     if (!seasons) { if (bad('guts')) failed(wrap); return; }
-    if (L.season == null) L.season = seasons[0];
+    if (L.season == null || (L.season !== 'Career' && !seasons.includes(L.season))) L.season = seasons[0];
+    if (!RANGES.some(([v]) => v === L.range)) L.range = 'full';
+    const qEl = $('#lb-q');
+    if (qEl !== document.activeElement && qEl.value.trim().toLowerCase() !== L.q) qEl.value = L.q;
     fillSelect($('#lb-season'), [...seasons.map((s) => [s, s]), ['Career', `Career (${seasons[seasons.length - 1]}–${seasons[0]})`]], L.season);
     const career = L.season === 'Career';
     // date range controls
@@ -623,7 +628,7 @@
     let body = '';
     for (let i = 0; i < slice.length; i++) {
       const r = slice[i];
-      body += `<tr data-key="${esc(r.key)}"${r.pid === MATT ? ' class="me"' : ''}><td class="rk sticky1">${start + i + 1}</td><td class="l sticky2 name"><a href="#" data-pid="${esc(r.pid)}">${esc(r.Name)}</a></td><td class="l"><a href="#" data-tid="${esc(r.tid)}">${esc(r.Team)}</a></td><td class="l dim col-div">${esc(r.Division)}</td>${career ? `<td>${r.Seasons}</td>` : ''}`;
+      body += `<tr data-key="${esc(r.key)}"${r.pid === MATT ? ' class="me"' : ''}><td class="rk sticky1">${start + i + 1}</td><td class="l sticky2 name"><a href="#players/${esc(r.pid)}" data-pid="${esc(r.pid)}">${esc(r.Name)}</a></td><td class="l"><a href="${href('leaders', { ...L, team: r.tid, page: 0 })}" data-tid="${esc(r.tid)}">${esc(r.Team)}</a></td><td class="l dim col-div">${esc(r.Division)}</td>${career ? `<td>${r.Seasons}</td>` : ''}`;
       for (const c of cols) body += `<td${c === L.sort ? ' class="srt"' : ''}>${esc(fmt(c, r[c]))}</td>`;
       body += '</tr>';
     }
@@ -654,7 +659,7 @@
           top.push(r); top.sort(cmp(f, dir)); if (top.length > 5) top.pop();
         }
         const mk = (r, fld) => id ? ` data-source="${id}" data-field="${esc(fld)}" data-where="key=${enc(r.key)}"` : '';
-        const items = top.map((r) => `<li${r.pid === MATT ? ' class="me"' : ''}><span class="n"><a class="pg-link" href="#" data-pid="${esc(r.pid)}"${mk(r, 'Name')}>${esc(r.Name)}</a> <span class="t">${esc(r.Team)}</span></span><span class="v"${mk(r, f)}>${esc(fmt(f, r[f]))}</span></li>`).join('');
+        const items = top.map((r) => `<li${r.pid === MATT ? ' class="me"' : ''}><span class="n"><a class="pg-link" href="#players/${esc(r.pid)}" data-pid="${esc(r.pid)}"${mk(r, 'Name')}>${esc(r.Name)}</a> <span class="t">${esc(r.Team)}</span></span><span class="v"${mk(r, f)}>${esc(fmt(f, r[f]))}</span></li>`).join('');
         const qual = set === q ? ' · qualified' : '';
         return `<div class="pg-lcard"><h4>${esc(f)}<span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--color-fg-muted)">${qual}</span></h4><ol>${items || `<li class="t">${pool.length ? 'No qualifiers yet' : 'No players match'}</li>`}</ol></div>`;
       }).join('');
@@ -708,10 +713,10 @@
   pq.addEventListener('input', () => { clearTimeout(sT); sT = setTimeout(suggest, 80); });
   pq.addEventListener('keydown', (e) => { if (e.key === 'Enter') sugg.querySelector('button')?.click(); if (e.key === 'Escape') sugg.hidden = true; });
 
-  function seasonTableHTML(src, rows, cols, head) {
+  function seasonTableHTML(src, type, rows, cols, head) {
     const pre = ['Season', 'Team', 'Division'];
     const thead = `<thead><tr${head ? '' : ' class="ghost"'}>${pre.map((c) => `<th data-field="${c}" class="l">${c === 'Division' ? 'Div' : c}</th>`).join('')}${cols.map((c) => `<th data-field="${esc(c)}" title="${esc(DEF[c] || c)}">${esc(c)}</th>`).join('')}</tr></thead>`;
-    const body = rows.map((r) => `<tr data-key="${esc(r.key)}"${r.pid === MATT ? ' class="me-row"' : ''}><td class="l">${r.Season}</td><td class="l"><a href="#" data-tid="${esc(r.tid)}" data-season="${r.Season}" data-div="${esc(r.Division)}">${esc(r.Team)}</a></td><td class="l dim">${esc(r.Division)}</td>${cols.map((c) => `<td>${esc(fmt(c, r[c]))}</td>`).join('')}</tr>`).join('');
+    const body = rows.map((r) => `<tr data-key="${esc(r.key)}"${r.pid === MATT ? ' class="me-row"' : ''}><td class="l">${r.Season}</td><td class="l"><a href="${teamHref(type, r.Season, r.Division, r.tid)}" data-type="${type}" data-tid="${esc(r.tid)}" data-season="${r.Season}" data-div="${esc(r.Division)}">${esc(r.Team)}</a></td><td class="l dim">${esc(r.Division)}</td>${cols.map((c) => `<td>${esc(fmt(c, r[c]))}</td>`).join('')}</tr>`).join('');
     return `<table class="pg-tbl" data-source="${src}" data-row-key="key">${thead}<tbody>${body}</tbody></table>`;
   }
   function careerTableHTML(src, row, cols) {
@@ -731,8 +736,8 @@
   function renderStack(box, type, hist, cur, careerRow, cols) {
     const ds = DS[type];
     const parts = [];
-    if (hist.length) parts.push(seasonTableHTML(ds.hist, hist, cols, true));
-    if (cur.length) parts.push(seasonTableHTML(ds.cur, cur, cols, !hist.length));
+    if (hist.length) parts.push(seasonTableHTML(ds.hist, type, hist, cols, true));
+    if (cur.length) parts.push(seasonTableHTML(ds.cur, type, cur, cols, !hist.length));
     if (careerRow) parts.push(careerTableHTML(ds.career, careerRow, cols));
     const html = parts.join('');
     if (box._html === html) return;
@@ -840,12 +845,12 @@
     if (bad('standings')) { failed(grid); return; }
     const rows = rowsOf('standings'), seasons = seasonsAvail();
     if (!rows || !seasons) { if (!grid._html) grid.innerHTML = '<div class="pg-card dash-skeleton" style="min-height:14rem"></div>'; return; }
-    if (S.season == null) S.season = seasons[0];
+    if (S.season == null || !seasons.includes(S.season)) S.season = seasons[0];
     fillSelect($('#st-season'), seasons.map((s) => [s, s]), S.season);
     const html = memoize('stand' + S.season, [rows], () => d3.groups(rows.filter((r) => r.Season === S.season), (r) => r.Division).sort((a, b) => a[0].localeCompare(b[0])).map(([d, rs]) => {
       rs.sort((a, b) => a.Rank - b.Rank);
       const head = `<thead><tr><th data-field="Team" class="l sticky1">Team</th>${ST_COLS.map((c) => `<th data-field="${c}" title="${esc(DEF[c] || '')}">${ST_LABEL[c] || c}</th>`).join('')}</tr></thead>`;
-      const body = rs.map((r) => `<tr data-key="${esc(r.key)}"${r.Champion ? ' class="champ"' : ''}><td class="l name sticky1"><a href="#" data-tid="${esc(r.tid)}" data-season="${r.Season}" data-div="${esc(r.Division)}">${esc(r.Team)}</a></td>${ST_COLS.map((c) => `<td>${esc(fmt(c, r[c]))}</td>`).join('')}</tr>`).join('');
+      const body = rs.map((r) => `<tr data-key="${esc(r.key)}"${r.Champion ? ' class="champ"' : ''}><td class="l name sticky1"><a href="${teamHref('bat', r.Season, r.Division, r.tid)}" data-tid="${esc(r.tid)}" data-season="${r.Season}" data-div="${esc(r.Division)}">${esc(r.Team)}</a></td>${ST_COLS.map((c) => `<td>${esc(fmt(c, r[c]))}</td>`).join('')}</tr>`).join('');
       return `<div class="pg-card" id="div-${esc(d)}"><h3>${esc(d)}</h3><div class="pg-tblwrap short" style="border-top:1px solid var(--color-border-line);border-radius:var(--cds-radius)"><table class="pg-tbl" data-source="standings" data-row-key="key">${head}<tbody>${body}</tbody></table></div></div>`;
     }).join(''));
     if (grid._html !== html) { grid.innerHTML = html; grid._html = html; }
@@ -859,7 +864,7 @@
     const rows = rowsOf('guts'), seasons = seasonsAvail();
     if (!rows) { wrap.classList.add('dash-skeleton'); return; }
     wrap.classList.remove('dash-skeleton');
-    if (G.season == null) G.season = seasons[0];
+    if (G.season == null || (G.season !== 'All' && !seasons.includes(G.season))) G.season = seasons[0];
     fillSelect($('#gu-season'), [['All', 'All seasons'], ...seasons.map((s) => [s, s])], G.season);
     const html = memoize('guts' + G.season, [rows], () => {
       const sel = (G.season === 'All' ? rows : rows.filter((r) => r.Season === G.season)).slice().sort((a, b) => b.Season - a.Season || a.Division.localeCompare(b.Division));
@@ -867,6 +872,70 @@
     });
     if (t._html !== html) { t.innerHTML = html; t._html = html; }
   }
+
+  // ---------- URL: tab, player and filters live in the hash, so links can be shared and Back works ----------
+  const LDEF = { ...L };
+  const GROUPS = ['dash', 'std', 'adv'];
+  const MINS = { bat: ['q', '0', '10', '25', '50', '100', '200'], pit: ['q', '0', '5', '10', '20', '40', '80'] };
+  const defSort = (type) => (type === 'bat' ? 'oWAR' : 'WAR');
+  const teamState = (type, season, div, team) => ({ ...LDEF, type, sort: defSort(type), season, div, team });
+  function hashFor(t = tab, s = L) {
+    const latest = (seasonsAvail() || [])[0];
+    if (t === 'players') return `players/${P.pid}` + (P.group !== 'dash' ? `?group=${P.group}` : '');
+    if (t === 'standings' || t === 'guts') {
+      const sea = t === 'standings' ? S.season : G.season;
+      return sea != null && sea !== latest ? `${t}?season=${sea}` : t;
+    }
+    const q = new URLSearchParams();
+    const put = (k, v, def) => { if (v != null && v !== '' && String(v) !== String(def)) q.set(k, v); };
+    put('type', s.type, 'bat'); put('season', s.season, latest); put('range', s.range, 'full');
+    if (s.range === 'custom') { put('from', s.from); put('to', s.to); }
+    put('div', s.div, 'All'); put('team', s.team, 'All'); put('min', s.min, 'q'); put('q', s.q, '');
+    put('group', s.group, 'dash'); put('sort', s.sort, defSort(s.type)); put('dir', s.dir, -1);
+    put('page', s.page + 1, 1); put('size', s.size, 50);
+    const qs = q.toString();
+    return qs ? `leaders?${qs}` : 'leaders';
+  }
+  const href = (t, s) => '#' + esc(hashFor(t, s));
+  const teamHref = (type, season, div, tid) => href('leaders', teamState(type, season, div, tid));
+  function applyHash() {
+    const [path, qs = ''] = location.hash.slice(1).split('?');
+    const [t, arg] = path.split('/');
+    const p = new URLSearchParams(qs);
+    const num = (v) => (v != null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : null);
+    if (t === 'players' || t === 'me') {
+      P.pid = t === 'players' && /^\d+$/.test(arg || '') ? arg : MATT;
+      P.group = GROUPS.includes(p.get('group')) ? p.get('group') : 'dash';
+      return showTab('players');
+    }
+    if (t === 'standings') { S.season = num(p.get('season')); return showTab(t); }
+    if (t === 'guts') { G.season = p.get('season') === 'All' ? 'All' : num(p.get('season')); return showTab(t); }
+    // anything else is the leaderboard; unknown or bad values fall back to the defaults
+    const type = p.get('type') === 'pit' ? 'pit' : 'bat';
+    Object.assign(L, LDEF, { type, sort: p.get('sort') || defSort(type), season: p.get('season') === 'Career' ? 'Career' : num(p.get('season')) });
+    if (RANGES.some(([v]) => v === p.get('range'))) L.range = p.get('range');
+    const day = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v : null);
+    if (L.range === 'custom') { L.from = day(p.get('from')); L.to = day(p.get('to')); if (!L.from && !L.to) L.range = 'full'; }
+    if (p.get('div')) L.div = p.get('div');
+    if (p.get('team')) L.team = p.get('team');
+    if (MINS[type].includes(p.get('min'))) L.min = p.get('min');
+    L.q = (p.get('q') || '').trim().toLowerCase();
+    if (GROUPS.includes(p.get('group'))) L.group = p.get('group');
+    if (p.get('dir') === '1') L.dir = 1;
+    L.page = Math.max(0, (num(p.get('page')) || 1) - 1);
+    if ([25, 50, 100, 250].includes(num(p.get('size')))) L.size = num(p.get('size'));
+    showTab('leaders');
+  }
+  // a new tab or player is a Back step; filter tweaks update the current entry in place
+  let lastPath = null, fromHistory = false;
+  function syncHash() {
+    const h = hashFor(), path = h.split('?')[0];
+    if ('#' + h !== location.hash) dash.setLink(h, !fromHistory && lastPath != null && path !== lastPath);
+    lastPath = path;
+  }
+  const onNav = () => { fromHistory = true; try { applyHash(); } finally { fromHistory = false; } };
+  addEventListener('popstate', onNav);
+  addEventListener('hashchange', onNav);
 
   // ---------- render loop: redraw only when something this view uses changed ----------
   const root = document.querySelector('.pg');
@@ -879,17 +948,13 @@
     else if (tab === 'players') renderPlayers();
     else if (tab === 'standings') renderStandings();
     else if (tab === 'guts') renderGuts();
+    syncHash();
     lastSig = sig();
   }
-  let first = true;
+  applyHash(); // open whatever view the link points at, before the first data arrives
   dash.onData(() => {
     if (lastSig && sig() === lastSig) return;
     render();
-    if (first && seasonsAvail()) {
-      first = false;
-      const h = location.hash.slice(1);
-      if (pages.includes(h) && h !== tab) showTab(h, false);
-    }
   });
 })();
 </script>
