@@ -28,18 +28,19 @@ python scripts/update.py --all      # first run on a machine: download 2015-now,
 python scripts/update.py            # refresh the latest season and rebuild
 python scripts/update.py --offline  # rebuild from raw/ without downloading
 python scripts/build_page.py        # src/ -> public/index.html
+python scripts/verify.py            # spot-check public/data against pssbl.com (update.py runs it too)
+npm test                            # Playwright smoke tests (first time: npm install && npx playwright install chromium webkit)
 cd public && python -m http.server 8000   # preview at http://localhost:8000
 git add -A && git commit -m "..." && git push   # Netlify deploys in ~20 s
 ```
 
 ## Rules for working here
 
-- **Verify in a real browser before pushing.** Use Playwright or similar against the local server.
-  Check the console for errors, check the leaderboard renders rows, and check the view you changed.
-  There's no test suite yet; adding `tests/` with Playwright specs is welcome. The sibling PSSBL Tracker repo
-  follows red/green TDD with Playwright, so match that style if you add tests.
-- **Numbers must reconcile with pssbl.com.** After any pipeline change, spot-check a few player-seasons against
-  `CareerBatting` / `CareerPitching` for that player (see PROJECT.md, "Verifying the data"). Counting stats should match
+- **Run `npm test` before pushing.** Playwright specs in `tests/` (desktop Chrome + iPhone WebKit) serve `public/`
+  through `tests/serve.py` and cover Leaders, date ranges, Players, Standings, Guts, hidden-tab loading and console
+  errors. Add a spec for the view you change, red/green style like the sibling PSSBL Tracker repo.
+- **Numbers must reconcile with pssbl.com.** After any pipeline change, run `python scripts/verify.py 80`, which
+  compares summed player-seasons with `CareerBatting` / `CareerPitching` (see PROJECT.md, "Verifying the data"). Counting stats should match
   exactly. Only team labels are allowed to differ, and only for the documented reason.
 - **Each division-season is its own league.** Never compare raw rates across divisions or average league constants
   across divisions.

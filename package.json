@@ -1,0 +1,13 @@
+{
+  "name": "pssbl-leaderboards",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static FanGraphs-style stats site for PSSBL. See PROJECT.md.",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0"
+  }
+}
