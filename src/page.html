@@ -97,6 +97,10 @@
 [data-dash-source-state=empty] { color: transparent; }
 
 .pg { container-type: inline-size; }
+/* reserve the space data will fill, so the page doesn't jump while it loads */
+#lb-season { min-width: 167px; } #lb-range { min-width: 138px; } #lb-div { min-width: 116px; } #lb-team { min-width: 204px; } #lb-min { min-width: 98px; }
+#lb-cards { min-height: 9.5rem; }
+#lb-wrap.dash-skeleton { min-height: 72vh; }
 .pg-pager { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; padding-top: var(--cds-pad-sm); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
 .pg-pager label { display: inline-flex; gap: 6px; align-items: center; margin-right: auto; }
 .pg-pager select { font: inherit; color: var(--color-fg); background: var(--color-bg); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: 2px 6px; min-height: 2rem; }
@@ -115,7 +119,10 @@
   .pg-brand small { display: none; }
   .pg-nav { margin-left: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; width: 100%; min-width: 0; max-width: 100%; }
   .pg-nav::-webkit-scrollbar { display: none; }
-  .pg-nav button { flex: none; padding: 10px 12px; }
+  .pg-nav button { flex: 1 0 auto; padding: 10px 6px; letter-spacing: .02em; text-align: center; }
+  .pg-lede { min-height: 4.5em; }
+  #leaders .pg-ctrl select { min-width: 0; }
+  #lb-wrap.dash-skeleton { min-height: 64vh; }
   .pg-ctrls { display: grid; grid-template-columns: 1fr 1fr; gap: var(--cds-gap-sm); }
   .pg-ctrl.wide { grid-column: 1 / -1; }
   .pg-ctrl select, .pg-ctrl input { width: 100%; }
@@ -145,7 +152,7 @@
       <button role="tab" id="tab-players" data-tab="players" aria-selected="false">Players</button>
       <button role="tab" id="tab-standings" data-tab="standings" aria-selected="false">Standings</button>
       <button role="tab" id="tab-guts" data-tab="guts" aria-selected="false">Guts!</button>
-      <button role="tab" id="tab-me" data-tab="me" aria-selected="false">★ My page</button>
+      <button role="tab" id="tab-me" data-tab="me" aria-selected="false">★ Matt</button>
     </nav>
   </header>
 
@@ -619,7 +626,9 @@
     pager.querySelector('[data-p=first]').disabled = pager.querySelector('[data-p=prev]').disabled = L.page === 0;
     pager.querySelector('[data-p=next]').disabled = pager.querySelector('[data-p=last]').disabled = L.page >= nPages - 1;
     if ($('#lb-size').value !== String(L.size)) $('#lb-size').value = String(L.size);
-    renderLeaderCards(inTeam, cite ? id : null);
+    // cards follow the name search too, so they never contradict the table
+    const inQ = L.q ? memoize('inQ', [inTeam, L.q], () => inTeam.filter((r) => r.Name.toLowerCase().includes(L.q))) : inTeam;
+    renderLeaderCards(inQ, cite ? id : null);
   }
 
   function renderLeaderCards(pool, id) {
@@ -638,7 +647,7 @@
         const mk = (r, fld) => id ? ` data-source="${id}" data-field="${esc(fld)}" data-where="key=${enc(r.key)}"` : '';
         const items = top.map((r) => `<li${r.pid === MATT ? ' class="me"' : ''}><span class="n"><a class="pg-link" href="#" data-pid="${esc(r.pid)}"${mk(r, 'Name')}>${esc(r.Name)}</a> <span class="t">${esc(r.Team)}</span></span><span class="v"${mk(r, f)}>${esc(fmt(f, r[f]))}</span></li>`).join('');
         const qual = set === q ? ' · qualified' : '';
-        return `<div class="pg-lcard"><h4>${esc(f)}<span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--color-fg-muted)">${qual}</span></h4><ol>${items || '<li class="t">No qualifiers yet</li>'}</ol></div>`;
+        return `<div class="pg-lcard"><h4>${esc(f)}<span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--color-fg-muted)">${qual}</span></h4><ol>${items || `<li class="t">${pool.length ? 'No qualifiers yet' : 'No players match'}</li>`}</ol></div>`;
       }).join('');
     });
     if (box._html !== html) { box.innerHTML = html; box._html = html; }
@@ -656,11 +665,8 @@
       const pick = (rows, f) => rows.reduce((best, r) => (r.Season === y && r[f] != null && (!best || r[f] > best[f])) ? r : best, null);
       const tb = pick(b, 'oWAR'), tp = pick(p, 'WAR');
       if (!tb || !tp) return '';
-      const me = b.filter((r) => r.Season === y && r.pid === MATT);
       const k = (r) => `key=${enc(r.key)}`;
-      let h = `<b>${y}:</b> <span data-source="batting" data-field="Name" data-where="${k(tb)}">${esc(tb.Name)}</span> (${esc(tb.Team)}, ${esc(tb.Division)}) led every PSSBL hitter at <b data-source="batting" data-field="oWAR" data-where="${k(tb)}">${fmt('oWAR', tb.oWAR)}</b> oWAR; <span data-source="pitching" data-field="Name" data-where="${k(tp)}">${esc(tp.Name)}</span> (${esc(tp.Team)}, ${esc(tp.Division)}) led pitchers at <b data-source="pitching" data-field="WAR" data-where="${k(tp)}">${fmt('WAR', tp.WAR)}</b> WAR.`;
-      if (me.length) h += ` Your wRC+: ${me.map((r) => `<b data-source="batting" data-field="wRC+" data-where="${k(r)}">${fmt('wRC+', r['wRC+'])}</b> with the ${esc(r.Team)}`).join(', ')}.`;
-      return h;
+      return `<b>${y}:</b> <span data-source="batting" data-field="Name" data-where="${k(tb)}">${esc(tb.Name)}</span> (${esc(tb.Team)}, ${esc(tb.Division)}) led every PSSBL hitter at <b data-source="batting" data-field="oWAR" data-where="${k(tb)}">${fmt('oWAR', tb.oWAR)}</b> oWAR; <span data-source="pitching" data-field="Name" data-where="${k(tp)}">${esc(tp.Name)}</span> (${esc(tp.Team)}, ${esc(tp.Division)}) led pitchers at <b data-source="pitching" data-field="WAR" data-where="${k(tp)}">${fmt('WAR', tp.WAR)}</b> WAR.`;
     });
     if (el._html !== html) { el.innerHTML = html; el._html = html; }
   }

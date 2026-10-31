@@ -19,10 +19,11 @@ There are four tabs plus a shortcut. All are rendered by `src/page.html` (one sc
 - **Leaders.** Batting or pitching leaderboards in FanGraphs' Dashboard / Standard / Advanced column groups.
   - **Filters:** season (2015–2026, no 2020) or Career, division, team, min PA/IP (default "Qualified"),
     name search, and a **date range** (full season, regular season, playoffs, a month, or custom From/To).
-  - **Table:** sortable columns, 50 rows per page, and top-5 leader cards above it.
-  - **Sticky header line:** the top 2026 hitter and pitcher, plus Matt's wRC+.
+  - **Table:** sortable columns, 50 rows per page, and top-5 leader cards above it (the cards follow every filter,
+    including the name search).
+  - **Header line:** the top hitter and pitcher of the latest season. It's league news, not addressed to Matt.
 - **Players.** Season-by-season tables with a career row, a wRC+ dot chart (hitters) and ERA-/FIP- chart (pitchers),
-  career stat strip, name search, and a link to the player's pssbl.com page. "★ My page" opens Matt (pid 8048).
+  career stat strip, name search, and a link to the player's pssbl.com page. The "★ Matt" tab opens Matt (pid 8048).
 - **Standings.** Per-division W-L-T, Pct, GB, RS/RA/Diff, Pythagenpat xW and Luck, team wRC+/FIP/oWAR/pWAR,
   and 🏆 for the winner of the division's last playoff game. Clicking a team filters Leaders to that team.
 - **Guts!** League constants for every division-season (lgwOBA, R/PA, cFIP, R/W, wOBA weights, …) and a glossary.
@@ -173,8 +174,10 @@ These come from same-player, same-season pairs across divisions.
 ## Open ideas and known loose ends
 
 - **"Translations" tab:** convert any line between divisions using the offsets above. Matt showed interest.
-- **Personal copy on a public site:** the summary line says "Your wRC+" and the nav has "★ My page", which read oddly
-  to other league members. Consider "Matt Bereiter" wording.
+- **UX review (Oct 31, 2026), still open:** shareable URLs and Back button (put tab, player and filters in the hash,
+  use `pushState`, listen for `popstate`); Players should open on search, not Matt; inline stat definitions
+  ("Qualified" threshold, Standings/Guts tooltips); Standings tables clip at desktop width; arrow keys in player search;
+  44px tap targets and 16px inputs on phones; a Retry on failed loads.
 - **Hitter scale:** if oWAR/600 feels inflated, the alternative Matt considered was a PSSBL full season of about 100 PA.
 - **Older seasons:** the API has seasons before 2015; `fetch.py` / `update.py` use `FIRST = 2015`.
 - **Scheduled refresh:** during the season, a weekly `update.py` + push (e.g., a scheduled task or GitHub Action
