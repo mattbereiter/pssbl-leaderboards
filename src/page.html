@@ -51,6 +51,10 @@
 .pg-tbl a, .pg-link { color: var(--fg-green-ink); text-decoration: none; font-weight: 600; cursor: pointer; background: none; border: 0; padding: 0; font: inherit; }
 .pg-tbl a:hover, .pg-link:hover { text-decoration: underline; }
 .pg-tbl .dim { color: var(--color-fg-muted); }
+#p-log-wrap { border-top: 1px solid var(--color-border-line); border-radius: var(--cds-radius); max-height: 60vh; }
+.pg-tbl tfoot td { position: sticky; bottom: 0; font-weight: 700; border-top: 2px solid var(--color-fg-muted); border-bottom: 0; }
+.pg-tbl td.res-W { color: var(--color-ok); } .pg-tbl td.res-L { color: var(--color-bad); }
+.pg-tbl .po { font-size: .6875rem; font-weight: 700; color: var(--fg-green-ink); margin-left: 4px; }
 .pg-empty { padding: var(--cds-pad-lg); text-align: center; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
 .pg-failed { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 8rem; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
 .pg-failed::before { content: ""; width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); }
@@ -223,6 +227,15 @@
       <div class="pg-chart" id="p-pit-chart"></div>
       <div class="pg-stack" id="p-pit-tables"></div>
     </div>
+    <div class="pg-card" id="p-log">
+      <h3>Game log</h3>
+      <div class="pg-ctrls">
+        <label class="pg-ctrl">Season<select id="p-log-season" aria-label="Game log season"></select></label>
+        <div class="pg-ctrl" id="p-log-type-ctrl">Stats<div class="pg-seg" id="p-log-type"><button data-v="bat" aria-pressed="true">Batting</button><button data-v="pit" aria-pressed="false">Pitching</button></div></div>
+      </div>
+      <p class="pg-note" id="p-log-note"></p>
+      <div class="pg-tblwrap" id="p-log-wrap"><table class="pg-tbl" id="p-log-table" data-row-key="key"></table></div>
+    </div>
   </section>
 
   <!-- STANDINGS -->
@@ -279,7 +292,7 @@
   const WCP = { id: 'wcp', div: 'Adams', label: 'West Coast Pilots (all divisions)',
     pids: new Set(['8291', '6259', '7061', '7215', '6616', '5238', '6331', '3393', '8048', '8287', '4182', '4778', '6642', '7623', '7525', '4506']) };
   const keepTeam = () => (L.team === WCP.id ? WCP.id : 'All');
-  const STR = new Set(['key', 'pid', 'Name', 'Team', 'tid', 'ptid', 'Division', 'Date', 'kind', 'gameId']);
+  const STR = new Set(['key', 'pid', 'Name', 'Team', 'tid', 'ptid', 'Division', 'Date', 'kind', 'gameId', 'home', 'away', 'homeName', 'awayName', 'homeDiv', 'awayDiv']);
   const DS = { bat: { cur: 'batting', hist: 'batting_hist', career: 'bat_career' }, pit: { cur: 'pitching', hist: 'pitching_hist', career: 'pit_career' } };
 
   // ---------- data access (typed once per load, tracked for redraw checks) ----------
@@ -367,7 +380,7 @@
 
   // ---------- state ----------
   const L = { type: 'bat', season: null, div: 'All', team: 'All', min: 'q', group: 'dash', q: '', sort: 'oWAR', dir: -1, page: 0, size: 50, range: 'full', from: null, to: null };
-  const P = { pid: MATT, group: 'dash' };
+  const P = { pid: MATT, group: 'dash', log: null, logType: null, logFor: MATT };
   const S = { season: null };
   const G = { season: null };
   let tab = 'leaders';
@@ -393,6 +406,8 @@
   const setType = seg('#lb-type', (v) => { if (L.type !== v) upd(() => { L.type = v; L.sort = v === 'bat' ? 'oWAR' : 'WAR'; L.dir = -1; L.min = 'q'; L.team = keepTeam(); }); });
   const setGroup = seg('#lb-group', (v) => upd(() => { L.group = v; }));
   const setPGroup = seg('#p-group', (v) => { P.group = v; render(); });
+  const setLogType = seg('#p-log-type', (v) => { P.logType = v; render(); });
+  $('#p-log-season').addEventListener('change', (e) => { P.log = Number(e.target.value); render(); });
 
   $('#lb-season').addEventListener('change', (e) => upd(() => {
     const v = e.target.value, was = isProj(L.season);
@@ -860,6 +875,80 @@
       dotChart(chart, [...hs, ...cs], series, { ref: 100, size, src: `${ds.hist} ${ds.cur}`, legend });
     }
     renderProj();
+    renderGameLog();
+  }
+
+  // ---------- GAME LOG ----------
+  // one row per game from that season's box scores; opponent and score come from games.csv
+  const LOG = {
+    bat: ['PA', 'AB', 'R', 'H', '2B', '3B', 'HR', 'RBI', 'BB', 'SO', 'HBP', 'SB', 'CS', 'AVG', 'OBP', 'SLG'],
+    pit: ['Dec', 'GS', 'IP', 'H', 'R', 'ER', 'BB', 'SO', 'HR', 'HBP', 'WP', 'ERA'],
+  };
+  const LOG_TIP = { AVG: 'Season to date', OBP: 'Season to date', SLG: 'Season to date', ERA: 'Season to date', Dec: 'Decision: win, loss or save' };
+  function logStats(type, s) {
+    if (type === 'bat') {
+      const pa = s.AB + s.BB + s.HBP + s.SF + s.SH + s.CI, tb = s.H + s['2B'] + 2 * s['3B'] + 3 * s.HR, od = s.AB + s.BB + s.HBP + s.SF;
+      return { PA: pa, AVG: s.AB ? s.H / s.AB : null, OBP: od ? (s.H + s.BB + s.HBP) / od : null, SLG: s.AB ? tb / s.AB : null };
+    }
+    return { IP: Math.floor(s.Outs / 3) + (s.Outs % 3) / 10, ERA: s.Outs ? 27 * s.ER / s.Outs : null, Dec: s.W ? 'W' : s.L ? 'L' : s.SV ? 'SV' : '' };
+  }
+  function renderGameLog() {
+    const card = $('#p-log'), wrap = $('#p-log-wrap'), tbl = $('#p-log-table'), note = $('#p-log-note');
+    if (P.logFor !== P.pid) { P.logFor = P.pid; P.log = null; P.logType = null; }
+    const own = ['bat', 'pit'].flatMap((type) => [pidRows(DS[type].hist, P.pid), pidRows(DS[type].cur, P.pid)]);
+    if (own.includes(null)) { wrap.classList.add('dash-skeleton'); return; }
+    const seasons = [...new Set(own.flat().map((r) => r.Season))].sort((a, b) => b - a);
+    if (!seasons.length) { card.hidden = true; return; }
+    card.hidden = false;
+    const season = seasons.includes(P.log) ? P.log : seasons[0];
+    fillSelect($('#p-log-season'), seasons.map((y) => [y, y]), season);
+    const id = 'box_' + season;
+    if (bad(id) || bad('games')) {
+      wrap.classList.remove('dash-skeleton'); $('#p-log-type-ctrl').hidden = true;
+      note.textContent = bad('games') ? '' : `No box scores on file for ${season}.`;
+      if (bad('games')) failed(wrap); else { tbl.innerHTML = ''; tbl._html = ''; }
+      return;
+    }
+    const box = rowsOf(id), games = rowsOf('games');
+    if (!box || !games) { wrap.classList.add('dash-skeleton'); return; }
+    wrap.classList.remove('dash-skeleton');
+    const mine = memoize('log' + P.pid + '|' + season, [box], () => box.filter((r) => r.pid === P.pid));
+    const has = { bat: mine.some((r) => r.kind === 'bat'), pit: mine.some((r) => r.kind === 'pit') };
+    const type = has[P.logType] ? P.logType : has.bat ? 'bat' : 'pit';
+    $('#p-log-type-ctrl').hidden = !(has.bat && has.pit);
+    setLogType(type);
+    const byGame = memoize('gamesById', [games], () => new Map(games.map((g) => [g.gameId, g])));
+    const cols = LOG[type], sums = SUMS[type], run = {};
+    for (const c of sums) run[c] = 0;
+    const lines = mine.filter((r) => r.kind === type).map((r) => {
+      for (const c of sums) run[c] += r[c] || 0;
+      const g = byGame.get(r.gameId), bt = r.ptid || r.tid, o = {};
+      for (const c of sums) o[c] = r[c] || 0;
+      Object.assign(o, logStats(type, o));
+      const cum = logStats(type, run);
+      if (type === 'bat') { o.AVG = cum.AVG; o.OBP = cum.OBP; o.SLG = cum.SLG; } else o.ERA = cum.ERA;
+      let opp = '', res = '', rc = '', team = r.Team;
+      if (g) {
+        const home = g.home === bt, us = home ? g.hr : g.ar, them = home ? g.ar : g.hr;
+        opp = (home ? 'vs ' : '@ ') + (home ? g.awayName : g.homeName);
+        if (r.ptid) team = home ? g.homeName : g.awayName;
+        rc = us > them ? 'W' : us < them ? 'L' : 'T';
+        res = `${rc} ${us}–${them}`;
+      }
+      return { r, o, opp, res, rc, team, fill: !!r.ptid };
+    }).reverse();
+    const tot = { ...run, ...logStats(type, run) };
+    const pre = ['Date', 'Team', 'Opp', 'Result'];
+    const thead = `<thead><tr>${pre.map((c) => `<th class="l">${c}</th>`).join('')}${cols.map((c) => `<th data-field="${esc(c)}" title="${esc(LOG_TIP[c] || DEF[c] || c)}">${esc(c)}</th>`).join('')}</tr></thead>`;
+    const body = lines.map(({ r, o, opp, res, rc, team, fill }) => `<tr data-key="${esc(r.gameId)}"><td class="l">${esc(fmtDay(r.Date))}${r.PO ? '<span class="po" title="Playoffs">PO</span>' : ''}</td>`
+      + `<td class="l"${fill ? ` title="Fill-in game, credited to ${esc(r.Team)}"` : ''}>${esc(team)}${fill ? '*' : ''}</td><td class="l">${esc(opp)}</td><td class="l res-${rc}">${esc(res)}</td>`
+      + cols.map((c) => `<td>${esc(fmt(c, o[c]))}</td>`).join('') + '</tr>').join('');
+    const foot = `<tfoot><tr><td class="l">Total</td><td class="l dim" colspan="3">${lines.length} game${lines.length === 1 ? '' : 's'}</td>${cols.map((c) => `<td>${c === 'Dec' ? '' : esc(fmt(c, tot[c]))}</td>`).join('')}</tr></tfoot>`;
+    const html = `${thead}<tbody>${body}</tbody>${foot}`;
+    tbl.setAttribute('data-source', id);
+    if (tbl._html !== html) { tbl.innerHTML = html; tbl._html = html; }
+    const fills = lines.some((l) => l.fill);
+    note.textContent = `Newest first. AVG/OBP/SLG and ERA are season to date. About 1–2% of games have no box score, so totals can fall a little short of the season line.${fills ? ' * Fill-in game for another team.' : ''}`;
   }
 
   // ---------- PROJECTED IN ADAMS / SIERRA ----------
@@ -1022,7 +1111,14 @@
   const teamState = (type, season, div, team) => ({ ...LDEF, type, sort: defSort(type), season, div, team });
   function hashFor(t = tab, s = L) {
     const latest = (seasonsAvail() || [])[0];
-    if (t === 'players') return `players/${P.pid}` + (P.group !== 'dash' ? `?group=${P.group}` : '');
+    if (t === 'players') {
+      const q = new URLSearchParams();
+      if (P.group !== 'dash') q.set('group', P.group);
+      if (P.log != null) q.set('log', P.log);
+      if (P.logType) q.set('lt', P.logType);
+      const qs = q.toString();
+      return `players/${P.pid}` + (qs ? '?' + qs : '');
+    }
     if (t === 'standings' || t === 'guts') {
       const sea = t === 'standings' ? S.season : G.season;
       return sea != null && sea !== latest ? `${t}?season=${sea}` : t;
@@ -1047,6 +1143,7 @@
     if (t === 'players' || t === 'me') {
       P.pid = t === 'players' && /^\d+$/.test(arg || '') ? arg : MATT;
       P.group = GROUPS.includes(p.get('group')) ? p.get('group') : 'dash';
+      P.log = num(p.get('log')); P.logType = ['bat', 'pit'].includes(p.get('lt')) ? p.get('lt') : null; P.logFor = P.pid;
       return showTab('players');
     }
     if (t === 'standings') { S.season = num(p.get('season')); return showTab(t); }

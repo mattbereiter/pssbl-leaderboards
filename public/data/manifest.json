@@ -1,6 +1,6 @@
 {
  "updated": "2026-10-31",
- "version": "20261031010142",
+ "version": "20261031091938",
  "latest": 2026,
  "datasets": {
   "batting": "batting_current.csv",
@@ -11,6 +11,7 @@
   "pit_career": "pitching_career.csv",
   "standings": "standings.json",
   "guts": "guts.json",
+  "games": "games.csv",
   "box_2015": "box_2015.csv",
   "box_2016": "box_2016.csv",
   "box_2017": "box_2017.csv",

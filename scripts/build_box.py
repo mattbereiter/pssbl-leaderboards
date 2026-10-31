@@ -7,12 +7,16 @@ def i(x):
     try: return int(x or 0)
     except: return 0
 meta={}   # gameId -> (season, date, playoff)
+games={}  # gameId -> scoreline for the Players page game log (a game is listed in both teams' Games files)
 for f in glob.glob(f'{RAW}/Games_*_20*.json'):
     y=int(f[-9:-5])
     for g in load(f):
         if g['outcome']!='finished': continue
         d=datetime.datetime.strptime(g['dateTime'],'%b %d %Y, %I:%M %p').date().isoformat()
         meta[g['gameId']]=(y,d,0 if g['playoffRound'] in ('0','',None) else 1)
+        games[g['gameId']]={'gameId':g['gameId'],'Season':y,'Date':d,'PO':meta[g['gameId']][2],
+            'home':g['homeId'],'away':g['awayId'],'homeName':g['homeName'].strip(),'awayName':g['awayName'].strip(),
+            'homeDiv':g['homeDivision'],'awayDiv':g['awayDivision'],'hr':i(g['homeRuns']),'ar':i(g['awayRuns'])}
 tdiv={}
 for f in glob.glob(f'{RAW}/TeamNames_*.json'):
     y=int(f[-9:-5])
@@ -61,3 +65,7 @@ for y in sorted(per):
         w=csv.DictWriter(f,BC); w.writeheader(); w.writerows(rows)
     print(y,len(rows),'games',total[y],'missing',missing[y],f"{os.path.getsize(f'{OUT}/pssbl_box_{y}.csv')/1e6:.2f}MB")
 json.dump({y:{'games':total[y],'missing':missing[y]} for y in total},open(f'{OUT}/box_coverage.json','w',encoding='utf-8'))
+with open(f'{OUT}/pssbl_games.csv','w',newline='',encoding='utf-8') as f:
+    w=csv.DictWriter(f,['gameId','Season','Date','PO','home','away','homeName','awayName','homeDiv','awayDiv','hr','ar'])
+    w.writeheader(); w.writerows(sorted(games.values(),key=lambda g:(g['Date'],int(g['gameId']))))
+print('games',len(games))

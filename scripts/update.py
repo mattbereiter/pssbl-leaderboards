@@ -57,7 +57,8 @@ for kind, src in (('batting', 'pssbl_batting.csv'), ('pitching', 'pssbl_pitching
 for ds, src, name in (('bat_career', 'pssbl_batting_career.csv', 'batting_career.csv'),
                       ('pit_career', 'pssbl_pitching_career.csv', 'pitching_career.csv'),
                       ('standings', 'pssbl_standings.json', 'standings.json'),
-                      ('guts', 'pssbl_guts.json', 'guts.json')):
+                      ('guts', 'pssbl_guts.json', 'guts.json'),
+                      ('games', 'pssbl_games.csv', 'games.csv')):
     shutil.copy(f'{BUILD}/{src}', f'{DATA}/{name}')
     manifest['datasets'][ds] = name
 for f in sorted(glob.glob(f'{BUILD}/pssbl_box_*.csv')):

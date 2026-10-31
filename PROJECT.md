@@ -45,7 +45,7 @@ src/
 scripts/           # data pipeline, Python 3 stdlib only
   fetch.py         # pssbl.com API -> raw/ (cache, not committed)
   compute.py       # raw/ -> build/: season lines, careers, standings, guts (league constants)
-  build_box.py     # raw/box -> build/: per-game player lines for the date filter
+  build_box.py     # raw/box -> build/: per-game player lines for the date filter and game log, plus games.csv (scores, home/away)
   update.py        # runs fetch + compute + build_box, splits/copies into public/data, stamps manifest, rebuilds page
   translate.py     # public/data -> translations.json: division offsets + regression constants for the projection card
   build_page.py    # src/shell.html + src/page.html -> public/index.html
@@ -159,7 +159,7 @@ writes `translations.json` and registers it in the manifest (bumping `version`).
   - **Redraw check:** `render()` redraws only the active tab. `sig()` plus `lastSig` skip redraws when nothing that
     view read has changed.
   - **Dataset ids** (`DS`): `batting`/`pitching` hold the latest season, `batting_hist`/`pitching_hist` hold
-    2015–previous, plus `bat_career`/`pit_career`, `standings`, `guts`, `translations` (JSON object, read via `dash.data` directly), and `box_YYYY`. The latest season is the max
+    2015–previous, plus `bat_career`/`pit_career`, `standings`, `guts`, `translations` (JSON object, read via `dash.data` directly), `games` (one row per finished game: home/away ids and names, runs; the Players game log joins box lines to it for opponent and result), and `box_YYYY`. The latest season is the max
     `Season` in guts. History, careers and box scores load only when a view needs them.
   - **Column sets:** `BAT`/`PIT` (dash/std/adv). Formats come from `R3`/`PCT`/`F2`/`F1`; `LOW` lists
     lower-is-better columns (sets the first sort direction); `DEF` holds header tooltips.
