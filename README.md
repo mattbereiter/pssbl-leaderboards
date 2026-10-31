@@ -35,6 +35,16 @@ Netlify sees the push and the site is live again in about a minute.
 Edit `src/page.html` (or `src/shell.html`), run `python scripts/build_page.py`, then commit and push.
 To preview locally: `cd public && python -m http.server 8000` and open http://localhost:8000.
 
+## Analysis
+
+`analysis/` holds one-off research on how performance carries across divisions, plus a projection script
+(`python analysis/project_to_adams.py "Player Name"`). It needs `pip install -r analysis/requirements.txt` and a
+`build/` folder from `scripts/update.py`. See PROJECT.md for findings.
+
+## For Claude Code
+
+`CLAUDE.md` (working rules) and `PROJECT.md` (full handoff: data source, gotchas, method, architecture, open ideas).
+
 ## Method notes
 
 - Each division-season is its own league (like the AL and NL): wRC+, FIP, ERA- and WAR compare a
