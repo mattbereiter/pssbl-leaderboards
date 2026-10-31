@@ -51,4 +51,17 @@ async function goTab(page, tab) {
   await page.locator(`.pg-nav button[data-tab="${tab}"]`).click();
 }
 
-module.exports = { MATT, trackErrors, openSite, leaderRows, leaderTable, goTab };
+/**
+ * Set the Leaders division menu (a checkbox dropdown) to exactly these divisions; none = all divisions.
+ * @param {import('@playwright/test').Page} page
+ * @param {...string} divs
+ */
+async function pickDivs(page, ...divs) {
+  await page.locator('#lb-div').click();
+  await page.locator('#lb-div-list button[data-all]').click();
+  for (const d of divs) await page.locator(`#lb-div-list input[value="${d}"]`).check();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#lb-div-list')).toBeHidden();
+}
+
+module.exports = { MATT, trackErrors, openSite, leaderRows, leaderTable, goTab, pickDivs };

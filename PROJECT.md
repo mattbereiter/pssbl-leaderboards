@@ -19,12 +19,12 @@ There are four tabs plus a shortcut. All are rendered by `src/page.html` (one sc
 - **Leaders.** Batting or pitching leaderboards in FanGraphs' Dashboard / Standard / Advanced column groups.
   - **Filters:** season (2015–2026, no 2020) or Career, division, team, min PA/IP (default "Qualified"),
     name search, and a **date range** (full season, regular season, playoffs, a month, or custom From/To).
-  - **Table:** sortable columns, 50 rows per page, and top-5 leader cards above it (the cards follow every filter,
+  - **Table:** sortable columns (Age included), 50 rows per page, and top-5 leader cards above it (the cards follow every filter,
     including the name search).
   - **Projected → Adams / Sierra** (Season menu): the projection below for everyone with a line in the last three
     seasons outside the target (so Adams players appear under Sierra and vice versa). Division becomes "From division"; Qualified = at least half their own numbers (eff PA ≥ k).
   - **Header line:** the top hitter and pitcher of the latest season. It's league news, not addressed to Matt.
-- **Players.** Season-by-season tables with a career row, a wRC+ dot chart (hitters) and ERA-/FIP- chart (pitchers),
+- **Players.** Current age in the header, season-by-season tables (with each season's age) and a career row, a wRC+ dot chart (hitters) and ERA-/FIP- chart (pitchers),
   career stat strip, name search, and a link to the player's pssbl.com page. The "★ Matt" tab opens Matt (pid 8048).
   - **Projected in Adams / Sierra** card (under the header): a guess at the player's line in Adams and/or Sierra
     (whichever they haven't been playing only in). See "Projection to Adams / Sierra" below.
@@ -43,14 +43,14 @@ src/
   shell.html       # <head>, theme tokens (light/dark), the data loader that stands in for the Claude dashboard runtime
   page.html        # the app: styles, markup, and the whole script
 scripts/           # data pipeline, Python 3 stdlib only
-  fetch.py         # pssbl.com API -> raw/ (cache, not committed)
+  fetch.py         # pssbl.com API -> raw/ (cache, not committed); `fetch.py --rosters` backfills missing rosters
   compute.py       # raw/ -> build/: season lines, careers, standings, guts (league constants)
   build_box.py     # raw/box -> build/: per-game player lines for the date filter and game log, plus games.csv (scores, home/away, field); box lines carry `Ord` (batting/pitching order) for the #game/<id> box score
   update.py        # runs fetch + compute + build_box, splits/copies into public/data, stamps manifest, rebuilds page
   translate.py     # public/data -> translations.json: division offsets + regression constants for the projection card
   build_page.py    # src/shell.html + src/page.html -> public/index.html
   verify.py        # sample players, compare counting stats with pssbl.com Career*; update.py runs it
-tests/             # Playwright smoke tests (npm test); serve.py serves public/ for them
+tests/             # Playwright smoke tests (npm test); serve.py serves public/ for them (PW_PORT=… if 8123 is taken by another checkout)
 analysis/          # one-off research (pandas/scipy/matplotlib); reads public/data and build/
   transfer.py         # does performance carry across divisions? + division difficulty ranking
   viz_transfer.py     # chart: Rocky -> Cascade/Sierra, hitting + pitching
@@ -70,7 +70,8 @@ Base URL: `https://pssbl.com/PHP/fetchData.php?type=…` (public and CORS-enable
 | `Games` | `division`, `year` | schedule/results; `playoffRound` 0 = regular season; `result` home_win/away_win/tie |
 | `BattingStats` / `PitchingStats` | `gameId` | box scores (one line per player per game) |
 | `CareerBatting` / `CareerPitching` | `playerId` | per-year totals across all teams; **use these to verify** |
-| `Roster`, `FieldInfo`, `BattingLog`, `LineScore`, … | | exist (see pssbl.com/js/services/*.js), not used here |
+| `Roster` | `teamId` | team roster with each player's `birthDate` (YYYY-MM-DD); **source of ages** (cached in `raw/roster/`) |
+| `FieldInfo`, `BattingLog`, `LineScore`, … | | exist (see pssbl.com/js/services/*.js), not used here |
 
 - **Divisions** active 2016–2026: Adams, Adirondack, Cascade, Denali, Everest, Rainier, Rocky, Sierra, Smoky, Teton.
   Olympic exists in 2015 only.
@@ -95,6 +96,24 @@ Base URL: `https://pssbl.com/PHP/fetchData.php?type=…` (public and CORS-enable
    - **Fix:** every pipeline read goes through `fetch.load()` (UTF-8, then `fix_text()` repairs the double encoding),
      and every write says `encoding='utf-8'`. Python on Windows defaults to cp1252, which can't even read the
      raw files (`“Skip” Williams` crashes it), so never use a bare `open()`. `tests/data.spec.js` fails on garbled text.
+
+### Ages
+
+- **Source:** `type=Roster&teamId=…` (what pssbl.com's team Roster tab calls). Every season's team ids still answer,
+  2015 included, and each line carries `birthDate`. pssbl.com's own page shows *this year − birth year*; we don't.
+- **The date is the player's current one, not a historical snapshot:** the same player has the same date on every
+  season's roster (Oct 31, 2026: 3,311 players, **0 conflicts**). If conflicts ever appear, compute.py takes the date
+  from the newest team id.
+- **Convention:** **league age = season − birth year** (`compute.age()`), the age reached by Dec 31, which is how
+  pssbl.com counts it (Matt asked for this over baseball's June 30 rule: he's 35 in 2026, born Aug 1991). Age − Season is constant per
+  player, and the page derives the current age as career `Age` + (latest season − `To`).
+- **Columns:** `Age` follows `Name` in the season lines (`batting_*`, `pitching_*`); career files carry the age in the
+  player's last season (`To`). Date-range boards take it from the season lines; projection boards show the age now.
+- **Gaps:** fill-ins who were never on a roster have no date, so Age is blank (about 0.5% of lines; 29 of 1,490 2026
+  batting lines). Two birth dates are typos in the season played (age 0: Sam Herzer 2015, Adam Stacey 2016); ages
+  outside 14–100 are blanked. Ages up to 90 are real (it's a senior league: Larry Webb 89, Stu Fitelson 90).
+- **Privacy:** only ages are published, never birth dates (those stay in `raw/`).
+- `update.py` refreshes the latest season's rosters along with its stats (`fetch.season()`).
 
 ## Sabermetric method (compute.py)
 
@@ -143,7 +162,7 @@ writes `translations.json` and registers it in the manifest (bumping `version`).
 - **Targets shown:** a target appears only if the player has a recent line outside it (Adams-only → Sierra row only,
   Sierra-only → Adams only, Matt's Adams + Sierra → both). The card states the
   PA/IP it rests on, the own-numbers vs average split, and the caveats (self-selected two-division players, environment
-  mixed with competition, no age data).
+  mixed with competition, no aging adjustment even though ages are now on file).
 
 ## Front-end architecture (src/)
 
@@ -169,6 +188,8 @@ writes `translations.json` and registers it in the manifest (bumping `version`).
     sync** if you change one.
   - **State objects:** `L` (leaders), `P` (players), `S` (standings), `G` (guts).
   - **Pagination:** `L.page` / `L.size`.
+  - **Division filter:** a checkbox dropdown (`#lb-div` button + `#lb-div-list`), not a `<select>`. `L.div` is `'All'` or a
+    comma list (`div=Adams,Sierra` in the hash); a row matches if any of its divisions is picked. Tests use `pickDivs()`.
   - **URL hash:** `hashFor()` writes the view into the hash after every render (`#leaders?type=pit&season=2023&div=Cascade`,
     `#players/8013`, `#standings?season=2024`), leaving out defaults. `applyHash()` reads it on load and on
     Back/Forward/hash changes; bad values fall back to defaults. A new tab or player is a Back step (`dash.setLink(h, true)`
@@ -205,9 +226,11 @@ These come from same-player, same-season pairs across divisions.
   - Seasons are weighted 5/4/3 by recency × playing time and translated with fixed-effects division offsets.
   - Results are regressed to the Adams average using reliability from split halves: 57 PA (hitters), 12 IP (pitchers).
   - Example output: AJ Hansen .347/.467/.508, 132 wRC+; Cameron Lobb FIP- 81 (≈4.14 FIP).
-- **Caveats:** two-division players are self-selected; "easier" mixes competition with environment; no age data.
+- **Caveats:** two-division players are self-selected; "easier" mixes competition with environment; no aging curve.
 
 ## Open ideas and known loose ends
+
+- **Aging:** ages exist now (see "Ages"); an aging curve for the projection, or age splits in analysis/, is still open.
 
 - **Translations:** done as the Players-page "Projected in Adams / Sierra" card (Oct 31, 2026). The Leaders tab also has
   "Projected → Adams / Sierra" boards. Still open: other target divisions.

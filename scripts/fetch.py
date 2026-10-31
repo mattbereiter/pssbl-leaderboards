@@ -1,8 +1,8 @@
 """Download PSSBL data from pssbl.com's public stats API into raw/ (a local cache, not committed).
 
 For each season: team list, then per division the cumulative batting, pitching and game results,
-then every finished game's box score. Seasons named in `refresh` are re-downloaded even if cached,
-since the league keeps correcting box scores and team assignments after games are played.
+then every finished game's box score and every team's roster (birth dates, for ages).
+Seasons named in `refresh` are re-downloaded even if cached, since the league keeps correcting box scores and team assignments after games are played.
 """
 import json, os, ssl, sys, time, urllib.request, concurrent.futures as cf
 
@@ -60,10 +60,23 @@ def season(year, refresh=False):
     box = [(f'type={t}&gameId={g}', f'{RAW}/box/{t}_{g}.json') for g in sorted(games) for t in ('BattingStats', 'PitchingStats')]
     with cf.ThreadPoolExecutor(WORKERS) as ex:
         list(ex.map(lambda j: get(*j, force=refresh), box))
+    rosters(year, teams, refresh)
     print(f'{year}: {len(divisions)} divisions, {len(games)} finished games')
     return len(games)
 
+def rosters(year, teams=None, refresh=False):
+    """Each team's roster (team ids are unique per season). Old seasons' rosters still answer, with birth dates."""
+    teams = teams if teams is not None else load(f'{RAW}/TeamNames_{year}.json')
+    jobs = [(f"type=Roster&teamId={t['teamId']}", f"{RAW}/roster/Roster_{t['teamId']}.json") for t in teams]
+    with cf.ThreadPoolExecutor(WORKERS) as ex:
+        list(ex.map(lambda j: get(*j, force=refresh), jobs))
+
 if __name__ == '__main__':
+    if sys.argv[1:2] == ['--rosters']:  # backfill rosters for cached seasons, fetching only what's missing
+        for f in sorted(os.listdir(RAW)):
+            if f.startswith('TeamNames_'):
+                rosters(int(f[-9:-5])); print('rosters', f[-9:-5])
+        sys.exit()
     years = [int(a) for a in sys.argv[1:]] or [time.localtime().tm_year]
     for y in years:
         season(y, refresh=True)
