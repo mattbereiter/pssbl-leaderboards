@@ -51,6 +51,24 @@ test.describe('Leaders: Projected → Adams / Sierra', () => {
     expect((await leaderTable(page))[0]).toMatchObject({ 'wRC+': '129' });
   });
 
+  test('"Adams, Sierra, Rocky, Denali" keeps only players from those four divisions', async ({ page }) => {
+    await page.goto('/#leaders?season=ProjAdams');
+    await expect(leaderRows(page).first()).toBeVisible();
+    const count = async () => Number((await page.locator('#lb-count').textContent()).match(/^[\d,]+/)[0].replace(',', ''));
+    const all = await count();
+    await page.locator('#lb-div').selectOption({ label: 'Adams, Sierra, Rocky, Denali' });
+    await expect(page).toHaveURL(/div=Top4/);
+    const rows = await leaderTable(page);
+    expect(rows.length).toBeGreaterThan(10);
+    expect(await count()).toBeLessThan(all);
+    const top4 = ['Adams', 'Sierra', 'Rocky', 'Denali'];
+    for (const r of rows) for (const d of r.From.split(', ')) expect(top4).toContain(d);
+
+    await page.goto('/?5#leaders?season=ProjSierra&div=Top4&q=aj%20hansen'); // survives a reload, works for Sierra
+    await expect(leaderRows(page)).toHaveCount(1);
+    await expect(page.locator('#lb-div')).toHaveValue('Top4');
+  });
+
   test('Adams players show up projected to Sierra, Sierra players to Adams, Matt in both', async ({ page }) => {
     await page.goto('/#leaders?season=ProjSierra&q=noah%20zwiren');
     await expect(leaderRows(page)).toHaveCount(1);

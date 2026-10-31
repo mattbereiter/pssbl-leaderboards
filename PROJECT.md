@@ -22,7 +22,7 @@ There are four tabs plus a shortcut. All are rendered by `src/page.html` (one sc
   - **Table:** sortable columns, 50 rows per page, and top-5 leader cards above it (the cards follow every filter,
     including the name search).
   - **Projected → Adams / Sierra** (Season menu): the projection below for everyone with a line in the last three
-    seasons outside the target (so Adams players appear under Sierra and vice versa). Division becomes "From division"; Qualified = at least half their own numbers (eff PA ≥ k).
+    seasons outside the target (so Adams players appear under Sierra and vice versa). Division becomes "From division", with an extra "Adams, Sierra, Rocky, Denali" option (`div=Top4`) for players whose recent seasons were all in those four; Qualified = at least half their own numbers (eff PA ≥ k).
   - **Header line:** the top hitter and pitcher of the latest season. It's league news, not addressed to Matt.
 - **Players.** Season-by-season tables with a career row, a wRC+ dot chart (hitters) and ERA-/FIP- chart (pitchers),
   career stat strip, name search, and a link to the player's pssbl.com page. The "★ Matt" tab opens Matt (pid 8048).
