@@ -1,8 +1,11 @@
 """Division translations for the Players page's "Projected in Adams / Sierra" card -> public/data/translations.json.
 
 A stdlib port of analysis/project_to_adams.py (keep the two in step):
-1) Offsets: same player, same season, two divisions -> PA/IP-weighted fixed-effects offsets per division (vs Adams),
-   pooled over every season. Hitters need 20 PA in each division, pitchers 10 IP.
+1) Translations: same player, same season, two divisions (hitters 20 PA in each, pitchers 10 IP), pooled over every
+   season, relative to Adams. Rates are translated by multiplicative factors (Poisson fixed effects), so a translated
+   line can't go negative. Hitting goes through AVG, ISO (SLG - AVG) and xOB = (OBP - AVG) / (1 - AVG), the share of
+   non-hit PAs that still reach base, so SLG >= AVG and AVG <= OBP < 1 always hold.
+   FIP- and ERA- (indexes around 100) use additive offsets (weighted least squares within player-season).
 2) Regression constants from split-half reliability (odd vs even games in the box scores, Spearman-Brown).
 3) Targets: Adams and Sierra baselines over the last three seasons (league constants from guts, BB%/K% from player lines).
 The page weights a player's last three seasons 5/4/3 x PA (or IP), translates them and regresses toward the target.
@@ -14,6 +17,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, 'public', 'data')
 REF, TARGETS = 'Adams', ('Adams', 'Sierra')
 BAT_COLS, PIT_COLS = ['AVG', 'OBP', 'SLG', 'wOBA', 'BB%', 'K%'], ['FIP-', 'K%', 'BB%', 'ERA-']
+BAT_FAC, PIT_FAC, PIT_OFF = ['AVG', 'ISO', 'xOB', 'wOBA', 'BB%', 'K%'], ['K%', 'BB%'], ['FIP-', 'ERA-']
 
 
 def read(name):
@@ -59,13 +63,38 @@ def solve(A, b):
     return x
 
 
-def fixed_effects(ls, cols, minw):
-    """Within-player-season weighted least squares on division dummies; offsets are relative to REF."""
+def pairs(ls, minw):
+    """Player-seasons with at least two divisions of >= minw each."""
     groups = {}
     for l in ls:
         if l['w'] >= minw:
             groups.setdefault((l['Season'], l['pid']), []).append(l)
-    groups = [g for g in groups.values() if len({l['Division'] for l in g}) >= 2]
+    return [g for g in groups.values() if len({l['Division'] for l in g}) >= 2]
+
+
+def factors(groups, cols, iters=500):
+    """Multiplicative fixed effects, rate ~ player-season level x division factor, fit by weighted Poisson likelihood
+    (alternating closed-form updates); factors are relative to REF. Zeros are fine and nothing can go negative."""
+    divs = sorted({l['Division'] for g in groups for l in g})
+    out = {d: {} for d in divs}
+    for c in cols:
+        f = {d: 1.0 for d in divs}
+        for _ in range(iters):
+            mu = [sum(l['w'] * l[c] for l in g) / sum(l['w'] * f[l['Division']] for l in g) for g in groups]
+            num, den = dict.fromkeys(divs, 0.0), dict.fromkeys(divs, 0.0)
+            for m, g in zip(mu, groups):
+                for l in g:
+                    num[l['Division']] += l['w'] * l[c]
+                    den[l['Division']] += l['w'] * m
+            f = {d: num[d] / den[d] for d in divs}
+            f = {d: v / f[REF] for d, v in f.items()}
+        for d in divs:
+            out[d][c] = f[d]
+    return out
+
+
+def fixed_effects(groups, cols):
+    """Within-player-season weighted least squares on division dummies; offsets are relative to REF."""
     divs = sorted({l['Division'] for g in groups for l in g})
     free = [d for d in divs if d != REF]
     idx = {d: i for i, d in enumerate(free)}
@@ -94,8 +123,12 @@ def fixed_effects(ls, cols, minw):
         beta = solve(A, b)
         for d in divs:
             out[d][c] = 0.0 if d == REF else beta[idx[d]]
-    players = {d: len({g[0]['pid'] for g in groups if any(l['Division'] == d for l in g)}) for d in divs}
-    return out, players
+    return out
+
+
+def players(groups):
+    divs = sorted({l['Division'] for g in groups for l in g})
+    return {d: len({g[0]['pid'] for g in groups if any(l['Division'] == d for l in g)}) for d in divs}
 
 
 def pearson(x, y):
@@ -149,8 +182,11 @@ def main():
     seasons = [latest, latest - 1, latest - 2]
 
     bl, pl = lines(bat, 'PA', BAT_COLS), lines(pit, 'Outs', PIT_COLS, scale=3)  # pitching weight = IP
-    fe_b, n_b = fixed_effects(bl, BAT_COLS, 20)
-    fe_p, n_p = fixed_effects(pl, PIT_COLS, 10)
+    for l in bl:
+        l['ISO'], l['xOB'] = l['SLG'] - l['AVG'], (l['OBP'] - l['AVG']) / (1 - l['AVG']) if l['AVG'] < 1 else 0.0
+    gb, gp = pairs(bl, 20), pairs(pl, 10)
+    fac_b, fac_p, fe_p = factors(gb, BAT_FAC), factors(gp, PIT_FAC), fixed_effects(gp, PIT_OFF)
+    n_b, n_p = players(gb), players(gp)
 
     rb, hb, pb = split_half(box, 'bat', lambda t: woba_parts(t)[0] / woba_parts(t)[1], lambda t: woba_parts(t)[1] + t['SH'], 25)
     rp, hp, pp = split_half(box, 'pit', lambda t: (13 * t['HR'] + 3 * (t['BB'] + t['HBP']) - 2 * t['SO']) / (t['Outs'] / 3), lambda t: t['Outs'], 30)
@@ -169,8 +205,8 @@ def main():
 
     rnd = lambda o: {k: rnd(v) for k, v in o.items()} if isinstance(o, dict) else round(o, 6) if isinstance(o, float) else o
     out = {'seasons': {str(s): w for s, w in zip(seasons, (5, 4, 3))}, 'ref': REF, 'targets': targets,
-           'bat': {'k': k_from_split(rb, hb), 'r': rb, 'half': hb, 'pairs': pb, 'minPA': 20, 'offsets': fe_b, 'players': n_b},
-           'pit': {'k': k_from_split(rp, hp), 'r': rp, 'half': hp, 'pairs': pp, 'minIP': 10, 'offsets': fe_p, 'players': n_p}}
+           'bat': {'k': k_from_split(rb, hb), 'r': rb, 'half': hb, 'pairs': pb, 'minPA': 20, 'factors': fac_b, 'players': n_b},
+           'pit': {'k': k_from_split(rp, hp), 'r': rp, 'half': hp, 'pairs': pp, 'minIP': 10, 'factors': fac_p, 'offsets': fe_p, 'players': n_p}}
     with open(os.path.join(DATA, 'translations.json'), 'w', encoding='utf-8') as f:
         json.dump(rnd(out), f, indent=1)
 
@@ -182,9 +218,9 @@ def main():
         json.dump(m, open(mpath, 'w', encoding='utf-8'), indent=1)
     print(f"translations: hitters r={rb:.2f} at {hb:.0f} PA/half -> k={out['bat']['k']:.0f} PA | "
           f"pitchers r={rp:.2f} at {hp:.0f} IP/half -> k={out['pit']['k']:.0f} IP")
-    for d in sorted(fe_b):
-        print(f"  {d:<11} wOBA {fe_b[d]['wOBA']:+.3f}  OBP {fe_b[d]['OBP']:+.3f}  SLG {fe_b[d]['SLG']:+.3f}"
-              + (f"  FIP- {fe_p[d]['FIP-']:+.1f}  K% {fe_p[d]['K%']:+.1f}" if d in fe_p else ''))
+    for d in sorted(fac_b):  # x in d is worth x / factor[d] in Adams
+        print(f"  {d:<11} AVG x{fac_b[d]['AVG']:.2f}  ISO x{fac_b[d]['ISO']:.2f}  xOB x{fac_b[d]['xOB']:.2f}  wOBA x{fac_b[d]['wOBA']:.2f}"
+              + (f"  FIP- {fe_p[d]['FIP-']:+.1f}  K% x{fac_p[d]['K%']:.2f}" if d in fe_p else ''))
 
 
 if __name__ == '__main__':

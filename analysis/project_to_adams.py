@@ -1,5 +1,6 @@
 """Project a player's next season in Adams from his last three seasons in any division.
-1) Division translations: same player, same season, two divisions -> PA/IP-weighted fixed-effects offsets (to Adams).
+1) Division translations: same player, same season, two divisions -> multiplicative factors for rates (Poisson fixed
+   effects; hitting via AVG, ISO and xOB = (OBP-AVG)/(1-AVG)), additive offsets for FIP-/ERA-. Same as scripts/translate.py.
 2) Weight seasons 5/4/3 (2026/2025/2024) x playing time, translated to Adams terms.
 3) Regress toward the Adams average with a regression constant estimated from this league's own split-half reliability.
 """
@@ -40,8 +41,24 @@ def fixed_effects(df, cols, wcol, minw, ref='Adams'):
         beta = np.linalg.lstsq(Xd * np.sqrt(wts)[:, None], yd * np.sqrt(wts), rcond=None)[0]
         s = pd.Series(beta, index=divs); out[c] = s - s[ref]
     return pd.DataFrame(out), m.groupby('Division').pid.nunique()
-FEb, nb = fixed_effects(bd, ['AVG', 'OBP', 'SLG', 'wOBA', 'BB%', 'K%'], 'PA', 20)
-FEp, npit = fixed_effects(pdv, ['FIP-', 'K%', 'BB%', 'ERA-'], 'IP', 10)
+def factors(df, cols, wcol, minw, ref='Adams', iters=500):
+    # rate ~ player-season level x division factor, weighted Poisson likelihood by alternating updates
+    m = df[df[wcol] >= minw].copy()
+    m = m[m.groupby(['Season', 'pid']).Division.transform('nunique') >= 2].reset_index(drop=True)
+    g = m.groupby(['Season', 'pid']).ngroup().values; wts = m[wcol].values.astype(float); d = m.Division.values
+    out = {}
+    for c in cols:
+        y = m[c].values.astype(float); f = pd.Series(1.0, index=sorted(set(d)))
+        for _ in range(iters):
+            mu = np.bincount(g, wts * y) / np.bincount(g, wts * f[d].values)
+            f = pd.Series(wts * y).groupby(d).sum() / pd.Series(wts * mu[g]).groupby(d).sum()
+            f = f / f[ref]
+        out[c] = f
+    return pd.DataFrame(out)
+bd['ISO'] = bd.SLG - bd.AVG; bd['xOB'] = ((bd.OBP - bd.AVG) / (1 - bd.AVG)).where(bd.AVG < 1, 0.0)
+FAb = factors(bd, ['AVG', 'ISO', 'xOB', 'wOBA', 'BB%', 'K%'], 'PA', 20)
+FAp = factors(pdv, ['K%', 'BB%'], 'IP', 10)
+FEp, npit = fixed_effects(pdv, ['FIP-', 'ERA-'], 'IP', 10)
 
 # ---------- regression constants from split-half reliability (odd vs even games, box scores) ----------
 box = pd.concat([pd.read_csv(f, dtype={'pid': str}) for f in glob.glob(D + 'box_*.csv')])
@@ -87,12 +104,14 @@ def project_hitter(pid):
     rows = bd[(bd.pid == pid) & bd.Season.isin(WEIGHTS)]
     if rows.empty: return None
     w = rows.Season.map(WEIGHTS) * rows.PA; tot = {}
-    for c in ['AVG', 'OBP', 'SLG', 'wOBA', 'BB%', 'K%']:
-        tr = rows[c] - rows.Division.map(FEb[c])                     # in Adams terms
+    for c in ['AVG', 'ISO', 'xOB', 'wOBA', 'BB%', 'K%']:
+        tr = rows[c] / rows.Division.map(FAb[c])                     # in Adams terms
         tot[c] = (tr * w).sum() / w.sum()
     pa_eff = (rows.Season.map(WEIGHTS) / 5 * rows.PA).sum()           # recency-discounted PA
     shrink = pa_eff / (pa_eff + K_PA)
-    proj = {c: shrink * tot[c] + (1 - shrink) * (LG[c] if c in LG else MEAN_B[c]) for c in tot}
+    mean = {**LG, **MEAN_B, 'ISO': LG['SLG'] - LG['AVG'], 'xOB': (LG['OBP'] - LG['AVG']) / (1 - LG['AVG'])}
+    proj = {c: shrink * tot[c] + (1 - shrink) * mean[c] for c in tot}
+    proj['SLG'] = proj['AVG'] + proj['ISO']; proj['OBP'] = proj['AVG'] + proj['xOB'] * (1 - proj['AVG'])
     rpa = LG['RPA']; wraa_pa = (proj['wOBA'] - LG['wOBA']) / 1.2
     proj['wRC+'] = 100 * (wraa_pa + rpa) / rpa
     proj['oWAR/80PA'] = (wraa_pa + LG['rep']) * 80 / LG['RW']
@@ -104,7 +123,7 @@ def project_pitcher(pid):
     if rows.empty: return None
     w = rows.Season.map(WEIGHTS) * rows.IP; tot = {}
     for c in ['FIP-', 'K%', 'BB%']:
-        tr = rows[c] - rows.Division.map(FEp[c]); tot[c] = (tr * w).sum() / w.sum()
+        tr = rows[c] - rows.Division.map(FEp[c]) if c == 'FIP-' else rows[c] / rows.Division.map(FAp[c]); tot[c] = (tr * w).sum() / w.sum()
     ip_eff = (rows.Season.map(WEIGHTS) / 5 * rows.IP).sum(); shrink = ip_eff / (ip_eff + K_IP)
     proj = {'FIP-': shrink * tot['FIP-'] + (1 - shrink) * 100,
             'K%': shrink * tot['K%'] + (1 - shrink) * MEAN_P['K%'], 'BB%': shrink * tot['BB%'] + (1 - shrink) * MEAN_P['BB%']}
@@ -112,8 +131,8 @@ def project_pitcher(pid):
     proj['ERA (expected)'] = proj['FIP']
     return proj, rows, ip_eff, shrink
 
-print('\nDivision translations into Adams (subtract from a line in that division):')
-print(pd.concat([FEb[['wOBA', 'OBP', 'SLG']].round(3), FEp[['FIP-', 'K%']].round(1).add_prefix('pit ')], axis=1).to_string())
+print('\nDivision translations into Adams (divide a rate in that division by its factor; subtract the FIP- offset):')
+print(pd.concat([FAb[['AVG', 'ISO', 'xOB', 'wOBA']].round(2), FEp[['FIP-']].round(1).add_prefix('pit '), FAp[['K%']].round(2).add_prefix('pit ')], axis=1).to_string())
 print(f"\nAdams 2024-26 average: wOBA {LG['wOBA']:.3f}, AVG/OBP/SLG {LG['AVG']:.3f}/{LG['OBP']:.3f}/{LG['SLG']:.3f}, ERA {LG['ERA']:.2f}")
 
 for name in sys.argv[1:]:

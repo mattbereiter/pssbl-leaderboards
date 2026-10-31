@@ -29,8 +29,8 @@ test.describe('Projected in Adams / Sierra', () => {
     await expect(card.locator('h3')).toContainText('Projected in Adams / Sierra');
 
     const bat = await projTable(page, '#p-proj-bat');
-    expect(bat.Adams).toMatchObject({ AVG: '.347', OBP: '.467', SLG: '.508', wOBA: '.423', 'wRC+': '132' });
-    expect(bat.Sierra).toMatchObject({ AVG: '.357', OBP: '.457', SLG: '.519', wOBA: '.421', 'wRC+': '129' });
+    expect(bat.Adams).toMatchObject({ AVG: '.329', OBP: '.456', SLG: '.450', wOBA: '.404', 'wRC+': '123' });
+    expect(bat.Sierra).toMatchObject({ AVG: '.342', OBP: '.445', SLG: '.463', wOBA: '.401', 'wRC+': '120' });
     // sample size and how hard it regresses
     await expect(card).toContainText('307 recency-weighted PA');
     await expect(card).toContainText('84%');
@@ -48,10 +48,10 @@ test.describe('Projected in Adams / Sierra', () => {
     await page.goto('/#players/7215');
     await expect(page.locator('#p-proj')).toBeVisible();
     const pit = await projTable(page, '#p-proj-pit');
-    expect(pit.Adams).toMatchObject({ 'FIP-': '81', FIP: '4.14', 'K%': '25.9 %', 'BB%': '6.5 %' });
+    expect(pit.Adams).toMatchObject({ 'FIP-': '81', FIP: '4.14', 'K%': '21.9 %', 'BB%': '6.7 %' });
     expect(pit.Sierra).toMatchObject({ 'FIP-': '86', FIP: '4.77' });
     const bat = await projTable(page, '#p-proj-bat');
-    expect(bat.Adams).toMatchObject({ AVG: '.243', OBP: '.345', SLG: '.312', 'wRC+': '76' });
+    expect(bat.Adams).toMatchObject({ AVG: '.254', OBP: '.355', SLG: '.323', 'wRC+': '80' });
   });
 
   test('says Adams and Sierra are about the same level, and states the caveats', async ({ page }) => {
@@ -67,8 +67,8 @@ test.describe('Projected in Adams / Sierra', () => {
     await page.goto(`/#players/${MATT}`);
     await expect(page.locator('#p-proj')).toBeVisible();
     const bat = await projTable(page, '#p-proj-bat');
-    expect(bat.Adams).toMatchObject({ AVG: '.276', OBP: '.365', SLG: '.329', 'wRC+': '82' });
-    expect(bat.Sierra).toMatchObject({ AVG: '.287', OBP: '.358', SLG: '.340', 'wRC+': '79' });
+    expect(bat.Adams).toMatchObject({ AVG: '.276', OBP: '.362', SLG: '.329', 'wRC+': '82' });
+    expect(bat.Sierra).toMatchObject({ AVG: '.287', OBP: '.359', SLG: '.341', 'wRC+': '79' });
     await expect(page.locator('#p-proj')).toContainText('121 recency-weighted PA');
     expect(errors).toEqual([]);
   });
@@ -78,12 +78,12 @@ test.describe('Projected in Adams / Sierra', () => {
     await expect(page.locator('#p-proj')).toBeVisible();
     let bat = await projTable(page, '#p-proj-bat');
     expect(Object.keys(bat)).toEqual(['Sierra']);
-    expect(bat.Sierra).toMatchObject({ AVG: '.342', OBP: '.422', SLG: '.399', wOBA: '.369', 'wRC+': '104' });
+    expect(bat.Sierra).toMatchObject({ AVG: '.344', OBP: '.426', SLG: '.402', wOBA: '.370', 'wRC+': '105' });
 
     await page.goto('/#players/1052'); // Paul Fisher, Sierra 2024-26
     await expect(page.locator('#p-proj-bat tbody tr')).toHaveCount(1);
     bat = await projTable(page, '#p-proj-bat');
     expect(Object.keys(bat)).toEqual(['Adams']);
-    expect(bat.Adams).toMatchObject({ AVG: '.352', OBP: '.460', SLG: '.495', 'wRC+': '132' });
+    expect(bat.Adams).toMatchObject({ AVG: '.349', OBP: '.456', SLG: '.491', 'wRC+': '132' });
   });
 });

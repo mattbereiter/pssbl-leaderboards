@@ -159,19 +159,24 @@ A stdlib port of `analysis/project_to_adams.py`; **keep the three in step** (Pyt
 `project()` in `src/page.html`). `update.py` runs `translate.py` after publishing the CSVs; it reads only `public/data`,
 writes `translations.json` and registers it in the manifest (bumping `version`).
 
-- **Offsets:** same player, same season, two divisions (≥ 20 PA or ≥ 10 IP in each). Weighted least squares on
-  division dummies within each player-season, pooled over all seasons, relative to Adams. Columns: AVG/OBP/SLG/wOBA/
-  BB%/K% (hitters, weighted by PA) and FIP-/K%/BB%/ERA- (pitchers, weighted by IP). To translate into target T:
-  `x − (off[div] − off[T])`.
+- **Translations:** same player, same season, two divisions (≥ 20 PA or ≥ 10 IP in each), pooled over all seasons,
+  relative to Adams. **Rates use multiplicative factors** (rate ≈ player-season level × division factor, fit by weighted
+  Poisson likelihood with alternating updates): hitters AVG, ISO (SLG − AVG), xOB = (OBP − AVG)/(1 − AVG), wOBA, BB%,
+  K% (weighted by PA); pitchers K%, BB% (by IP). Into target T: `x × fac[T] / fac[div]`; then SLG = AVG + ISO and
+  OBP = AVG + xOB·(1 − AVG), so SLG ≥ AVG and OBP ≥ AVG always hold and nothing goes negative. FIP-/ERA- (indexes) keep
+  additive offsets from weighted least squares within player-season: `x − (off[div] − off[T])`.
+  (Until Oct 31, 2026 every stat was additive; the low divisions' huge offsets, Adirondack SLG +.563, produced lines
+  like .119/.316/.028.) xOB rather than OBP − AVG because OBP − AVG shrinks mechanically when AVG is high; xOB's
+  factors track BB%'s. Adirondack's ISO factor is ~15: its two-division hitters show almost no power in Adams.
 - **Regression constant:** odd vs even games in the box scores, division-season means removed, Pearson r, then
   Spearman-Brown to a per-unit reliability c and k = (1 − c)/c. Oct 31, 2026: hitters r = .39 at 36 PA/half → **k = 57 PA**;
   pitchers r = .63 at 20 IP/half → **k = 12 IP**.
 - **Per player (page JS):** the last three seasons weighted 5/4/3 × PA (or IP); effective sample = Σ weight/5 × PA;
   shrink = n/(n + k) toward the target's average (guts means of the last three seasons for AVG/OBP/SLG/wOBA; PA/IP-weighted
   player lines for BB%/K%; FIP- toward 100). wRC+ uses the target's R/PA; FIP = FIP-/100 × target ERA.
-- **Checks:** `tests/projection.spec.js` pins AJ Hansen (Adams .347/.467/.508, 132 wRC+; Sierra .357/.457/.519, 129)
+- **Checks:** `tests/projection.spec.js` pins AJ Hansen (Adams .329/.456/.450, 123 wRC+; Sierra .342/.445/.463, 120)
   and Cameron Lobb (Adams FIP- 81, 4.14 FIP; Sierra 86, 4.77), which match the pandas script exactly.
-  Offsets match `project_to_adams.py` to < 1e-6.
+  `tests/projected-leaders.spec.js` walks every row of both boards for SLG ≥ AVG, OBP ≥ AVG, AVG > .100.
 - **Leaders board** (`season=ProjAdams` / `ProjSierra`): `projRows()` runs `project()` for every such player;
   columns are recent PA/IP, effective PA/IP, Own% (shrink) and the projected line. Default sort wRC+ / FIP- (low first).
 - **Targets shown:** a target appears only if the player has a recent line outside it (Adams-only → Sierra row only,

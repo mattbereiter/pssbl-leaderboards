@@ -23,7 +23,7 @@ test.describe('Leaders: Projected → Adams / Sierra', () => {
     await page.locator('#lb-q').fill('aj hansen');
     await expect(leaderRows(page)).toHaveCount(1);
     const [aj] = await leaderTable(page);
-    expect(aj).toMatchObject({ AVG: '.347', OBP: '.467', SLG: '.508', wOBA: '.423', 'wRC+': '132', 'Eff PA': '307', 'Own%': '84' });
+    expect(aj).toMatchObject({ AVG: '.329', OBP: '.456', SLG: '.450', wOBA: '.404', 'wRC+': '123', 'Eff PA': '307', 'Own%': '84' });
     expect(aj.From).toContain('Rocky');
     await expect(page.locator('#lb-cards')).toContainText('AJ Hansen');
     expect(errors).toEqual([]);
@@ -36,7 +36,7 @@ test.describe('Leaders: Projected → Adams / Sierra', () => {
     expect(Number(rows[0]['FIP-'])).toBeLessThanOrEqual(Number(rows[1]['FIP-']));
     await page.locator('#lb-q').fill('cameron lobb');
     await expect(leaderRows(page)).toHaveCount(1);
-    expect((await leaderTable(page))[0]).toMatchObject({ 'FIP-': '81', FIP: '4.14', 'K%': '25.9 %', 'BB%': '6.5 %' });
+    expect((await leaderTable(page))[0]).toMatchObject({ 'FIP-': '81', FIP: '4.14', 'K%': '21.9 %', 'BB%': '6.7 %' });
   });
 
   test('the division filter means "came from", and Sierra is in the season menu', async ({ page }) => {
@@ -48,7 +48,7 @@ test.describe('Leaders: Projected → Adams / Sierra', () => {
     await expect(page).toHaveURL(/season=ProjSierra/);
     await page.locator('#lb-q').fill('aj hansen');
     await expect(leaderRows(page)).toHaveCount(1);
-    expect((await leaderTable(page))[0]).toMatchObject({ 'wRC+': '129' });
+    expect((await leaderTable(page))[0]).toMatchObject({ 'wRC+': '120' });
   });
 
   test('the division menu takes several divisions at once', async ({ page }) => {
@@ -83,7 +83,7 @@ test.describe('Leaders: Projected → Adams / Sierra', () => {
   test('Adams players show up projected to Sierra, Sierra players to Adams, Matt in both', async ({ page }) => {
     await page.goto('/#leaders?season=ProjSierra&q=noah%20zwiren');
     await expect(leaderRows(page)).toHaveCount(1);
-    expect((await leaderTable(page))[0]).toMatchObject({ From: 'Adams', 'wRC+': '104' });
+    expect((await leaderTable(page))[0]).toMatchObject({ From: 'Adams', 'wRC+': '105' });
 
     await page.goto('/?2#leaders?season=ProjAdams&q=noah%20zwiren'); // ?n: a real load each time, not a hash change
     await expect(page.locator('#lb-table caption')).toContainText(/No player/);
@@ -95,6 +95,39 @@ test.describe('Leaders: Projected → Adams / Sierra', () => {
     await page.goto('/?4#leaders?season=ProjSierra&q=bereiter');
     await expect(page.locator('#lb-table tbody tr.me')).toHaveCount(1);
     expect((await leaderTable(page))[0]).toMatchObject({ 'wRC+': '79' });
+  });
+
+  test('every projected line holds together: SLG and OBP at least AVG, nothing near zero', async ({ page }) => {
+    for (const T of ['Adams', 'Sierra']) {
+      await page.goto(`/?${T}#leaders?season=Proj${T}&min=0&size=250`);
+      await expect(leaderRows(page).first()).toBeVisible();
+      const rows = [];
+      for (;;) { // every page of the board
+        const info = await page.locator('#lb-pageinfo').textContent();
+        rows.push(...await leaderTable(page));
+        const next = page.locator('#lb-pager button[data-p="next"]');
+        if (await next.isDisabled()) break;
+        await next.click();
+        await expect(page.locator('#lb-pageinfo')).not.toHaveText(info);
+      }
+      expect(rows.length).toBeGreaterThan(500);
+      for (const r of rows) {
+        const [avg, obp, slg] = [r.AVG, r.OBP, r.SLG].map(Number);
+        expect(slg, `${r.Name} SLG vs AVG`).toBeGreaterThanOrEqual(avg);
+        expect(obp, `${r.Name} OBP vs AVG`).toBeGreaterThanOrEqual(avg - 0.005);
+        expect(avg, `${r.Name} AVG`).toBeGreaterThan(0.1);
+      }
+    }
+  });
+
+  test('Carl Gleason (Adirondack/Rainier/Teton) projects to a sane line', async ({ page }) => {
+    await page.goto('/#players/843');
+    await expect(page.locator('#p-proj-bat')).toBeVisible();
+    const cells = await page.locator('#p-proj-bat tbody tr').first().locator('td').allTextContents();
+    const [avg, obp, slg] = cells.slice(1, 4).map(Number);
+    expect(slg).toBeGreaterThanOrEqual(avg);
+    expect(avg).toBeGreaterThan(0.15); // a weak Adams hitter, but a real line (was .119/.316/.028)
+    expect(obp).toBeGreaterThan(avg);
   });
 
   test('going back to a normal season restores the usual table', async ({ page }) => {

@@ -275,7 +275,7 @@
       <h3 id="p-proj-title">Projected in Adams / Sierra</h3>
       <p class="pg-note" id="p-proj-lede"></p>
       <div id="p-proj-body"></div>
-      <p class="pg-note pg-proj-fine">A rough guide, not a forecast. The offsets come from players who played two divisions in the same season, and those players are self-selected; "easier" mixes the competition with each division's run environment; and there's no aging curve yet (ages are on file, but the model doesn't use them), so nobody ages here. Adams and Sierra are about the same level, so a player's Adams and Sierra lines come out close.</p>
+      <p class="pg-note pg-proj-fine">A rough guide, not a forecast. The division adjustments come from players who played two divisions in the same season, and those players are self-selected; "easier" mixes the competition with each division's run environment; and there's no aging curve yet (ages are on file, but the model doesn't use them), so nobody ages here. Adams and Sierra are about the same level, so a player's Adams and Sierra lines come out close.</p>
     </div>
     <div class="pg-grouptabs" id="p-group" style="margin-bottom: var(--cds-gap-md); border-bottom-width: 0"><button data-v="dash" aria-pressed="true">Dashboard</button><button data-v="std" aria-pressed="false">Standard</button><button data-v="adv" aria-pressed="false">Advanced</button></div>
     <div class="pg-card" id="p-bat">
@@ -1405,7 +1405,7 @@
   }
 
   // ---------- PROJECTED IN ADAMS / SIERRA ----------
-  // Mirrors analysis/project_to_adams.py; offsets, regression constants and target baselines come from scripts/translate.py.
+  // Mirrors analysis/project_to_adams.py; division factors, regression constants and target baselines come from scripts/translate.py.
   const PROJ = {
     bat: { w: 'PA', unit: 'PA', cols: ['AVG', 'OBP', 'SLG', 'wOBA', 'BB%', 'K%'], show: ['AVG', 'OBP', 'SLG', 'wOBA', 'wRC+', 'BB%', 'K%'], title: 'Hitting' },
     pit: { w: 'Outs', unit: 'IP', cols: ['FIP-', 'K%', 'BB%'], show: ['FIP-', 'FIP', 'K%', 'BB%'], title: 'Pitching' },
@@ -1455,7 +1455,7 @@
     if (!tr) return '';
     const yrs = Object.keys(tr.seasons).map(Number).sort((a, b) => a - b), k = Math.round(tr[type].k), u = PROJ[type].unit;
     return `A guess at next season in ${target} for everyone whose ${yrs[0]}–${String(yrs[yrs.length - 1]).slice(2)} seasons include a division other than ${target} (Adams and Sierra are about the same level, so Adams players show up under Sierra and vice versa). `
-      + `Seasons are weighted 5/4/3, translated with same-season two-division offsets, then pulled toward the ${target} average; Own% is how much is the player's own numbers. `
+      + `Seasons are weighted 5/4/3, translated with same-season two-division ratios, then pulled toward the ${target} average; Own% is how much is the player's own numbers. `
       + `Qualified = at least half their own (${k} effective ${u}). A rough guide: two-division players are self-selected, and there's no aging adjustment.`;
   }
   const ipStr = (ip) => { const outs = Math.round(ip * 3); return `${Math.floor(outs / 3)}.${outs % 3}`; };
@@ -1476,18 +1476,21 @@
       return o;
     });
   }
+  // rates scale by division factors (x in d is worth x * fac[T] / fac[d] in T); FIP- shifts by offsets. Hitting goes
+  // through AVG, ISO and xOB = (OBP - AVG) / (1 - AVG), so the projected SLG and OBP can't fall below AVG.
   function project(type, lines, tr, target) {
-    const { cols } = PROJ[type], T = tr.targets[target], off = tr[type].offsets;
-    const ls = lines.filter((l) => off[l.Division]);
+    const T = tr.targets[target], fac = tr[type].factors, off = tr[type].offsets || {};
+    const ls = lines.filter((l) => fac[l.Division]);
     if (!ls.length) return null;
+    const cols = type === 'bat' ? ['AVG', 'ISO', 'xOB', 'wOBA', 'BB%', 'K%'] : PROJ.pit.cols;
+    const val = (l, c) => (c === 'ISO' ? l.SLG - l.AVG : c === 'xOB' ? (l.AVG < 1 ? (l.OBP - l.AVG) / (1 - l.AVG) : 0) : l[c]);
+    const into = (l, c) => (c in fac[l.Division] ? val(l, c) * fac[target][c] / fac[l.Division][c] : val(l, c) - (off[l.Division][c] - off[target][c]));
+    const avg = (c) => (type === 'pit' ? (c === 'FIP-' ? 100 : T.pit[c]) : c in T.bat ? T.bat[c] : c === 'ISO' ? T.SLG - T.AVG : c === 'xOB' ? (T.OBP - T.AVG) / (1 - T.AVG) : T[c]);
     const sw = (l) => tr.seasons[String(l.Season)] * l.w;
     const W = d3.sum(ls, sw), eff = d3.sum(ls, (l) => tr.seasons[String(l.Season)] / 5 * l.w);
     const shrink = eff / (eff + tr[type].k), p = { eff, shrink };
-    for (const c of cols) {
-      const tot = d3.sum(ls, (l) => (l[c] - (off[l.Division][c] - off[target][c])) * sw(l)) / W;
-      const mean = type === 'pit' ? (c === 'FIP-' ? 100 : T.pit[c]) : (c in T.bat ? T.bat[c] : T[c]);
-      p[c] = shrink * tot + (1 - shrink) * mean;
-    }
+    for (const c of cols) p[c] = shrink * d3.sum(ls, (l) => into(l, c) * sw(l)) / W + (1 - shrink) * avg(c);
+    if (type === 'bat') { p.SLG = p.AVG + p.ISO; p.OBP = p.AVG + p.xOB * (1 - p.AVG); }
     if (type === 'bat') p['wRC+'] = 100 * ((p.wOBA - T.wOBA) / 1.2 + T['R/PA']) / T['R/PA'];
     else p.FIP = p['FIP-'] / 100 * T.ERA;
     return p;
