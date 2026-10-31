@@ -68,6 +68,21 @@ def main_team(kind, y, d, rows):
     return out
 
 seasons = sorted({int(f.split('_')[-1][:4]) for f in glob.glob(f'{RAW}/CumulativeBatting_*_*.json')})
+
+# ---- ages, from the birth dates on team rosters (type=Roster&teamId=…, scripts/fetch.py)
+# The roster feed returns the player's current birth date even for old seasons' rosters, so one
+# date per player covers every season. Age = baseball convention: age on June 30 of the season.
+_born = {}
+for f in sorted(glob.glob(f'{RAW}/roster/Roster_*.json'), key=lambda f: int(os.path.basename(f)[7:-5])):
+    for z in load(f):
+        try: _born[z['playerId']] = datetime.date.fromisoformat(z['birthDate'])  # newest team id wins
+        except (TypeError, ValueError, KeyError): pass
+def age(pid, y):
+    b = _born.get(pid)
+    if not b: return None
+    a = y - b.year - ((b.month, b.day) > (6, 30))
+    return a if 14 <= a <= 100 else None  # a handful of birth dates are typos (born the season they played)
+
 bat_rows, pit_rows, guts, standings = [], [], [], []
 
 for y in seasons:
@@ -147,7 +162,7 @@ for y in seasons:
             bip = s['ab'] - s['so'] - s['hr'] + s['sf']
             bat_rows.append({
                 'key': f"{y}-{x['playerId']}-{x['teamId']}", 'Season': y, 'pid': x['playerId'],
-                'Name': f"{x['firstName'].strip()} {x['lastName'].strip()}", 'Team': x['teamName'].strip(), 'tid': x['teamId'],
+                'Name': f"{x['firstName'].strip()} {x['lastName'].strip()}", 'Age': age(x['playerId'], y), 'Team': x['teamName'].strip(), 'tid': x['teamId'],
                 'Division': d, 'TG': tg, 'G': s['g'], 'PA': pa, 'AB': s['ab'], 'H': s['h'], '1B': s['s1'], '2B': s['d2'], '3B': s['t3'],
                 'HR': s['hr'], 'R': s['r'], 'RBI': s['rbi'], 'BB': s['bb'], 'IBB': s['ibb'], 'SO': s['so'], 'HBP': s['hbp'],
                 'SF': s['sf'], 'SH': s['sh'], 'GDP': s['gdp'], 'SB': s['sb'], 'CS': s['cs'],
@@ -181,7 +196,7 @@ for y in seasons:
             bip = s['h'] - s['hr'] + outs - s['so']
             pit_rows.append({
                 'key': f"{y}-{x['playerId']}-{x['teamId']}", 'Season': y, 'pid': x['playerId'],
-                'Name': f"{x['firstName'].strip()} {x['lastName'].strip()}", 'Team': x['teamName'].strip(), 'tid': x['teamId'],
+                'Name': f"{x['firstName'].strip()} {x['lastName'].strip()}", 'Age': age(x['playerId'], y), 'Team': x['teamName'].strip(), 'tid': x['teamId'],
                 'Division': d, 'TG': tg, 'W': i(x['w']), 'L': i(x['l']), 'SV': i(x['sv']), 'HLD': i(x['hld']),
                 'G': s['g'], 'GS': s['gs'], 'CG': i(x['cg']), 'SHO': i(x['sho']), 'IP': ipnote(outs), 'Outs': outs, 'TBF': tbf,
                 'H': s['h'], 'R': s['r'], 'ER': s['er'], 'HR': s['hr'], 'BB': s['bb'], 'IBB': s['ibb'], 'SO': s['so'], 'HBP': s['hbp'],
@@ -286,7 +301,7 @@ def career_bat():
         avg = div0(S['H'], ab); obp = div0(S['H']+S['BB']+S['HBP'], ab+S['BB']+S['HBP']+S['SF']); slg = div0(tb, ab)
         bip = ab - S['SO'] - S['HR'] + S['SF']
         out.append({
-            'key': pid, 'pid': pid, 'Name': last['Name'], 'Team': last['Team'], 'tid': last['tid'], 'Division': last['Division'],
+            'key': pid, 'pid': pid, 'Name': last['Name'], 'Age': age(pid, yrs[-1]), 'Team': last['Team'], 'tid': last['tid'], 'Division': last['Division'],
             'Seasons': len(yrs), 'From': yrs[0], 'To': yrs[-1],
             **{k: S[k] for k in ('G','PA','AB','H','1B','2B','3B','HR','R','RBI','BB','IBB','SO','HBP','SF','SH','GDP','SB','CS')},
             'BB%': r(100*S['BB']/pa,1) if pa else None, 'K%': r(100*S['SO']/pa,1) if pa else None,
@@ -318,7 +333,7 @@ def career_pit():
         era = 9*S['ER']/ip if ip else None; fip = S['fipip']/ip if ip else None; lgera = S['lgERAip']/ip if ip else None
         lobden = S['H'] + S['BB'] + S['HBP'] - 1.4*S['HR']; bip = S['H'] - S['HR'] + outs - S['SO']
         out.append({
-            'key': pid, 'pid': pid, 'Name': last['Name'], 'Team': last['Team'], 'tid': last['tid'], 'Division': last['Division'],
+            'key': pid, 'pid': pid, 'Name': last['Name'], 'Age': age(pid, yrs[-1]), 'Team': last['Team'], 'tid': last['tid'], 'Division': last['Division'],
             'Seasons': len(yrs), 'From': yrs[0], 'To': yrs[-1],
             **{k: S[k] for k in ('W','L','SV','HLD','G','GS','CG','SHO')}, 'IP': ipnote(outs), 'Outs': outs, 'TBF': tbf,
             **{k: S[k] for k in ('H','R','ER','HR','BB','IBB','SO','HBP','WP')},

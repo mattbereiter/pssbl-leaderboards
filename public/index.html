@@ -317,7 +317,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       <h3 id="p-proj-title">Projected in Adams / Sierra</h3>
       <p class="pg-note" id="p-proj-lede"></p>
       <div id="p-proj-body"></div>
-      <p class="pg-note pg-proj-fine">A rough guide, not a forecast. The offsets come from players who played two divisions in the same season, and those players are self-selected; "easier" mixes the competition with each division's run environment; and there's no age data, so nobody ages here. Adams and Sierra are about the same level, so a player's Adams and Sierra lines come out close.</p>
+      <p class="pg-note pg-proj-fine">A rough guide, not a forecast. The offsets come from players who played two divisions in the same season, and those players are self-selected; "easier" mixes the competition with each division's run environment; and there's no aging curve yet (ages are on file, but the model doesn't use them), so nobody ages here. Adams and Sierra are about the same level, so a player's Adams and Sierra lines come out close.</p>
     </div>
     <div class="pg-grouptabs" id="p-group" style="margin-bottom: var(--cds-gap-md); border-bottom-width: 0"><button data-v="dash" aria-pressed="true">Dashboard</button><button data-v="std" aria-pressed="false">Standard</button><button data-v="adv" aria-pressed="false">Advanced</button></div>
     <div class="pg-card" id="p-bat">
@@ -472,7 +472,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     pit: new Set(['L', 'ERA', 'FIP', 'ERA-', 'FIP-', 'BB/9', 'HR/9', 'BB%', 'AVG', 'WHIP', 'BABIP', 'H', 'R', 'ER', 'HR', 'BB', 'IBB', 'HBP', 'WP', 'E-F']),
   };
   const DEF = {
-    G: 'Games', PA: 'Plate appearances', AB: 'At bats', H: 'Hits', HR: 'Home runs', R: 'Runs', RBI: 'Runs batted in', SB: 'Stolen bases', CS: 'Caught stealing',
+    Age: 'Age on June 30 of the season (career: in the last season played; projections: now)', G: 'Games', PA: 'Plate appearances', AB: 'At bats', H: 'Hits', HR: 'Home runs', R: 'Runs', RBI: 'Runs batted in', SB: 'Stolen bases', CS: 'Caught stealing',
     'BB%': 'Walk rate', 'K%': 'Strikeout rate', ISO: 'Isolated power (SLG − AVG)', BABIP: 'Batting average on balls in play', wOBA: 'Weighted on-base average',
     'wRC+': 'Weighted runs created, 100 = division average', Off: 'Offensive runs above average (wRAA + wSB)', oWAR: 'Offensive wins above replacement',
     wRAA: 'Weighted runs above average', wRC: 'Weighted runs created', wSB: 'Stolen-base runs above average', 'BB/K': 'Walks per strikeout',
@@ -557,7 +557,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       const f = th.dataset.col;
       upd(() => {
         if (['Name', 'Team', 'Division'].includes(f)) L.dir = L.sort === f ? -L.dir : 1;
-        else L.dir = L.sort === f ? -L.dir : (LOW[L.type].has(f) ? 1 : -1);
+        else L.dir = L.sort === f ? -L.dir : (LOW[L.type].has(f) || f === 'Age' ? 1 : -1);
         L.sort = f;
       });
       return;
@@ -675,6 +675,12 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     }
     return { rows, games: games.size };
   }
+  function withAge(res, seasonLines, season) {
+    const age = new Map();
+    for (const r of seasonLines) if (r.Season === season && r.Age != null) age.set(r.pid, r.Age);
+    for (const r of res.rows) r.Age = age.has(r.pid) ? age.get(r.pid) : null;
+    return res;
+  }
 
   // ---------- LEADERS ----------
   function passMin(r) {
@@ -714,8 +720,9 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     if (bad(id) || (sp && bad('guts')) || (proj && (bad(DS[L.type].cur) || bad('translations')))) { failed(wrap); wrap.prepend(table); table.replaceChildren(); return; }
     let inSeason, rangeGames = null;
     if (sp) {
-      const box = rowsOf(id), gr = rowsOf('guts');
-      const res = box && gr && memoize('range', [box, gr, L.type, JSON.stringify(sp)], () => aggregateBox(box, gr, L.season, L.type, sp));
+      // ages come from the season lines (box scores carry none)
+      const box = rowsOf(id), gr = rowsOf('guts'), sr = rowsOf(sourceFor(L.type, L.season, seasons[0]));
+      const res = box && gr && sr && memoize('range', [box, gr, sr, L.type, JSON.stringify(sp)], () => withAge(aggregateBox(box, gr, L.season, L.type, sp), sr, L.season));
       inSeason = res ? res.rows : null;
       if (res) rangeGames = res.games;
     } else inSeason = proj ? projRows(L.type, proj) : career ? rowsOf(id) : seasonRows(id, L.season);
@@ -745,7 +752,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     table.classList.toggle('show-div', pilots || !!proj);
     if (pilots) $('#lb-note').textContent = 'Every Pilot, from every division. Divisions differ in strength, so compare by wRC+, FIP-, ERA- and WAR, not raw AVG or ERA. ' + $('#lb-note').textContent;
     const cols = proj ? PROJ[L.type].board : (L.type === 'bat' ? BAT : PIT)[L.group];
-    const fixed = ['Name', 'Team', 'Division', ...(career ? ['Seasons'] : [])];
+    const fixed = ['Name', 'Team', 'Division', 'Age', ...(career ? ['Seasons'] : [])];
     if (proj && !cols.includes(L.sort) && !fixed.includes(L.sort)) { L.sort = projSort(L.type); L.dir = L.type === 'pit' ? 1 : -1; }
     if (!cols.includes(L.sort) && !fixed.includes(L.sort)) { L.sort = L.type === 'bat' ? (cols.includes('oWAR') ? 'oWAR' : cols.includes('wRC+') ? 'wRC+' : 'PA') : (cols.includes('WAR') ? 'WAR' : 'IP'); L.dir = -1; }
     const shown = memoize('shown', [inTeam, L.min, L.q, L.sort, L.dir, L.type], () =>
@@ -764,13 +771,14 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       + `<th${fa('Name')} class="l sticky2"${sortAttr('Name')}><button type="button">Name</button></th>`
       + `<th${fa('Team')} class="l"${sortAttr('Team')}><button type="button">${career ? 'Last team' : 'Team'}</button></th>`
       + `<th${fa('Division')} class="l col-div"${sortAttr('Division')}><button type="button">${proj ? 'From' : 'Div'}</button></th>`
+      + `<th${fa('Age')}${sortAttr('Age')} title="${esc(DEF.Age)}"><button type="button">Age</button></th>`
       + (career ? `<th${fa('Seasons')}${sortAttr('Seasons')}><button type="button">Yrs</button></th>` : '')
       + cols.map((c) => `<th${fa(c)}${sortAttr(c)} title="${esc(DEF[c] || c)}"><button type="button">${esc(c)}</button></th>`).join('')
       + `</tr></thead>`;
     let body = '';
     for (let i = 0; i < slice.length; i++) {
       const r = slice[i];
-      body += `<tr data-key="${esc(r.key)}"${r.pid === MATT ? ' class="me"' : ''}><td class="rk sticky1">${start + i + 1}</td><td class="l sticky2 name"><a href="#players/${esc(r.pid)}" data-pid="${esc(r.pid)}">${esc(r.Name)}</a></td><td class="l"><a href="${href('leaders', { ...L, team: r.tid, page: 0 })}" data-tid="${esc(r.tid)}">${esc(r.Team)}</a></td><td class="l dim col-div">${esc(r.Division)}</td>${career ? `<td>${r.Seasons}</td>` : ''}`;
+      body += `<tr data-key="${esc(r.key)}"${r.pid === MATT ? ' class="me"' : ''}><td class="rk sticky1">${start + i + 1}</td><td class="l sticky2 name"><a href="#players/${esc(r.pid)}" data-pid="${esc(r.pid)}">${esc(r.Name)}</a></td><td class="l"><a href="${href('leaders', { ...L, team: r.tid, page: 0 })}" data-tid="${esc(r.tid)}">${esc(r.Team)}</a></td><td class="l dim col-div">${esc(r.Division)}</td><td class="age${L.sort === 'Age' ? ' srt' : ''}">${r.Age == null ? '' : r.Age}</td>${career ? `<td>${r.Seasons}</td>` : ''}`;
       for (const c of cols) body += `<td${c === L.sort ? ' class="srt"' : ''}>${esc(fmt(c, r[c]))}</td>`;
       body += '</tr>';
     }
@@ -858,13 +866,13 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   pq.addEventListener('keydown', (e) => { if (e.key === 'Enter') sugg.querySelector('button')?.click(); if (e.key === 'Escape') sugg.hidden = true; });
 
   function seasonTableHTML(src, type, rows, cols, head) {
-    const pre = ['Season', 'Team', 'Division'];
-    const thead = `<thead><tr${head ? '' : ' class="ghost"'}>${pre.map((c) => `<th data-field="${c}" class="l">${c === 'Division' ? 'Div' : c}</th>`).join('')}${cols.map((c) => `<th data-field="${esc(c)}" title="${esc(DEF[c] || c)}">${esc(c)}</th>`).join('')}</tr></thead>`;
-    const body = rows.map((r) => `<tr data-key="${esc(r.key)}"${r.pid === MATT ? ' class="me-row"' : ''}><td class="l">${r.Season}</td><td class="l"><a href="${teamHref(type, r.Season, r.Division, r.tid)}" data-type="${type}" data-tid="${esc(r.tid)}" data-season="${r.Season}" data-div="${esc(r.Division)}">${esc(r.Team)}</a></td><td class="l dim">${esc(r.Division)}</td>${cols.map((c) => `<td>${esc(fmt(c, r[c]))}</td>`).join('')}</tr>`).join('');
+    const pre = ['Season', 'Age', 'Team', 'Division'];
+    const thead = `<thead><tr${head ? '' : ' class="ghost"'}>${pre.map((c) => `<th data-field="${c}" class="l"${DEF[c] ? ` title="${esc(DEF[c])}"` : ''}>${c === 'Division' ? 'Div' : c}</th>`).join('')}${cols.map((c) => `<th data-field="${esc(c)}" title="${esc(DEF[c] || c)}">${esc(c)}</th>`).join('')}</tr></thead>`;
+    const body = rows.map((r) => `<tr data-key="${esc(r.key)}"${r.pid === MATT ? ' class="me-row"' : ''}><td class="l">${r.Season}</td><td class="l age">${r.Age == null ? '' : r.Age}</td><td class="l"><a href="${teamHref(type, r.Season, r.Division, r.tid)}" data-type="${type}" data-tid="${esc(r.tid)}" data-season="${r.Season}" data-div="${esc(r.Division)}">${esc(r.Team)}</a></td><td class="l dim">${esc(r.Division)}</td>${cols.map((c) => `<td>${esc(fmt(c, r[c]))}</td>`).join('')}</tr>`).join('');
     return `<table class="pg-tbl" data-source="${src}" data-row-key="key">${thead}<tbody>${body}</tbody></table>`;
   }
   function careerTableHTML(src, row, cols) {
-    return `<table class="pg-tbl" data-source="${src}" data-row-key="key"><thead><tr class="ghost"><th class="l">Span</th><th class="l" data-field="Seasons">Seasons</th><th class="l"></th>${cols.map((c) => `<th data-field="${esc(c)}">${esc(c)}</th>`).join('')}</tr></thead><tbody><tr class="career" data-key="${esc(row.key)}"><td class="l">Career</td><td class="l">${row.Seasons}</td><td class="l dim">${row.From}–${row.To}</td>${cols.map((c) => `<td>${esc(fmt(c, row[c]))}</td>`).join('')}</tr></tbody></table>`;
+    return `<table class="pg-tbl" data-source="${src}" data-row-key="key"><thead><tr class="ghost"><th class="l">Span</th><th class="l"></th><th class="l" data-field="Seasons">Seasons</th><th class="l"></th>${cols.map((c) => `<th data-field="${esc(c)}">${esc(c)}</th>`).join('')}</tr></thead><tbody><tr class="career" data-key="${esc(row.key)}"><td class="l">Career</td><td class="l"></td><td class="l">${row.Seasons}</td><td class="l dim">${row.From}–${row.To}</td>${cols.map((c) => `<td>${esc(fmt(c, row[c]))}</td>`).join('')}</tr></tbody></table>`;
   }
   function alignStack(box) {
     const tables = [...box.querySelectorAll('table')];
@@ -953,7 +961,10 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       nm.textContent = head.Name; nm.classList.toggle('me', P.pid === MATT);
       nm.setAttribute('data-source', head === bcr ? 'bat_career' : 'pit_career'); nm.setAttribute('data-field', 'Name'); nm.setAttribute('data-where', `key=${enc(head.key)}`);
       const from = Math.min(bcr ? bcr.From : 9999, pcr ? pcr.From : 9999), to = Math.max(bcr ? bcr.To : 0, pcr ? pcr.To : 0);
-      $('#p-sub').innerHTML = `${to}: ${esc(head.Team)} (${esc(head.Division)}) · on file ${from}–${to} · <a class="pg-link" href="https://pssbl.com/#!/player/${enc(P.pid)}" target="_blank" rel="noopener">pssbl.com profile ↗</a>`;
+      // Age − Season is the same in every season (age on June 30), so the current age follows from any line
+      const ac = [bcr, pcr].find((r) => r && r.Age != null), nowY = (seasonsAvail() || [to])[0];
+      const ageNow = ac ? ac.Age - ac.To + nowY : null;
+      $('#p-sub').innerHTML = `${ageNow == null ? '' : `<span id="p-age" title="Age on June 30, ${nowY}">Age ${ageNow}</span> · `}${to}: ${esc(head.Team)} (${esc(head.Division)}) · on file ${from}–${to} · <a class="pg-link" href="https://pssbl.com/#!/player/${enc(P.pid)}" target="_blank" rel="noopener">pssbl.com profile ↗</a>`;
       const st = (src, row, f) => row && row[f] != null ? `<div class="pg-stat"><div class="k">Career ${esc(f)}</div><div class="v" data-source="${src}" data-field="${esc(f)}" data-where="key=${enc(row.key)}">${esc(fmt(f, row[f]))}</div></div>` : '';
       const strip = [];
       if (bcr && bcr.PA > 0) strip.push(...['PA', 'AVG', 'OBP', 'SLG', 'wRC+', 'oWAR'].map((f) => st('bat_career', bcr, f)));
@@ -1091,7 +1102,9 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
         const last = rs.reduce((b, r) => (!b || r.Season > b.Season || (r.Season === b.Season && r[w] > b[w]) ? r : b), null);
         const divs = d3.rollups(ls, (v) => d3.sum(v, (l) => l.w), (l) => l.Division).sort((a, b) => b[1] - a[1]).map(([d]) => d);
         const tot = d3.sum(ls, (l) => l.w);
-        const row = { key: `proj-${target}-${pid}`, pid, Name: last.Name, Team: last.Team, tid: last.tid, TeamDiv: last.Division, Division: divs.join(', '), Divs: divs,
+        // age in the latest season: a projection describes the player now
+        const now = Math.max(...Object.keys(tr.seasons).map(Number));
+        const row = { key: `proj-${target}-${pid}`, pid, Name: last.Name, Age: last.Age == null ? null : last.Age + now - last.Season, Team: last.Team, tid: last.tid, TeamDiv: last.Division, Division: divs.join(', '), Divs: divs,
           'Own%': Math.round(100 * p.shrink), Qual: p.eff >= tr[type].k, 'K%': p['K%'], 'BB%': p['BB%'] };
         if (type === 'bat') Object.assign(row, { PA: Math.round(tot), 'Eff PA': Math.round(p.eff), AVG: p.AVG, OBP: p.OBP, SLG: p.SLG, wOBA: p.wOBA, 'wRC+': Math.round(p['wRC+']) });
         else { const outs = Math.round(tot * 3); Object.assign(row, { Outs: outs, IP: Math.floor(outs / 3) + (outs % 3) / 10, 'Eff IP': Math.round(p.eff), 'FIP-': Math.round(p['FIP-']), FIP: p.FIP }); }
@@ -1106,7 +1119,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     const yrs = Object.keys(tr.seasons).map(Number).sort((a, b) => a - b), k = Math.round(tr[type].k), u = PROJ[type].unit;
     return `A guess at next season in ${target} for everyone whose ${yrs[0]}–${String(yrs[yrs.length - 1]).slice(2)} seasons include a division other than ${target} (Adams and Sierra are about the same level, so Adams players show up under Sierra and vice versa). `
       + `Seasons are weighted 5/4/3, translated with same-season two-division offsets, then pulled toward the ${target} average; Own% is how much is the player's own numbers. `
-      + `Qualified = at least half their own (${k} effective ${u}). A rough guide: two-division players are self-selected, and there's no age data.`;
+      + `Qualified = at least half their own (${k} effective ${u}). A rough guide: two-division players are self-selected, and there's no aging adjustment.`;
   }
   const ipStr = (ip) => { const outs = Math.round(ip * 3); return `${Math.floor(outs / 3)}.${outs % 3}`; };
   // one line per season-division in the weighted seasons: summed PA (or IP), PA/IP-weighted rates

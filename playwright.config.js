@@ -2,7 +2,7 @@
 const { defineConfig, devices } = require('@playwright/test');
 
 // The page fetches data/*.csv, so it needs a real HTTP server (file:// won't do).
-const PORT = 8123;
+const PORT = Number(process.env.PW_PORT) || 8123;  // PW_PORT: run beside another checkout's test server
 
 module.exports = defineConfig({
   testDir: './tests',
