@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { trackErrors, openSite, leaderRows, goTab } = require('./helpers');
+const { trackErrors, openSite, leaderRows, goTab, pickDivs } = require('./helpers');
 
 const hash = (page) => page.evaluate(() => decodeURIComponent(location.hash));
 
@@ -22,7 +22,7 @@ test.describe('Shareable links and Back', () => {
     await page.locator('#lb-type button[data-v="pit"]').click();
     const prev = String(await page.locator('#lb-season option').nth(1).getAttribute('value'));
     await page.locator('#lb-season').selectOption(prev);
-    await page.locator('#lb-div').selectOption('Cascade');
+    await pickDivs(page, 'Cascade');
     await page.locator('#lb-table thead th[data-col="FIP"] button').click();
     await expect(page.locator('#lb-table thead th[data-col="FIP"]')).toHaveAttribute('aria-sort', 'ascending');
 
@@ -32,7 +32,7 @@ test.describe('Shareable links and Back', () => {
 
     await page.reload();
     await expect(page.locator('#lb-title')).toHaveText(`Pitching leaders · ${prev}`);
-    await expect(page.locator('#lb-div')).toHaveValue('Cascade');
+    await expect(page.locator('#lb-div')).toHaveAttribute('data-value', 'Cascade');
     await expect(page.locator('#lb-table thead th[data-col="FIP"]')).toHaveAttribute('aria-sort', 'ascending');
   });
 
@@ -41,7 +41,7 @@ test.describe('Shareable links and Back', () => {
     await page.goto('/#leaders?type=pit&season=2023&div=Cascade&range=reg');
     await expect(page.locator('#lb-title')).toHaveText('Pitching leaders · 2023 · Regular season');
     await expect(leaderRows(page).first()).toBeVisible();
-    await expect(page.locator('#lb-div')).toHaveValue('Cascade');
+    await expect(page.locator('#lb-div')).toHaveAttribute('data-value', 'Cascade');
     await page.goto('/#standings?season=2024');
     await expect(page.locator('#st-season')).toHaveValue('2024');
     expect(errors).toEqual([]);
@@ -92,7 +92,7 @@ test.describe('Shareable links and Back', () => {
 
   test('the West Coast Pilots view is shareable too', async ({ page }) => {
     await openSite(page);
-    await page.locator('#lb-div').selectOption('Adams');
+    await pickDivs(page, 'Adams');
     await page.locator('#lb-team').selectOption('wcp');
     await expect.poll(() => hash(page)).toContain('team=wcp');
     const url = page.url();

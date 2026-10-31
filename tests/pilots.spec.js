@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { MATT, openSite, leaderRows } = require('./helpers');
+const { MATT, openSite, leaderRows, pickDivs } = require('./helpers');
 
 // West Coast Pilots (2026 MSBL Arizona World Series roster), by pssbl id
 const WCP = ['8291', '6259', '7061', '7215', '6616', '5238', '6331', '3393', '8048', '8287', '4182', '4778', '6642', '7623', '7525', '4506'];
@@ -14,7 +14,7 @@ const rowDivs = (page) => page.locator('#lb-table tbody td.col-div').evaluateAll
 /** @param {import('@playwright/test').Page} page */
 async function openPilots(page) {
   await openSite(page);
-  await page.locator('#lb-div').selectOption('Adams');
+  await pickDivs(page, 'Adams');
   await page.locator('#lb-team').selectOption({ label: LABEL });
   await page.locator('#lb-min').selectOption('0');
 }
@@ -23,9 +23,9 @@ test.describe('West Coast Pilots team option', () => {
   test('is offered under Adams only', async ({ page }) => {
     await openSite(page);
     await expect(page.locator('#lb-team option', { hasText: 'West Coast Pilots' })).toHaveCount(0);
-    await page.locator('#lb-div').selectOption('Adams');
+    await pickDivs(page, 'Adams');
     await expect(page.locator('#lb-team option', { hasText: 'West Coast Pilots' })).toHaveCount(1);
-    await page.locator('#lb-div').selectOption('Rocky');
+    await pickDivs(page, 'Rocky');
     await expect(page.locator('#lb-team option', { hasText: 'West Coast Pilots' })).toHaveCount(0);
   });
 

@@ -22,7 +22,7 @@ There are four tabs plus a shortcut. All are rendered by `src/page.html` (one sc
   - **Table:** sortable columns (Age included), 50 rows per page, and top-5 leader cards above it (the cards follow every filter,
     including the name search).
   - **Projected → Adams / Sierra** (Season menu): the projection below for everyone with a line in the last three
-    seasons outside the target (so Adams players appear under Sierra and vice versa). Division becomes "From division", with an extra "Adams, Sierra, Rocky, Denali" option (`div=Top4`) for players whose recent seasons were all in those four; Qualified = at least half their own numbers (eff PA ≥ k).
+    seasons outside the target (so Adams players appear under Sierra and vice versa). Division becomes "From division"; Qualified = at least half their own numbers (eff PA ≥ k).
   - **Header line:** the top hitter and pitcher of the latest season. It's league news, not addressed to Matt.
 - **Players.** Current age in the header, season-by-season tables (with each season's age) and a career row, a wRC+ dot chart (hitters) and ERA-/FIP- chart (pitchers),
   career stat strip, name search, and a link to the player's pssbl.com page. The "★ Matt" tab opens Matt (pid 8048).
@@ -188,6 +188,8 @@ writes `translations.json` and registers it in the manifest (bumping `version`).
     sync** if you change one.
   - **State objects:** `L` (leaders), `P` (players), `S` (standings), `G` (guts).
   - **Pagination:** `L.page` / `L.size`.
+  - **Division filter:** a checkbox dropdown (`#lb-div` button + `#lb-div-list`), not a `<select>`. `L.div` is `'All'` or a
+    comma list (`div=Adams,Sierra` in the hash); a row matches if any of its divisions is picked. Tests use `pickDivs()`.
   - **URL hash:** `hashFor()` writes the view into the hash after every render (`#leaders?type=pit&season=2023&div=Cascade`,
     `#players/8013`, `#standings?season=2024`), leaving out defaults. `applyHash()` reads it on load and on
     Back/Forward/hash changes; bad values fall back to defaults. A new tab or player is a Back step (`dash.setLink(h, true)`
