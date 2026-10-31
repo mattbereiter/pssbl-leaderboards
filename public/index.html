@@ -232,7 +232,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   .pg-nav::-webkit-scrollbar { display: none; }
   .pg-nav button { flex: 1 0 auto; padding: 10px 6px; letter-spacing: .02em; text-align: center; }
   .pg-lede { min-height: 4.5em; }
-  #leaders .pg-ctrl select { min-width: 0; }
+  #pg-leaders .pg-ctrl select { min-width: 0; }
   #lb-wrap.dash-skeleton { min-height: 64vh; }
   .pg-ctrls { display: grid; grid-template-columns: 1fr 1fr; gap: var(--cds-gap-sm); }
   .pg-ctrl.wide { grid-column: 1 / -1; }
@@ -271,7 +271,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   <p class="pg-lede" id="lede"><span class="dash-skeleton">—</span></p>
 
   <!-- LEADERS -->
-  <section class="pg-page" id="leaders">
+  <section class="pg-page" id="pg-leaders">
     <div class="pg-ctrls">
       <div class="pg-ctrl wide">Stats<div class="pg-seg" id="lb-type"><button data-v="bat" aria-pressed="true">Batting</button><button data-v="pit" aria-pressed="false">Pitching</button></div></div>
       <label class="pg-ctrl">Season<select id="lb-season" aria-label="Season" data-source="guts"></select></label>
@@ -294,7 +294,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   </section>
 
   <!-- PLAYERS -->
-  <section class="pg-page" id="players" hidden>
+  <section class="pg-page" id="pg-players" hidden>
     <div class="pg-card" id="p-head">
       <div class="pg-phead">
         <div>
@@ -330,7 +330,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   </section>
 
   <!-- STANDINGS -->
-  <section class="pg-page" id="standings" hidden>
+  <section class="pg-page" id="pg-standings" hidden>
     <div class="pg-ctrls">
       <label class="pg-ctrl">Season<select id="st-season" aria-label="Season" data-source="guts"></select></label>
     </div>
@@ -339,7 +339,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   </section>
 
   <!-- GUTS -->
-  <section class="pg-page" id="guts" hidden>
+  <section class="pg-page" id="pg-guts" hidden>
     <div class="pg-card">
       <h2>Guts! — league constants</h2>
       <p class="pg-note">Every division-season is its own run environment (like the AL and NL), so wRC+, FIP, ERA- and WAR are always measured against the player's own division that year.</p>
@@ -481,7 +481,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     if (t === 'me') { P.pid = MATT; t = 'players'; }
     const changed = t !== tab;
     tab = t;
-    pages.forEach((p) => { $('#' + p).hidden = p !== t; });
+    pages.forEach((p) => { $('#pg-' + p).hidden = p !== t; });
     document.querySelectorAll('.pg-nav button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
     render();
     if (changed || t === 'players') { const top = $('#top'); if (top.getBoundingClientRect().top < 0) top.scrollIntoView({ block: 'start' }); }
@@ -552,7 +552,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     if (newTab(e) && e.target.closest('a[href^="#"]')) return;
     const a = e.target.closest('[data-pid]');
     if (a) { e.preventDefault(); P.pid = a.dataset.pid; $('#p-sugg').hidden = true; $('#p-q').value = ''; showTab('players'); return; }
-    const t = e.target.closest('#st-grid a[data-tid], #players a[data-tid]');
+    const t = e.target.closest('#st-grid a[data-tid], #pg-players a[data-tid]');
     if (t) { e.preventDefault(); Object.assign(L, teamState(t.dataset.type || 'bat', Number(t.dataset.season), t.dataset.div, t.dataset.tid)); showTab('leaders'); return; }
     if (!e.target.closest('.pg-search')) $('#p-sugg').hidden = true;
   });

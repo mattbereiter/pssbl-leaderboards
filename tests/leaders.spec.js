@@ -94,7 +94,7 @@ test.describe('Leaders', () => {
     const link = page.locator('#lb-table tbody tr td.name a').first();
     const name = (await link.textContent()) || '';
     await link.click();
-    await expect(page.locator('#players')).toBeVisible();
+    await expect(page.locator('#pg-players')).toBeVisible();
     await expect(page.locator('#p-name')).toHaveText(name);
   });
 });

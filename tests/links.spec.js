@@ -57,23 +57,23 @@ test.describe('Shareable links and Back', () => {
     await expect(page.locator('#lb-team')).toHaveValue(tid);
     await page.locator('#lb-group button[data-v="std"]').click(); // a tweak: replaces, doesn't push
     await page.locator('#lb-table tbody tr td.name a').first().click();
-    await expect(page.locator('#players')).toBeVisible();
+    await expect(page.locator('#pg-players')).toBeVisible();
 
     await page.goBack();
-    await expect(page.locator('#leaders')).toBeVisible();
+    await expect(page.locator('#pg-leaders')).toBeVisible();
     await expect(page.locator('#lb-team')).toHaveValue(tid);
     await expect(page.locator('#lb-group button[data-v="std"]')).toHaveAttribute('aria-pressed', 'true');
     await page.goBack();
-    await expect(page.locator('#standings')).toBeVisible();
+    await expect(page.locator('#pg-standings')).toBeVisible();
     await page.goBack();
-    await expect(page.locator('#leaders')).toBeVisible();
+    await expect(page.locator('#pg-leaders')).toBeVisible();
     await expect(page.locator('#lb-team')).toHaveValue('All');
   });
 
   test('changing the hash on an open page switches the view', async ({ page }) => {
     await openSite(page);
     await page.evaluate(() => { location.hash = '#guts'; });
-    await expect(page.locator('#guts')).toBeVisible();
+    await expect(page.locator('#pg-guts')).toBeVisible();
   });
 
   test('player and team links are real links that open in a new tab', async ({ page, context, isMobile }) => {
@@ -87,7 +87,7 @@ test.describe('Shareable links and Back', () => {
 
     const [tab] = await Promise.all([context.waitForEvent('page'), link.click({ modifiers: ['ControlOrMeta'] })]);
     await expect(tab.locator('#p-name')).toHaveText((await link.textContent()) || '');
-    await expect(page.locator('#leaders')).toBeVisible(); // the original tab stays put
+    await expect(page.locator('#pg-leaders')).toBeVisible(); // the original tab stays put
   });
 
   test('the West Coast Pilots view is shareable too', async ({ page }) => {
@@ -100,6 +100,15 @@ test.describe('Shareable links and Back', () => {
     await page.goto(url);
     await expect(page.locator('#lb-team')).toHaveValue('wcp');
     await expect(page.locator('#lb-note')).toContainText('Every Pilot');
+  });
+
+  test('opening a link to a tab starts at the top of the page', async ({ page }) => {
+    for (const h of ['#leaders', '#standings', '#guts']) {
+      await page.goto('/' + h);
+      await expect(page.locator(`.pg-nav button[data-tab="${h.slice(1)}"]`)).toHaveAttribute('aria-selected', 'true');
+      await page.waitForTimeout(500);
+      expect(await page.evaluate(() => scrollY), h).toBe(0);
+    }
   });
 
   test('a bad link falls back to the leaderboard', async ({ page }) => {
