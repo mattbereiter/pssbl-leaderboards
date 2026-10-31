@@ -17,15 +17,27 @@ about 74 teams in 10 divisions. It was built for Matt Bereiter, who plays in the
 There are four tabs plus a shortcut. All are rendered by `src/page.html` (one script, about 880 lines).
 
 - **Leaders.** Batting or pitching leaderboards in FanGraphs' Dashboard / Standard / Advanced column groups.
-  - **Filters:** season (2015–2026, no 2020) or Career, division, team, min PA/IP (default "Qualified"),
-    name search, and a **date range** (full season, regular season, playoffs, a month, or custom From/To).
+  - **Filters:** season (2015–2026, no 2020), "All seasons" (every single-season line, with a Year column) or Career,
+    division (a multi-select: any mix of divisions), team, min PA/IP (default "Qualified"; a team view defaults to 0+ and drops the Div column), name search
+    (accents folded, any word order; ranks are counted before the search), and a **date range** (full season, regular
+    season, playoffs, a month, or custom From/To, which only show once a range is picked).
+  - **Filters explain themselves:** active division/team/search show as chips with ✕ under the heading; a team is kept
+    across Batting/Pitching and across seasons by name; when a filter can't carry over (no such team that season, a
+    bad season in a link) a one-line notice says so. The browser tab title names the view.
+  - **"What the columns mean"** (under the heading) lists the columns on screen with what counts as good *in this view*
+    (median / top quarter / top 10% of qualified rows), so definitions work on phones where `title` tooltips don't.
   - **Table:** sortable columns (Age included), 50 rows per page, and top-5 leader cards above it (the cards follow every filter,
     including the name search).
   - **Projected → Adams / Sierra** (Season menu): the projection below for everyone with a line in the last three
     seasons outside the target (so Adams players appear under Sierra and vice versa). Division becomes "From division"; Qualified = at least half their own numbers (eff PA ≥ k).
-  - **Header line:** the top hitter and pitcher of the latest season. It's league news, not addressed to Matt.
+  - **Header line:** the top hitter and pitcher of the latest season. It's league news, not addressed to Matt, and it
+    only shows on the unfiltered latest-season Leaders view.
 - **Players.** Current age in the header, season-by-season tables (with each season's age) and a career row, a wRC+ dot chart (hitters) and ERA-/FIP- chart (pitchers),
-  career stat strip, name search, and a link to the player's pssbl.com page. The "★ Matt" tab opens Matt (pid 8048).
+  career stat strip, name search (accents folded, one typo forgiven), and a link to the player's pssbl.com page.
+  The header ranks the latest season in its own division ("98th of 190 Adams hitters in oWAR") and the team is a
+  chip linking to that team's leaderboard (arriving there highlights the player). Chart dots are coloured by division;
+  tiny samples (under 10 PA / 3 IP) are pinned to the chart edge instead of setting the axis.
+  The "★ Matt" tab opens Matt (pid 8048) and shows as selected on his page.
   - **Projected in Adams / Sierra** card (under the header): a guess at the player's line in Adams and/or Sierra
     (whichever they haven't been playing only in). See "Projection to Adams / Sierra" below.
 - **Standings.** Per-division W-L-T, Pct, GB, RS/RA/Diff, Pythagenpat xW and Luck, team wRC+/FIP/oWAR/pWAR,
@@ -92,7 +104,10 @@ Base URL: `https://pssbl.com/PHP/fetchData.php?type=…` (public and CORS-enable
 4. **No intentional walks in box scores.** Date-range wOBA treats all walks as unintentional.
 5. **Late corrections happen.** The league edits box scores after the fact (e.g., a Denali game added after Oct 10).
    `update.py` re-downloads the whole latest season, not just new games.
-6. **Text encoding.** pssbl.com sends UTF-8, but some names arrive double-encoded (`JosÃ©` for José).
+6. **No home runs allowed since 2017.** pssbl.com sends `"hr": "0"` for every pitcher from 2017 on (2015–16 are real).
+   - **Fix:** the page shows — for pitcher HR and HR/9 in those seasons (and career), HR/9 is out of the Dashboard
+     group, and the Guts! glossary says so. FIP for those seasons simply has no HR term.
+7. **Text encoding.** pssbl.com sends UTF-8, but some names arrive double-encoded (`JosÃ©` for José).
    - **Fix:** every pipeline read goes through `fetch.load()` (UTF-8, then `fix_text()` repairs the double encoding),
      and every write says `encoding='utf-8'`. Python on Windows defaults to cp1252, which can't even read the
      raw files (`“Skip” Williams` crashes it), so never use a bare `open()`. `tests/data.spec.js` fails on garbled text.
@@ -234,9 +249,12 @@ These come from same-player, same-season pairs across divisions.
 
 - **Translations:** done as the Players-page "Projected in Adams / Sierra" card (Oct 31, 2026). The Leaders tab also has
   "Projected → Adams / Sierra" boards. Still open: other target divisions.
-- **UX review (Oct 31, 2026), still open:** Players should open on search, not Matt; inline stat definitions
-  ("Qualified" threshold, Standings/Guts tooltips); Standings tables clip at desktop width; arrow keys in player search;
-  44px tap targets and 16px inputs on phones; a Retry on failed loads.
+- **UX review (Oct 31, 2026), still open:** Players should open on search, not Matt; Standings tables clip at desktop
+  width; arrow keys in player search; 44px tap targets and 16px inputs on phones; a Retry on failed loads.
+- **Journey review (Oct 31, 2026):** all 20 items handled (`tests/polish.spec.js`), except the "Powered by Netlify"
+  badge, which is a Netlify dashboard setting (the footer has phone padding so it can't cover the last controls).
+  The phone filter form is compacted (From/To hidden until needed, two columns, header line hidden once filtered)
+  rather than collapsed behind a toggle.
 - **Hitter scale:** if oWAR/600 feels inflated, the alternative Matt considered was a PSSBL full season of about 100 PA.
 - **Older seasons:** the API has seasons before 2015; `fetch.py` / `update.py` use `FIRST = 2015`.
 - **Scheduled refresh:** during the season, a weekly `update.py` + push (e.g., a scheduled task or GitHub Action

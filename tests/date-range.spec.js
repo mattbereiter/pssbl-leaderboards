@@ -39,6 +39,8 @@ test.describe('Date range (rebuilt from box scores)', () => {
   test('custom dates switch the range to Custom', async ({ page }) => {
     await openSite(page);
     const season = await page.locator('#lb-season').inputValue();
+    await expect(page.locator('#lb-from')).toBeHidden(); // From/To stay out of the way until a range is picked
+    await page.locator('#lb-range').selectOption('custom');
     await page.locator('#lb-from').fill(`${season}-05-01`);
     await page.locator('#lb-from').dispatchEvent('change');
     await page.locator('#lb-to').fill(`${season}-05-31`);

@@ -86,7 +86,7 @@ test.describe('Leaders: Projected → Adams / Sierra', () => {
     expect((await leaderTable(page))[0]).toMatchObject({ From: 'Adams', 'wRC+': '104' });
 
     await page.goto('/?2#leaders?season=ProjAdams&q=noah%20zwiren'); // ?n: a real load each time, not a hash change
-    await expect(page.locator('#lb-table caption')).toContainText('No players match');
+    await expect(page.locator('#lb-table caption')).toContainText(/No player/);
 
     await page.goto('/?3#leaders?season=ProjAdams&q=paul%20fisher');
     await expect(leaderRows(page)).toHaveCount(1);

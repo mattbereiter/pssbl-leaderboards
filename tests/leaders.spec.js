@@ -100,7 +100,7 @@ test.describe('Leaders', () => {
 
   test('switching batting and pitching keeps the team', async ({ page }) => {
     await openSite(page);
-    await page.locator('#lb-div').selectOption('Adams');
+    await pickDivs(page, 'Adams');
     const tid = String(await page.locator('#lb-team option').nth(1).getAttribute('value'));
     await page.locator('#lb-team').selectOption(tid);
     await page.locator('#lb-type button[data-v="pit"]').click();

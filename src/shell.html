@@ -43,6 +43,8 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
 @media (prefers-reduced-motion: reduce) { .dash-skeleton::after { animation: none; } }
 .site-foot { max-width: 1500px; margin: 0 auto; padding: 8px 16px 28px; font: .75rem/1.5 var(--font-anthropic-sans); color: var(--color-fg-muted); }
 .site-foot a { color: inherit; }
+/* room under the footer so a fixed corner badge (Netlify's, when it's switched on) never sits over the last controls */
+@media (max-width: 760px) { .site-foot { padding-bottom: 88px; } }
 </style>
 <script src="d3.min.js"></script>
 <script>

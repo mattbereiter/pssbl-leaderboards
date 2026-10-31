@@ -9,7 +9,7 @@ test.describe('Players', () => {
     await goTab(page, 'me');
     await expect(page.locator('#p-name')).toHaveText('Matt Bereiter');
     await expect(page.locator('#p-name')).toHaveClass(/\bme\b/);
-    await expect(page.locator('#p-sub a')).toHaveAttribute('href', `https://pssbl.com/#!/player/${MATT}`);
+    await expect(page.locator('#p-sub a.pg-link')).toHaveAttribute('href', `https://pssbl.com/#!/player/${MATT}`);
     await expect(page.locator('#p-bat-chart svg circle').first()).toBeVisible();
 
     // PROJECT.md spot check: Matt 2026 Beavers (Adams) .292/.390/.333, 82 wRC+

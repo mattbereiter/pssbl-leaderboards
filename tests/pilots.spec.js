@@ -20,13 +20,20 @@ async function openPilots(page) {
 }
 
 test.describe('West Coast Pilots team option', () => {
-  test('is offered under Adams only', async ({ page }) => {
+  test('is offered in every division; picking it shows every division, and a division narrows it', async ({ page }) => {
     await openSite(page);
-    await expect(page.locator('#lb-team option', { hasText: 'West Coast Pilots' })).toHaveCount(0);
-    await pickDivs(page, 'Adams');
     await expect(page.locator('#lb-team option', { hasText: 'West Coast Pilots' })).toHaveCount(1);
     await pickDivs(page, 'Rocky');
-    await expect(page.locator('#lb-team option', { hasText: 'West Coast Pilots' })).toHaveCount(0);
+    await expect(page.locator('#lb-team option', { hasText: 'West Coast Pilots' })).toHaveCount(1);
+    await pickDivs(page, 'Adams');
+    await expect(page.locator('#lb-team option', { hasText: 'West Coast Pilots' })).toHaveCount(1);
+    await page.locator('#lb-team').selectOption({ label: LABEL });
+    await expect(page.locator('#lb-div')).toHaveAttribute('data-value', 'All'); // the Division box never claims Adams over a four-division table
+    await expect(page.locator('#lb-chips')).toContainText('West Coast Pilots');
+    await page.locator('#lb-min').selectOption('0');
+    await pickDivs(page, 'Sierra');
+    await expect(page.locator('#lb-team')).toHaveValue('wcp'); // narrowing the division keeps the Pilots
+    expect(await rowDivs(page)).toEqual(['Sierra']);
   });
 
   test('lists Pilots players from every division, Matt in gold, with a note', async ({ page }) => {
