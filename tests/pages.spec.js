@@ -61,7 +61,7 @@ test.describe('Standings', () => {
     await link.click();
     await expect(page.locator('#pg-leaders')).toBeVisible();
     await expect(page.locator('#lb-div')).toHaveAttribute('data-value', 'Adams');
-    await expect(page.locator('#lb-team')).toHaveValue(String(tid));
+    await expect(page.locator('#lb-team')).toHaveAttribute('data-value', String(tid));
     expect(errors).toEqual([]);
   });
 });

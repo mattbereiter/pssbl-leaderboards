@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { MATT, openSite, leaderRows, pickDivs } = require('./helpers');
+const { MATT, openSite, leaderRows, pickDivs, pickTeams } = require('./helpers');
 
 // West Coast Pilots (2026 MSBL Arizona World Series roster), by pssbl id
 const WCP = ['8291', '6259', '7061', '7215', '6616', '5238', '6331', '3393', '8048', '8287', '4182', '4778', '6642', '7623', '7525', '4506'];
@@ -15,24 +15,24 @@ const rowDivs = (page) => page.locator('#lb-table tbody td.col-div').evaluateAll
 async function openPilots(page) {
   await openSite(page);
   await pickDivs(page, 'Adams');
-  await page.locator('#lb-team').selectOption({ label: LABEL });
+  await pickTeams(page, 'wcp');
   await page.locator('#lb-min').selectOption('0');
 }
 
 test.describe('West Coast Pilots team option', () => {
   test('is offered in every division; picking it shows every division, and a division narrows it', async ({ page }) => {
     await openSite(page);
-    await expect(page.locator('#lb-team option', { hasText: 'West Coast Pilots' })).toHaveCount(1);
+    await expect(page.locator('#lb-team-list label', { hasText: 'West Coast Pilots' })).toHaveCount(1);
     await pickDivs(page, 'Rocky');
-    await expect(page.locator('#lb-team option', { hasText: 'West Coast Pilots' })).toHaveCount(1);
+    await expect(page.locator('#lb-team-list label', { hasText: 'West Coast Pilots' })).toHaveCount(1);
     await pickDivs(page, 'Adams');
-    await expect(page.locator('#lb-team option', { hasText: 'West Coast Pilots' })).toHaveCount(1);
-    await page.locator('#lb-team').selectOption({ label: LABEL });
+    await expect(page.locator('#lb-team-list label', { hasText: 'West Coast Pilots' })).toHaveCount(1);
+    await pickTeams(page, 'wcp');
     await expect(page.locator('#lb-div')).toHaveAttribute('data-value', 'All'); // the Division box never claims Adams over a four-division table
     await expect(page.locator('#lb-chips')).toContainText('West Coast Pilots');
     await page.locator('#lb-min').selectOption('0');
     await pickDivs(page, 'Sierra');
-    await expect(page.locator('#lb-team')).toHaveValue('wcp'); // narrowing the division keeps the Pilots
+    await expect(page.locator('#lb-team')).toHaveAttribute('data-value', 'wcp'); // narrowing the division keeps the Pilots
     expect(await rowDivs(page)).toEqual(['Sierra']);
   });
 
@@ -45,30 +45,30 @@ test.describe('West Coast Pilots team option', () => {
     expect((await rowDivs(page)).length).toBeGreaterThan(2);
     await expect(page.locator(`#lb-table tbody tr.me a[data-pid="${MATT}"]`)).toHaveCount(2);
     await expect(page.locator('#lb-note')).toContainText('wRC+');
-    await expect(page.locator('#lb-team')).toHaveValue('wcp');
+    await expect(page.locator('#lb-team')).toHaveAttribute('data-value', 'wcp');
   });
 
   test('stays on through pitching, qualified, date range and career', async ({ page }) => {
     await openPilots(page);
     await page.locator('#lb-type button[data-v="pit"]').click();
-    await expect(page.locator('#lb-team')).toHaveValue('wcp');
+    await expect(page.locator('#lb-team')).toHaveAttribute('data-value', 'wcp');
     await expect(leaderRows(page).first()).toBeVisible();
     expect((await rowPids(page)).every((p) => WCP.includes(String(p)))).toBe(true);
 
     await page.locator('#lb-type button[data-v="bat"]').click();
     await page.locator('#lb-min').selectOption('q');
-    await expect(page.locator('#lb-team')).toHaveValue('wcp');
+    await expect(page.locator('#lb-team')).toHaveAttribute('data-value', 'wcp');
     expect((await rowPids(page)).every((p) => WCP.includes(String(p)))).toBe(true);
 
     await page.locator('#lb-min').selectOption('0');
     const opts = await page.locator('#lb-range option').evaluateAll((os) => os.map((o) => o.value));
     await page.locator('#lb-range').selectOption(opts.find((v) => v !== 'full') || 'full');
-    await expect(page.locator('#lb-team')).toHaveValue('wcp');
+    await expect(page.locator('#lb-team')).toHaveAttribute('data-value', 'wcp');
     await expect(leaderRows(page).first()).toBeVisible();
     expect((await rowPids(page)).every((p) => WCP.includes(String(p)))).toBe(true);
 
     await page.locator('#lb-season').selectOption('Career');
-    await expect(page.locator('#lb-team')).toHaveValue('wcp');
+    await expect(page.locator('#lb-team')).toHaveAttribute('data-value', 'wcp');
     await expect(leaderRows(page).first()).toBeVisible();
     const career = await rowPids(page);
     expect(career.every((p) => WCP.includes(String(p)))).toBe(true);

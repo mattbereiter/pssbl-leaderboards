@@ -1,36 +1,63 @@
 // @ts-check
 // Journey-review polish: filters that explain themselves, honest search ranks, empty states and small feel fixes
 const { test, expect } = require('@playwright/test');
-const { MATT, trackErrors, openSite, leaderRows, goTab, pickDivs } = require('./helpers');
+const { MATT, trackErrors, openSite, leaderRows, leaderTable, goTab, pickDivs, pickTeams } = require('./helpers');
 
 test.describe('Journey polish: filters', () => {
   test('changing season keeps the team by name, and says so when it can\'t', async ({ page }) => {
     await openSite(page);
     await pickDivs(page, 'Adams');
-    await page.locator('#lb-team').selectOption('1450'); // 2026 Mets
+    await pickTeams(page, '1450'); // 2026 Mets
     await expect(page.locator('#lb-chips')).toContainText('Mets');
     await page.locator('#lb-season').selectOption('2025');
-    await expect(page.locator('#lb-team')).toHaveValue('1378'); // 2025 Mets
+    await expect(page.locator('#lb-team')).toHaveAttribute('data-value', '1378'); // 2025 Mets
     await expect(page.locator('#lb-notice')).toBeHidden();
 
     await page.locator('#lb-season').selectOption('2026');
-    await page.locator('#lb-team').selectOption('1520'); // Beavers, new in 2026
+    await pickTeams(page, '1520'); // Beavers, new in 2026
     await page.locator('#lb-season').selectOption('2025');
-    await expect(page.locator('#lb-team')).toHaveValue('All');
+    await expect(page.locator('#lb-team')).toHaveAttribute('data-value', 'All');
     await expect(page.locator('#lb-notice')).toContainText('No Beavers');
   });
 
   test('a team view shows everyone, drops the Div column, and the chip clears it', async ({ page }) => {
     await openSite(page);
     await pickDivs(page, 'Adams');
-    await page.locator('#lb-team').selectOption('1450');
+    await pickTeams(page, '1450');
     await expect(page.locator('#lb-min')).toHaveValue('0');
     await expect(page.locator('#lb-table thead th.col-div')).toBeHidden();
-    await page.locator('#lb-chips button[data-clear="team"]').click();
-    await expect(page.locator('#lb-team')).toHaveValue('All');
+    await page.locator('#lb-chips button[data-clear="team:1450"]').click();
+    await expect(page.locator('#lb-team')).toHaveAttribute('data-value', 'All');
     await expect(page.locator('#lb-min')).toHaveValue('q');
     await page.locator('#lb-chips button[data-clear="div"]').click();
     await expect(page.locator('#lb-div')).toHaveAttribute('data-value', 'All');
+  });
+
+  test('Team is a multi-select like Division: several teams, a chip each, kept across seasons and in the link', async ({ page }) => {
+    await page.goto('/#leaders?season=2026');
+    await expect(leaderRows(page).first()).toBeVisible();
+    await pickTeams(page, '1450', '1452'); // Mets, Saints (both Adams)
+    await expect(page.locator('#lb-team')).toHaveAttribute('data-value', '1450,1452');
+    await expect(page.locator('#lb-team')).toHaveText('Mets, Saints');
+    await expect.poll(async () => [...new Set((await leaderTable(page)).map((r) => r.Team))].sort()).toEqual(['Mets', 'Saints']);
+    await expect(page.locator('#lb-table thead th.col-div')).toBeHidden(); // one division
+    await expect(page.locator('#lb-chips button[data-clear^="team:"]')).toHaveCount(2);
+    await expect.poll(() => page.evaluate(() => location.hash)).toContain('team=1450,1452');
+
+    await page.locator('#lb-team').click();
+    await page.locator('#lb-team-list input[value="1498"]').check(); // Sierra Ravens
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#lb-team')).toHaveText('3 teams');
+    await expect(page.locator('#lb-table thead th.col-div')).toBeVisible(); // now two divisions
+
+    await page.locator('#lb-chips button[data-clear="team:1498"]').click();
+    await expect(page.locator('#lb-team')).toHaveAttribute('data-value', '1450,1452');
+    await page.locator('#lb-season').selectOption('2025');
+    await expect(page.locator('#lb-team')).toHaveText('Mets, Saints'); // the 2025 teams of those names
+    await expect(page.locator('#lb-team')).not.toHaveAttribute('data-value', '1450,1452');
+
+    await page.reload();
+    await expect(page.locator('#lb-team')).toHaveText('Mets, Saints');
   });
 
   test('a range with no games keeps Division and Team and says why it is empty', async ({ page }) => {

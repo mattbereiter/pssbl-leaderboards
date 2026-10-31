@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { trackErrors, openSite, leaderRows, goTab, pickDivs } = require('./helpers');
+const { trackErrors, openSite, leaderRows, goTab, pickDivs, pickTeams } = require('./helpers');
 
 const hash = (page) => page.evaluate(() => decodeURIComponent(location.hash));
 
@@ -54,20 +54,20 @@ test.describe('Shareable links and Back', () => {
     const team = page.locator('#div-Adams tbody tr a[data-tid]').first();
     const tid = String(await team.getAttribute('data-tid'));
     await team.click();
-    await expect(page.locator('#lb-team')).toHaveValue(tid);
+    await expect(page.locator('#lb-team')).toHaveAttribute('data-value', tid);
     await page.locator('#lb-group button[data-v="std"]').click(); // a tweak: replaces, doesn't push
     await page.locator('#lb-table tbody tr td.name a').first().click();
     await expect(page.locator('#pg-players')).toBeVisible();
 
     await page.goBack();
     await expect(page.locator('#pg-leaders')).toBeVisible();
-    await expect(page.locator('#lb-team')).toHaveValue(tid);
+    await expect(page.locator('#lb-team')).toHaveAttribute('data-value', tid);
     await expect(page.locator('#lb-group button[data-v="std"]')).toHaveAttribute('aria-pressed', 'true');
     await page.goBack();
     await expect(page.locator('#pg-standings')).toBeVisible();
     await page.goBack();
     await expect(page.locator('#pg-leaders')).toBeVisible();
-    await expect(page.locator('#lb-team')).toHaveValue('All');
+    await expect(page.locator('#lb-team')).toHaveAttribute('data-value', 'All');
   });
 
   test('changing the hash on an open page switches the view', async ({ page }) => {
@@ -93,12 +93,12 @@ test.describe('Shareable links and Back', () => {
   test('the West Coast Pilots view is shareable too', async ({ page }) => {
     await openSite(page);
     await pickDivs(page, 'Adams');
-    await page.locator('#lb-team').selectOption('wcp');
+    await pickTeams(page, 'wcp');
     await expect.poll(() => hash(page)).toContain('team=wcp');
     const url = page.url();
     await page.goto('about:blank');
     await page.goto(url);
-    await expect(page.locator('#lb-team')).toHaveValue('wcp');
+    await expect(page.locator('#lb-team')).toHaveAttribute('data-value', 'wcp');
     await expect(page.locator('#lb-note')).toContainText('Every Pilot');
   });
 

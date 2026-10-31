@@ -64,4 +64,13 @@ async function pickDivs(page, ...divs) {
   await expect(page.locator('#lb-div-list')).toBeHidden();
 }
 
-module.exports = { MATT, trackErrors, openSite, leaderRows, leaderTable, goTab, pickDivs };
+/** Pick exactly these team ids (or 'wcp') from the Team checkbox menu. */
+async function pickTeams(page, ...tids) {
+  await page.locator('#lb-team').click();
+  await page.locator('#lb-team-list button[data-all]').click();
+  for (const t of tids) await page.locator(`#lb-team-list input[value="${t}"]`).check();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#lb-team-list')).toBeHidden();
+}
+
+module.exports = { MATT, trackErrors, openSite, leaderRows, leaderTable, goTab, pickDivs, pickTeams };

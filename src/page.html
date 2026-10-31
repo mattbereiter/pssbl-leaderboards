@@ -174,6 +174,8 @@
 .pg-multi-pop label, .pg-multi-pop button { display: flex; gap: 8px; align-items: center; padding: 5px 12px; white-space: nowrap; cursor: pointer; }
 .pg-multi-pop button { all: unset; display: block; box-sizing: border-box; width: 100%; padding: 5px 12px; cursor: pointer; color: var(--fg-green-ink); font-weight: 700; border-bottom: 1px solid var(--color-border-line); margin-bottom: 2px; }
 .pg-multi-pop label:hover, .pg-multi-pop button:hover { background: var(--fg-hover); }
+.pg-multi-pop { max-height: min(60vh, 420px); overflow-y: auto; }
+.pg-multi-pop hr { border: 0; border-top: 1px solid var(--color-border-line); margin: 2px 0; }
 .pg-ctrl .pg-multi-pop input { accent-color: var(--fg-green-ink); margin: 0; width: 16px; height: 16px; min-height: 0; padding: 0; flex: none; }
 @container (max-width: 760px) {
   .pg-top { flex-direction: column; }
@@ -232,7 +234,7 @@
       <label class="pg-ctrl" id="lb-from-ctrl" hidden>From<input id="lb-from" type="date" aria-label="From date"></label>
       <label class="pg-ctrl" id="lb-to-ctrl" hidden>To<input id="lb-to" type="date" aria-label="To date"></label>
       <div class="pg-ctrl"><span id="lb-div-label">Division</span><div class="pg-multi"><button type="button" id="lb-div" aria-label="Division" aria-haspopup="true" aria-expanded="false" data-value="All">All divisions</button><div class="pg-multi-pop" id="lb-div-list" hidden></div></div></div>
-      <label class="pg-ctrl" id="lb-team-ctrl">Team<select id="lb-team" aria-label="Team"></select></label>
+      <div class="pg-ctrl" id="lb-team-ctrl"><span>Team</span><div class="pg-multi"><button type="button" id="lb-team" aria-label="Team" aria-haspopup="true" aria-expanded="false" data-value="All">All teams</button><div class="pg-multi-pop" id="lb-team-list" hidden></div></div></div>
       <label class="pg-ctrl"><span id="lb-min-label">Min PA</span><select id="lb-min" aria-label="Minimum"></select></label>
       <label class="pg-ctrl">Player<input id="lb-q" type="search" placeholder="Search name" aria-label="Search player"></label>
     </div>
@@ -482,8 +484,8 @@
   const GM = { id: null };
   let tab = 'leaders', backY = null, shownHash = null;
   // transient view state: a one-off note when a filter had to change, a row to highlight, scroll fixes after the next draw
-  let notice = '', hlPid = null, hlScroll = false, wantTeam = null, resetX = false, revealSort = false;
-  const teamNames = new Map();
+  let notice = '', hlPid = null, hlScroll = false, wantTeam = null, quietTeam = false, resetX = false, revealSort = false;
+  const teamNames = new Map(), teamDivs = new Map();
   const pages = ['leaders', 'players', 'standings', 'guts', 'game'];
 
   function showTab(t) {
@@ -519,7 +521,7 @@
   $('#lb-season').addEventListener('change', (e) => upd(() => {
     const v = e.target.value, was = isProj(L.season);
     // keep the team across seasons by name; render() finds this season's team of that name or says why it can't
-    if (L.team !== 'All' && L.team !== WCP.id) wantTeam = teamNames.get(L.team) || null;
+    if (L.team !== 'All') wantTeam = teamList().filter((t) => t !== WCP.id).filter((t) => teamNames.has(t)).map((t) => ({ name: teamNames.get(t), div: teamDivs.get(t) }));
     L.season = v === 'Career' || v === 'All' || isProj(v) ? v : Number(v); L.range = 'full'; L.from = L.to = null;
     if (typeof L.season === 'number') S.season = L.season;
     if (was !== isProj(L.season)) { L.sort = isProj(L.season) ? projSort(L.type) : defSort(L.type); L.dir = isProj(L.season) && L.type === 'pit' ? 1 : -1; L.min = 'q'; }
@@ -543,25 +545,32 @@
     el.addEventListener('blur', () => render());
   };
   onDate($('#lb-from'), 'from'); onDate($('#lb-to'), 'to');
-  // Division: a checkbox dropdown; L.div is 'All' or a comma list ('Adams,Sierra'). The Pilots survive a division change (it narrows them).
-  const divMenu = (open) => { $('#lb-div-list').hidden = !open; $('#lb-div').setAttribute('aria-expanded', String(open)); };
-  const divReset = () => { if (L.team !== WCP.id) { L.team = 'All'; teamMin('All'); } };
-  $('#lb-div').addEventListener('click', () => divMenu($('#lb-div-list').hidden));
-  $('#lb-div-list').addEventListener('change', () => upd(() => {
-    const on = [...$('#lb-div-list').querySelectorAll('input:checked')].map((i) => i.value);
-    L.div = on.length ? on.join(',') : 'All'; divReset();
-  }));
-  $('#lb-div-list').addEventListener('click', (e) => { if (e.target.closest('button[data-all]')) upd(() => { L.div = 'All'; divReset(); }); });
-  document.addEventListener('click', (e) => { if (e.target.isConnected && !e.target.closest('.pg-multi')) divMenu(false); }); // "All" re-renders the list under the click
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#lb-div-list').hidden) { divMenu(false); $('#lb-div').focus(); } });
-  $('#lb-team').addEventListener('change', (e) => upd(() => { L.team = e.target.value; teamMin(L.team); if (L.team === WCP.id) L.div = 'All'; }));
+  // Division and Team: checkbox dropdowns; L.div and L.team are 'All' or a comma list ('Adams,Sierra', '1450,1452,wcp').
+  // The Pilots survive a division change (it narrows them); other teams stay if they're still in the picked divisions.
+  const teamList = () => (L.team === 'All' ? [] : L.team.split(','));
+  const menus = ['div', 'team'];
+  const menu = (k, open) => { $(`#lb-${k}-list`).hidden = !open; $(`#lb-${k}`).setAttribute('aria-expanded', String(open)); };
+  const checked = (k) => [...$(`#lb-${k}-list`).querySelectorAll('input:checked')].map((i) => i.value);
+  const divReset = () => { quietTeam = true; };
+  const setTeams = (on) => {
+    if (on.includes(WCP.id) && !teamList().includes(WCP.id)) L.div = 'All';
+    L.team = on.length ? on.join(',') : 'All'; teamMin(L.team);
+  };
+  for (const k of menus) {
+    $(`#lb-${k}`).addEventListener('click', () => { const open = $(`#lb-${k}-list`).hidden; menus.forEach((m) => menu(m, m === k && open)); });
+    $(`#lb-${k}-list`).addEventListener('click', (e) => { if (e.target.closest('button[data-all]')) upd(() => { if (k === 'div') { L.div = 'All'; divReset(); } else setTeams([]); }); });
+  }
+  $('#lb-div-list').addEventListener('change', () => upd(() => { const on = checked('div'); L.div = on.length ? on.join(',') : 'All'; divReset(); }));
+  $('#lb-team-list').addEventListener('change', () => upd(() => setTeams(checked('team'))));
+  document.addEventListener('click', (e) => { if (e.target.isConnected && !e.target.closest('.pg-multi')) menus.forEach((m) => menu(m, false)); }); // "All" re-renders the list under the click
+  document.addEventListener('keydown', (e) => { const k = e.key === 'Escape' && menus.find((m) => !$(`#lb-${m}-list`).hidden); if (k) { menu(k, false); $(`#lb-${k}`).focus(); } });
   $('#lb-chips').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-clear]');
     if (!b) return;
     upd(() => {
       const k = b.dataset.clear;
       if (k === 'div') { L.div = 'All'; }
-      if (k === 'team') { L.team = 'All'; teamMin('All'); }
+      if (k.startsWith('team:')) { L.team = teamList().filter((t) => t !== k.slice(5)).join(',') || 'All'; teamMin(L.team); }
       if (k === 'q') { L.q = ''; $('#lb-q').value = ''; }
     });
   });
@@ -616,16 +625,18 @@
 
   // ---------- helpers ----------
   const seasonsAvail = () => { const g = rowsOf('guts'); return g && memoize('seasons', [g], () => [...new Set(g.map((r) => r.Season))].sort((a, b) => b - a)); };
-  function renderDivMenu(divs, picked) {
-    const btn = $('#lb-div'), v = picked.length ? picked.join(',') : 'All';
-    btn.textContent = !picked.length ? 'All divisions' : picked.length <= 2 ? picked.join(', ') : `${picked.length} divisions`;
-    btn.title = picked.join(', ');
+  // opts: [[value, label]]; names: the short label for each picked value on the button
+  function renderMulti(k, opts, picked, { all, noun, names = picked, extra = [] }) {
+    const btn = $(`#lb-${k}`), v = picked.length ? picked.join(',') : 'All';
+    btn.textContent = !picked.length ? all : picked.length <= 2 ? names.join(', ') : `${picked.length} ${noun}`;
+    btn.title = names.join(', ');
     btn.dataset.value = v;
-    const key = divs.join(',') + '|' + v, list = $('#lb-div-list');
-    if (list.dataset.key === key) return;
-    list.dataset.key = key;
-    list.innerHTML = `<button type="button" data-all>All divisions</button>` + divs.map((d) => `<label><input type="checkbox" value="${esc(d)}"${picked.includes(d) ? ' checked' : ''}>${esc(d)}</label>`).join('');
+    const box = ([val, label]) => `<label><input type="checkbox" value="${esc(val)}"${picked.includes(val) ? ' checked' : ''}>${esc(label)}</label>`;
+    const html = `<button type="button" data-all>${esc(all)}</button>` + opts.map(box).join('') + (extra.length ? '<hr>' + extra.map(box).join('') : '');
+    const list = $(`#lb-${k}-list`);
+    if (list._html !== html) { list.innerHTML = html; list._html = html; }
   }
+  const renderDivMenu = (divs, picked) => renderMulti('div', divs.map((d) => [d, d]), picked, { all: 'All divisions', noun: 'divisions' });
   const fillSelect = (el, opts, value) => {
     const key = JSON.stringify(opts);
     if (el._k !== key) { el.replaceChildren(...opts.map(([v, t]) => new Option(t, v))); el._k = key; }
@@ -810,30 +821,39 @@
     const optDiv = L.div === 'All' ? optRows : memoize('odiv|' + id + L.season + L.div, [optRows], () => inDivOf(optRows));
     // every season has its own team ids, so "All seasons" offers no single-team choice
     const teams = allS ? [] : memoize('teams|' + id + L.season + L.div, [optDiv], () => [...new Map(optDiv.map((r) => [r.tid, `${r.Team}${L.div === 'All' || picked.length > 1 || proj ? ' (' + (r.TeamDiv || r.Division) + ')' : ''}`])).entries()].sort((a, b) => a[1].localeCompare(b[1])));
-    for (const r of optDiv) teamNames.set(r.tid, r.Team);
+    for (const r of optDiv) { teamNames.set(r.tid, r.Team); teamDivs.set(r.tid, r.TeamDiv || r.Division); }
     // the Pilots are offered everywhere: picking them shows every division, and a division then narrows them
-    const wcpLabel = L.team !== WCP.id || L.div === 'All' ? WCP.label : `West Coast Pilots in ${divLabel}`;
-    if (L.team !== 'All' && L.team !== WCP.id && !teams.some(([t]) => t === L.team)) {
-      const m = wantTeam && optDiv.find((r) => r.Team === wantTeam);
-      if (m) L.team = m.tid;
-      else {
-        notice = wantTeam ? `No ${wantTeam} ${L.div === 'All' ? '' : 'in ' + divLabel + ' '}in ${allS ? 'the all-seasons view' : career ? 'career totals' : L.season}, so this shows all teams.`
-          : `That team has no player stats on file for ${L.season}, so this shows the whole ${L.div === 'All' ? 'league' : 'division'}.`;
-        L.team = 'All'; teamMin('All');
-      }
+    const wantT = teamList(), tids = new Set(teams.map(([t]) => t));
+    const keep = wantT.filter((t) => t === WCP.id || tids.has(t)), lost = wantT.filter((t) => t !== WCP.id && !tids.has(t));
+    // a team left behind by a season change comes back by name when this season has one
+    const match = (w) => optDiv.find((r) => r.Team === w.name && (r.TeamDiv || r.Division) === w.div) || optDiv.find((r) => r.Team === w.name);
+    const found = wantTeam ? wantTeam.map(match).filter(Boolean).map((r) => r.tid) : [];
+    const missing = wantTeam ? wantTeam.filter((w) => !match(w)).map((w) => w.name) : lost;
+    const team = [...new Set([...keep.filter((t) => t !== WCP.id), ...found])].concat(keep.includes(WCP.id) ? [WCP.id] : []);
+    if (missing.length && !quietTeam) {
+      const left = !team.length ? '' : (missing.length > 1 ? 'they were' : 'it was') + ' left out';
+      notice = wantTeam ? `No ${missing.join(' or ')} ${L.div === 'All' ? '' : 'in ' + divLabel + ' '}in ${allS ? 'the all-seasons view' : career ? 'career totals' : L.season}, so ${left || 'this shows all teams'}.`
+        : `${missing.length > 1 ? 'Those teams have' : 'That team has'} no player stats on file for ${L.season}, so ${left || 'this shows the whole ' + (L.div === 'All' ? 'league' : 'division')}.`;
     }
-    wantTeam = null;
-    fillSelect($('#lb-team'), [['All', career ? 'All (last team)' : 'All teams'], ...teams, [WCP.id, wcpLabel]], L.team);
-    const pilots = L.team === WCP.id;
-    const inTeam = L.team === 'All' ? inDiv : pilots ? memoize('wcp|' + id + L.season + L.div, [inDiv], () => inDiv.filter((r) => WCP.pids.has(r.pid))) : inDiv.filter((r) => r.tid === L.team);
-    table.classList.toggle('show-div', pilots || !!proj || picked.length > 1);
-    table.classList.toggle('no-div', L.team !== 'All' && !pilots && !proj);
-    if (pilots) $('#lb-note').textContent = (L.div === 'All' ? 'Every Pilot, from every division.' : `The Pilots who played in ${divLabel}.`) + ' Divisions differ in strength, so compare by wRC+, FIP-, ERA- and WAR, not raw AVG or ERA. ' + $('#lb-note').textContent;
+    L.team = team.length ? team.join(',') : 'All';
+    if (wantT.length && !team.length) teamMin('All');
+    wantTeam = null; quietTeam = false;
+    const pilots = team.includes(WCP.id), only = pilots && team.length === 1;
+    const wcpLabel = !pilots || L.div === 'All' ? WCP.label : `West Coast Pilots in ${divLabel}`;
+    const tName = (t) => (t === WCP.id ? 'West Coast Pilots' : teamNames.get(t) || t);
+    renderMulti('team', teams, team, { all: career ? 'All (last team)' : 'All teams', noun: 'teams', names: team.map(tName), extra: [[WCP.id, wcpLabel]] });
+    const tset = new Set(team);
+    const inTeam = L.team === 'All' ? inDiv : memoize('team|' + id + L.season + L.div + L.team, [inDiv], () => inDiv.filter((r) => tset.has(r.tid) || (pilots && WCP.pids.has(r.pid))));
+    // one division's teams need no Div column; the Pilots or teams from several divisions do
+    const tDivs = new Set(team.map((t) => teamDivs.get(t)));
+    table.classList.toggle('show-div', pilots || !!proj || picked.length > 1 || tDivs.size > 1);
+    table.classList.toggle('no-div', team.length > 0 && !pilots && !proj && tDivs.size <= 1);
+    if (only) $('#lb-note').textContent = (L.div === 'All' ? 'Every Pilot, from every division.' : `The Pilots who played in ${divLabel}.`) + ' Divisions differ in strength, so compare by wRC+, FIP-, ERA- and WAR, not raw AVG or ERA. ' + $('#lb-note').textContent;
     // what the view is filtered to, each with a one-tap clear
     const chip = (k, label) => `<button type="button" class="pg-x" data-clear="${k}" aria-label="Clear ${esc(label)}">${esc(label)} <span aria-hidden="true">✕</span></button>`;
     const chips = [];
     if (L.div !== 'All') chips.push(chip('div', divLabel));
-    if (L.team !== 'All') chips.push(chip('team', pilots ? 'West Coast Pilots' : teamNames.get(L.team) || L.team));
+    for (const t of team) chips.push(chip('team:' + t, tName(t)));
     if (L.q) chips.push(chip('q', `“${L.q}”`));
     const chEl = $('#lb-chips'), chHtml = chips.join('');
     if (chEl._html !== chHtml) { chEl.innerHTML = chHtml; chEl._html = chHtml; }

@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { MATT, trackErrors, openSite, leaderRows, leaderTable, pickDivs } = require('./helpers');
+const { MATT, trackErrors, openSite, leaderRows, leaderTable, pickDivs, pickTeams } = require('./helpers');
 
 const num = (s) => Number(String(s).replace(/[^\d.-]/g, ''));
 
@@ -55,10 +55,10 @@ test.describe('Leaders', () => {
     await pickDivs(page, 'Adams');
     await expect.poll(async () => [...new Set((await leaderTable(page)).map((r) => r.Div))]).toEqual(['Adams']);
 
-    const team = await page.locator('#lb-team option').nth(1);
-    const tid = await team.getAttribute('value');
+    const team = page.locator('#lb-team-list label').first();
+    const tid = await team.locator('input').getAttribute('value');
     const name = (await team.textContent()) || '';
-    await page.locator('#lb-team').selectOption(String(tid));
+    await pickTeams(page, String(tid));
     await expect.poll(async () => [...new Set((await leaderTable(page)).map((r) => r.Team))]).toEqual([name.trim()]);
   });
 
@@ -101,13 +101,13 @@ test.describe('Leaders', () => {
   test('switching batting and pitching keeps the team', async ({ page }) => {
     await openSite(page);
     await pickDivs(page, 'Adams');
-    const tid = String(await page.locator('#lb-team option').nth(1).getAttribute('value'));
-    await page.locator('#lb-team').selectOption(tid);
+    const tid = String(await page.locator('#lb-team-list input').first().getAttribute('value'));
+    await pickTeams(page, tid);
     await page.locator('#lb-type button[data-v="pit"]').click();
     await expect(page.locator('#lb-title')).toHaveText(/^Pitching/);
-    await expect(page.locator('#lb-team')).toHaveValue(tid);
+    await expect(page.locator('#lb-team')).toHaveAttribute('data-value', tid);
     await page.locator('#lb-type button[data-v="bat"]').click();
     await expect(page.locator('#lb-title')).toHaveText(/^Batting/);
-    await expect(page.locator('#lb-team')).toHaveValue(tid);
+    await expect(page.locator('#lb-team')).toHaveAttribute('data-value', tid);
   });
 });
