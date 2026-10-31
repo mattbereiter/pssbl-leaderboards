@@ -443,7 +443,7 @@
     return (v) => el.querySelectorAll('button[data-v]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === v)));
   };
   const upd = (fn) => { fn(); L.page = 0; render(); };
-  const setType = seg('#lb-type', (v) => { if (L.type !== v) upd(() => { L.type = v; L.sort = v === 'bat' ? 'oWAR' : 'WAR'; L.dir = -1; L.min = 'q'; L.team = keepTeam(); }); });
+  const setType = seg('#lb-type', (v) => { if (L.type !== v) upd(() => { L.type = v; L.sort = v === 'bat' ? 'oWAR' : 'WAR'; L.dir = -1; L.min = 'q'; }); });
   const setGroup = seg('#lb-group', (v) => upd(() => { L.group = v; }));
   const setPGroup = seg('#p-group', (v) => { P.group = v; render(); });
   const setLogType = seg('#p-log-type', (v) => { P.logType = v; render(); });

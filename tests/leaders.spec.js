@@ -97,4 +97,17 @@ test.describe('Leaders', () => {
     await expect(page.locator('#pg-players')).toBeVisible();
     await expect(page.locator('#p-name')).toHaveText(name);
   });
+
+  test('switching batting and pitching keeps the team', async ({ page }) => {
+    await openSite(page);
+    await page.locator('#lb-div').selectOption('Adams');
+    const tid = String(await page.locator('#lb-team option').nth(1).getAttribute('value'));
+    await page.locator('#lb-team').selectOption(tid);
+    await page.locator('#lb-type button[data-v="pit"]').click();
+    await expect(page.locator('#lb-title')).toHaveText(/^Pitching/);
+    await expect(page.locator('#lb-team')).toHaveValue(tid);
+    await page.locator('#lb-type button[data-v="bat"]').click();
+    await expect(page.locator('#lb-title')).toHaveText(/^Batting/);
+    await expect(page.locator('#lb-team')).toHaveValue(tid);
+  });
 });
