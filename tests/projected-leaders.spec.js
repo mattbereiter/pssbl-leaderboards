@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { trackErrors, leaderRows, leaderTable } = require('./helpers');
+const { trackErrors, leaderRows, leaderTable, pickDivs } = require('./helpers');
 
 // Same numbers as the Players card (tests/projection.spec.js) and analysis/project_to_adams.py.
 test.describe('Leaders: Projected → Adams / Sierra', () => {
@@ -51,22 +51,33 @@ test.describe('Leaders: Projected → Adams / Sierra', () => {
     expect((await leaderTable(page))[0]).toMatchObject({ 'wRC+': '129' });
   });
 
-  test('"Adams, Sierra, Rocky, Denali" keeps only players from those four divisions', async ({ page }) => {
+  test('the division menu takes several divisions at once', async ({ page }) => {
     await page.goto('/#leaders?season=ProjAdams');
     await expect(leaderRows(page).first()).toBeVisible();
     const count = async () => Number((await page.locator('#lb-count').textContent()).match(/^[\d,]+/)[0].replace(',', ''));
     const all = await count();
-    await page.locator('#lb-div').selectOption({ label: 'Adams, Sierra, Rocky, Denali' });
-    await expect(page).toHaveURL(/div=Top4/);
+    await pickDivs(page, 'Sierra', 'Rocky', 'Denali');
+    await expect(page).toHaveURL(/div=(Denali|Rocky|Sierra)(%2C|,)/);
+    await expect(page.locator('#lb-div')).toContainText('3 divisions');
     const rows = await leaderTable(page);
     expect(rows.length).toBeGreaterThan(10);
     expect(await count()).toBeLessThan(all);
-    const top4 = ['Adams', 'Sierra', 'Rocky', 'Denali'];
-    for (const r of rows) for (const d of r.From.split(', ')) expect(top4).toContain(d);
+    for (const r of rows) expect(r.From.split(', ').some((d) => ['Sierra', 'Rocky', 'Denali'].includes(d))).toBe(true);
 
-    await page.goto('/?5#leaders?season=ProjSierra&div=Top4&q=aj%20hansen'); // survives a reload, works for Sierra
+    await page.goto('/?5#leaders?season=ProjSierra&div=Adams,Rocky&q=aj%20hansen'); // survives a reload, works for Sierra
     await expect(leaderRows(page)).toHaveCount(1);
-    await expect(page.locator('#lb-div')).toHaveValue('Top4');
+    await expect(page.locator('#lb-div')).toHaveAttribute('data-value', 'Adams,Rocky');
+    await expect(page.locator('#lb-div')).toContainText('Adams, Rocky');
+  });
+
+  test('several divisions on a normal season too', async ({ page }) => {
+    await page.goto('/#leaders?season=2026');
+    await expect(leaderRows(page).first()).toBeVisible();
+    await pickDivs(page, 'Adams', 'Sierra');
+    await page.locator('#lb-min').selectOption('0');
+    await expect.poll(async () => [...new Set((await leaderTable(page)).map((r) => r.Div))].sort()).toEqual(['Adams', 'Sierra']);
+    await pickDivs(page);
+    await expect(page.locator('#lb-div')).toContainText('All divisions');
   });
 
   test('Adams players show up projected to Sierra, Sierra players to Adams, Matt in both', async ({ page }) => {

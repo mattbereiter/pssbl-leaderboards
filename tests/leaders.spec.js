@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { MATT, trackErrors, openSite, leaderRows, leaderTable } = require('./helpers');
+const { MATT, trackErrors, openSite, leaderRows, leaderTable, pickDivs } = require('./helpers');
 
 const num = (s) => Number(String(s).replace(/[^\d.-]/g, ''));
 
@@ -52,7 +52,7 @@ test.describe('Leaders', () => {
 
   test('division and team filters narrow the table', async ({ page }) => {
     await openSite(page);
-    await page.locator('#lb-div').selectOption('Adams');
+    await pickDivs(page, 'Adams');
     await expect.poll(async () => [...new Set((await leaderTable(page)).map((r) => r.Div))]).toEqual(['Adams']);
 
     const team = await page.locator('#lb-team option').nth(1);

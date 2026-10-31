@@ -124,6 +124,14 @@
 #p-proj-body .pg-stack { width: fit-content; max-width: 100%; }
 .pg-proj-fine { margin: var(--cds-gap-sm) 0 0; }
 .pg-grouptabs.proj button { display: none; }
+.pg-multi { position: relative; }
+.pg-multi > button { font: inherit; font-size: var(--cds-font-size-body); color: var(--color-fg); background: var(--color-bg); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: 4px 26px 4px 8px; min-height: 2rem; max-width: 100%; width: 100%; text-align: left; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: relative; }
+.pg-multi > button::after { content: ''; position: absolute; right: 9px; top: 50%; width: 6px; height: 6px; border: solid var(--color-fg-muted); border-width: 0 1.5px 1.5px 0; transform: translateY(-70%) rotate(45deg); }
+.pg-multi-pop { position: absolute; z-index: 20; top: calc(100% + 2px); left: 0; min-width: 100%; background: var(--color-bg); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); box-shadow: 0 4px 14px rgb(0 0 0 / .15); padding: 4px 0; font-size: var(--cds-font-size-body); color: var(--color-fg); }
+.pg-multi-pop label, .pg-multi-pop button { display: flex; gap: 8px; align-items: center; padding: 5px 12px; white-space: nowrap; cursor: pointer; }
+.pg-multi-pop button { all: unset; display: block; box-sizing: border-box; width: 100%; padding: 5px 12px; cursor: pointer; color: var(--fg-green-ink); font-weight: 700; border-bottom: 1px solid var(--color-border-line); margin-bottom: 2px; }
+.pg-multi-pop label:hover, .pg-multi-pop button:hover { background: var(--fg-hover); }
+.pg-ctrl .pg-multi-pop input { accent-color: var(--fg-green-ink); margin: 0; width: 16px; height: 16px; min-height: 0; padding: 0; flex: none; }
 @container (max-width: 760px) {
   .pg-top { flex-direction: column; }
   .pg-brand { padding-bottom: 0; }
@@ -178,7 +186,7 @@
       <label class="pg-ctrl" id="lb-range-ctrl">Dates<select id="lb-range" aria-label="Date range"></select></label>
       <label class="pg-ctrl" id="lb-from-ctrl">From<input id="lb-from" type="date" aria-label="From date"></label>
       <label class="pg-ctrl" id="lb-to-ctrl">To<input id="lb-to" type="date" aria-label="To date"></label>
-      <label class="pg-ctrl"><span id="lb-div-label">Division</span><select id="lb-div" aria-label="Division"></select></label>
+      <div class="pg-ctrl"><span id="lb-div-label">Division</span><div class="pg-multi"><button type="button" id="lb-div" aria-label="Division" aria-haspopup="true" aria-expanded="false" data-value="All">All divisions</button><div class="pg-multi-pop" id="lb-div-list" hidden></div></div></div>
       <label class="pg-ctrl">Team<select id="lb-team" aria-label="Team"></select></label>
       <label class="pg-ctrl"><span id="lb-min-label">Min PA</span><select id="lb-min" aria-label="Minimum"></select></label>
       <label class="pg-ctrl wide">Player<input id="lb-q" type="search" placeholder="Search name" aria-label="Search player"></label>
@@ -429,7 +437,16 @@
     el.addEventListener('blur', () => render());
   };
   onDate($('#lb-from'), 'from'); onDate($('#lb-to'), 'to');
-  $('#lb-div').addEventListener('change', (e) => upd(() => { L.div = e.target.value; L.team = 'All'; }));
+  // Division: a checkbox dropdown; L.div is 'All' or a comma list ('Adams,Sierra')
+  const divMenu = (open) => { $('#lb-div-list').hidden = !open; $('#lb-div').setAttribute('aria-expanded', String(open)); };
+  $('#lb-div').addEventListener('click', () => divMenu($('#lb-div-list').hidden));
+  $('#lb-div-list').addEventListener('change', () => upd(() => {
+    const on = [...$('#lb-div-list').querySelectorAll('input:checked')].map((i) => i.value);
+    L.div = on.length ? on.join(',') : 'All'; L.team = 'All';
+  }));
+  $('#lb-div-list').addEventListener('click', (e) => { if (e.target.closest('button[data-all]')) upd(() => { L.div = 'All'; L.team = 'All'; }); });
+  document.addEventListener('click', (e) => { if (e.target.isConnected && !e.target.closest('.pg-multi')) divMenu(false); }); // "All" re-renders the list under the click
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#lb-div-list').hidden) { divMenu(false); $('#lb-div').focus(); } });
   $('#lb-team').addEventListener('change', (e) => upd(() => { L.team = e.target.value; }));
   $('#lb-min').addEventListener('change', (e) => upd(() => { L.min = e.target.value; }));
   $('#lb-size').addEventListener('change', (e) => upd(() => { L.size = Number(e.target.value); }));
@@ -474,6 +491,16 @@
 
   // ---------- helpers ----------
   const seasonsAvail = () => { const g = rowsOf('guts'); return g && memoize('seasons', [g], () => [...new Set(g.map((r) => r.Season))].sort((a, b) => b - a)); };
+  function renderDivMenu(divs, picked) {
+    const btn = $('#lb-div'), v = picked.length ? picked.join(',') : 'All';
+    btn.textContent = !picked.length ? 'All divisions' : picked.length <= 2 ? picked.join(', ') : `${picked.length} divisions`;
+    btn.title = picked.join(', ');
+    btn.dataset.value = v;
+    const key = divs.join(',') + '|' + v, list = $('#lb-div-list');
+    if (list.dataset.key === key) return;
+    list.dataset.key = key;
+    list.innerHTML = `<button type="button" data-all>All divisions</button>` + divs.map((d) => `<label><input type="checkbox" value="${esc(d)}"${picked.includes(d) ? ' checked' : ''}>${esc(d)}</label>`).join('');
+  }
   const fillSelect = (el, opts, value) => {
     const key = JSON.stringify(opts);
     if (el._k !== key) { el.replaceChildren(...opts.map(([v, t]) => new Option(t, v))); el._k = key; }
@@ -628,17 +655,17 @@
     if (proj) $('#lb-note').textContent = projNote(L.type, proj);
 
     const divs = memoize('divs|' + id + L.season, [inSeason], () => [...new Set(inSeason.flatMap((r) => r.Divs || [r.Division]))].sort());
-    if (L.div !== 'All' && !(proj && L.div === TOP4.id) && !divs.includes(L.div)) L.div = 'All';
-    fillSelect($('#lb-div'), [['All', 'All divisions'], ...(proj ? [[TOP4.id, TOP4.divs.join(', ')]] : []), ...divs.map((d) => [d, d])], L.div);
-    const inDiv = L.div === 'All' ? inSeason : memoize('div|' + id + L.season + L.div, [inSeason], () => inSeason.filter((r) => L.div === TOP4.id
-      ? (r.Divs || [r.Division]).every((d) => TOP4.divs.includes(d)) : (r.Divs || [r.Division]).includes(L.div)));
-    const teams = memoize('teams|' + id + L.season + L.div, [inDiv], () => [...new Map(inDiv.map((r) => [r.tid, `${r.Team}${L.div === 'All' || proj ? ' (' + (r.TeamDiv || r.Division) + ')' : ''}`])).entries()].sort((a, b) => a[1].localeCompare(b[1])));
+    const picked = L.div === 'All' ? [] : L.div.split(',').filter((d) => divs.includes(d));
+    L.div = picked.length ? picked.join(',') : 'All';
+    renderDivMenu(divs, picked);
+    const inDiv = L.div === 'All' ? inSeason : memoize('div|' + id + L.season + L.div, [inSeason], () => inSeason.filter((r) => (r.Divs || [r.Division]).some((d) => picked.includes(d))));
+    const teams = memoize('teams|' + id + L.season + L.div, [inDiv], () => [...new Map(inDiv.map((r) => [r.tid, `${r.Team}${L.div === 'All' || picked.length > 1 || proj ? ' (' + (r.TeamDiv || r.Division) + ')' : ''}`])).entries()].sort((a, b) => a[1].localeCompare(b[1])));
     const wcpOn = L.div === WCP.div;
     if (L.team !== 'All' && !(wcpOn && L.team === WCP.id) && !teams.some(([t]) => t === L.team)) L.team = 'All';
     fillSelect($('#lb-team'), [['All', career ? 'All (last team)' : 'All teams'], ...teams, ...(wcpOn ? [[WCP.id, WCP.label]] : [])], L.team);
     const pilots = L.team === WCP.id;
     const inTeam = L.team === 'All' ? inDiv : pilots ? memoize('wcp|' + id + L.season, [inSeason], () => inSeason.filter((r) => WCP.pids.has(r.pid))) : inDiv.filter((r) => r.tid === L.team);
-    table.classList.toggle('show-div', pilots || !!proj);
+    table.classList.toggle('show-div', pilots || !!proj || picked.length > 1);
     if (pilots) $('#lb-note').textContent = 'Every Pilot, from every division. Divisions differ in strength, so compare by wRC+, FIP-, ERA- and WAR, not raw AVG or ERA. ' + $('#lb-note').textContent;
     const cols = proj ? PROJ[L.type].board : (L.type === 'bat' ? BAT : PIT)[L.group];
     const fixed = ['Name', 'Team', 'Division', ...(career ? ['Seasons'] : [])];
@@ -961,8 +988,6 @@
   PROJ.bat.board = ['PA', 'Eff PA', 'Own%', 'AVG', 'OBP', 'SLG', 'wOBA', 'wRC+', 'BB%', 'K%'];
   PROJ.pit.board = ['IP', 'Eff IP', 'Own%', 'FIP-', 'FIP', 'K%', 'BB%'];
   const PROJ_TARGETS = ['Adams', 'Sierra'];
-  // projected boards: "From" filter for players whose recent seasons were all in the top four divisions
-  const TOP4 = { id: 'Top4', divs: ['Adams', 'Sierra', 'Rocky', 'Denali'] };
   // Leaders "Projected → Adams/Sierra": the same projection for everyone with a recent line outside the target division
   function isProj(v) { return typeof v === 'string' && v.startsWith('Proj') && PROJ_TARGETS.includes(v.slice(4)); }
   function projSort(type) { return type === 'bat' ? 'wRC+' : 'FIP-'; }
@@ -1136,7 +1161,7 @@
     put('div', s.div, 'All'); put('team', s.team, 'All'); put('min', s.min, 'q'); put('q', s.q, '');
     put('group', s.group, 'dash'); put('sort', s.sort, defSort(s.type)); put('dir', s.dir, -1);
     put('page', s.page + 1, 1); put('size', s.size, 50);
-    const qs = q.toString();
+    const qs = q.toString().replace(/%2C/g, ',');
     return qs ? `leaders?${qs}` : 'leaders';
   }
   const href = (t, s) => '#' + esc(hashFor(t, s));
