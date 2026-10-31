@@ -177,6 +177,8 @@ for y in seasons:
                 'oWAR/600': r((wraa + wsb + repPA*pa)/RPW * 600/pa,1) if pa else None,
                 'Qual': pa >= QUAL_PA_PER_G * tg,
                 '_lgRPA': lgRPA,
+                # unrounded, so careers and team totals don't add up rounding error
+                '_wRAA': wraa, '_wSB': wsb, '_oWAR': (wraa + wsb + repPA*pa)/RPW,
             })
 
         # ---- pitching rows
@@ -216,7 +218,7 @@ for y in seasons:
                 'WAR': r(war,1),
                 'WAR/200': r(war * 200/ip,1) if (war is not None and ip) else None,
                 'Qual': ip >= QUAL_IP_PER_G * tg,
-                '_lgERA': lgERA,
+                '_lgERA': lgERA, '_WAR': war, '_FIP': fip,
             })
 
         # ---- standings (regular season only)
@@ -245,12 +247,12 @@ for y in seasons:
         tb = collections.defaultdict(lambda: collections.Counter()); tp = collections.defaultdict(lambda: collections.Counter())
         for b in bat_rows:
             if b['Season'] == y and b['Division'] == d:
-                t = tb[b['tid']]; t['PA'] += b['PA']; t['wRAA'] += b['wRAA'] or 0; t['oWAR'] += b['oWAR'] or 0
+                t = tb[b['tid']]; t['PA'] += b['PA']; t['wRAA'] += b['_wRAA'] or 0; t['oWAR'] += b['_oWAR'] or 0
                 t['HR'] += b['HR']; t['SB'] += b['SB']
         for p in pit_rows:
             if p['Season'] == y and p['Division'] == d:
                 t = tp[p['tid']]; t['outs'] += p['Outs']; t['er'] += p['ER']
-                t['fipn'] += 13*p['HR'] + 3*(p['BB']+p['HBP']) - 2*p['SO']; t['WAR'] += p['WAR'] or 0; t['SO'] += p['SO']; t['BB'] += p['BB']
+                t['fipn'] += 13*p['HR'] + 3*(p['BB']+p['HBP']) - 2*p['SO']; t['WAR'] += p['_WAR'] or 0; t['SO'] += p['SO']; t['BB'] += p['BB']
         rows = []
         for tid, c in rec.items():
             dec = c['W'] + c['L']
@@ -291,7 +293,7 @@ def career_bat():
         S = collections.Counter()
         for b in L:
             for k in ('G','PA','AB','H','1B','2B','3B','HR','R','RBI','BB','IBB','SO','HBP','SF','SH','GDP','SB','CS'): S[k] += b[k]
-            S['wRAA'] += b['wRAA'] or 0; S['wSB'] += b['wSB'] or 0; S['oWAR'] += b['oWAR'] or 0; S['TG'] += b['TG']
+            S['wRAA'] += b['_wRAA'] or 0; S['wSB'] += b['_wSB'] or 0; S['oWAR'] += b['_oWAR'] or 0; S['TG'] += b['TG']
             S['lgR'] += b['_lgRPA'] * b['PA']
             S['wnum'] += (b['wOBA'] or 0) * (b['AB'] + b['BB'] - b['IBB'] + b['SF'] + b['HBP'])
             S['wden'] += b['AB'] + b['BB'] - b['IBB'] + b['SF'] + b['HBP']
@@ -327,7 +329,7 @@ def career_pit():
         for p in L:
             for k in ('W','L','SV','HLD','G','GS','CG','SHO','Outs','TBF','H','R','ER','HR','BB','IBB','SO','HBP','WP'): S[k] += p[k]
             ip = p['Outs']/3
-            S['fipip'] += (p['FIP'] or 0) * ip; S['WAR'] += p['WAR'] or 0; S['lgERAip'] += p['_lgERA'] * ip; S['TG'] += p['TG']
+            S['fipip'] += (p['_FIP'] or 0) * ip; S['WAR'] += p['_WAR'] or 0; S['lgERAip'] += p['_lgERA'] * ip; S['TG'] += p['TG']
         outs = S['Outs']; ip = outs/3; tbf = S['TBF']
         last = max(L, key=lambda p: (p['Season'], p['Outs']))
         yrs = sorted({p['Season'] for p in L})
@@ -356,7 +358,7 @@ def career_pit():
 bc, pc = career_bat(), career_pit()
 for rows in (bat_rows, pit_rows):
     for z in rows:
-        z.pop('_lgRPA', None); z.pop('_lgERA', None)
+        for k in [k for k in z if k.startswith('_')]: z.pop(k)
 
 import csv
 def dump(name, rows):

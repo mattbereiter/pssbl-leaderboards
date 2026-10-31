@@ -94,6 +94,7 @@
 .pg-defs .good { display: block; color: var(--color-fg); }
 .pg-prank { margin-top: 6px; font-size: var(--cds-font-size-caption); }
 .pg-prank b { font-weight: 700; }
+.pg-prank .dim { color: var(--color-fg-muted); }
 .pg-chip { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--fg-sort); font-weight: 600; }
 .pg-lcard li:first-child .v { color: var(--fg-green-ink); }
 .pg-phead { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); align-items: end; justify-content: space-between; }
@@ -109,10 +110,13 @@
 .pg-sugg { position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); max-height: 18rem; overflow: auto; margin-top: 2px; }
 .pg-sugg[hidden] { display: none; }
 .pg-sugg button { all: unset; display: block; width: 100%; box-sizing: border-box; padding: 6px 10px; cursor: pointer; font-size: var(--cds-font-size-caption); }
-.pg-sugg button:hover, .pg-sugg button:focus-visible { background: var(--fg-hover); }
+.pg-sugg button:hover, .pg-sugg button:focus-visible, .pg-sugg button.on { background: var(--fg-hover); }
+.pg-sugg button.on, .pg-sugg button:focus-visible { box-shadow: inset 3px 0 0 var(--fg-green); }
 .pg-sugg button span { color: var(--color-fg-muted); }
 .pg-chart { position: relative; min-height: 200px; margin-bottom: var(--cds-gap-sm); }
 .pg-chart svg text { fill: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+.pg-chart circle.dot { cursor: pointer; }
+.pg-chart svg text.off { font-size: 11px; }
 .pg-tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); white-space: nowrap; z-index: 5; }
 .pg-tip .h { color: var(--cds-text-secondary); }
 .pg-legend { display: flex; gap: var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin-bottom: 4px; flex-wrap: wrap; }
@@ -261,8 +265,8 @@
           <div class="pg-prank" id="p-rank"></div>
         </div>
         <div class="pg-ctrl pg-search wide">Find a player
-          <input id="p-q" type="search" placeholder="Type a name…" aria-label="Find a player" autocomplete="off">
-          <div class="pg-sugg" id="p-sugg" hidden></div>
+          <input id="p-q" type="search" placeholder="Type a name…" aria-label="Find a player" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="p-sugg" aria-expanded="false">
+          <div class="pg-sugg" id="p-sugg" role="listbox" aria-label="Matching players" hidden></div>
         </div>
       </div>
       <div class="pg-strip" id="p-strip"></div>
@@ -457,8 +461,8 @@
   // pssbl.com records 0 HR allowed for every pitcher from 2017 on, so those cells say so instead of showing a fake 0
   const noPitHR = (r) => !(r.Season <= 2016);
   const cell = (type, c, r) => (type === 'pit' && (c === 'HR' || c === 'HR/9') && noPitHR(r) ? '—' : fmt(c, r[c]));
-  // search: accents folded, words in any order
-  const fold = (x) => String(x).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  // search: accents and apostrophes folded ("obrien" finds O'Brien), words in any order
+  const fold = (x) => String(x).normalize('NFD').replace(/[\u0300-\u036f'\u2019]/g, '').toLowerCase();
   const foldMemo = new Map();
   const folded = (n) => { let f = foldMemo.get(n); if (f == null) { f = fold(n); foldMemo.set(n, f); } return f; };
   const nameMatch = (q) => { const toks = fold(q).split(/\s+/).filter(Boolean); return (name) => { const n = folded(name); return toks.every((t) => n.includes(t)); }; };
@@ -469,6 +473,7 @@
     while (i < a.length && j < b.length) {
       if (a[i] === b[j]) { i++; j++; continue; }
       if (++d > 1) return false;
+      if (a[i] === b[j + 1] && a[i + 1] === b[j]) { i += 2; j += 2; continue; } // swapped letters count as one typo
       if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; }
     }
     return d + (a.length - i) + (b.length - j) <= 1;
@@ -998,7 +1003,8 @@
       const m = new Map();
       for (const r of bc) m.set(r.pid, r);
       for (const r of pc) { const cur = m.get(r.pid); if (!cur || r.To > cur.To) m.set(r.pid, r); }
-      return [...m.values()].map((r) => ({ pid: r.pid, Name: r.Name, n: r.Name.toLowerCase(), Team: r.Team, Division: r.Division, To: r.To }));
+      const from = new Map(); for (const r of [...bc, ...pc]) from.set(r.pid, Math.min(from.get(r.pid) || 9999, r.From));
+      return [...m.values()].map((r) => ({ pid: r.pid, Name: r.Name, n: r.Name.toLowerCase(), Team: r.Team, Division: r.Division, From: from.get(r.pid), To: r.To }));
     });
   };
   let sT, sWaiting = false;
@@ -1013,11 +1019,33 @@
     for (const r of list) { if (m(r.Name)) hits.push(r); }
     if (!hits.length) { const fz = fuzzyMatch(q); for (const r of list) { if (fz(r.Name)) hits.push(r); } }
     hits.sort((a, b) => (folded(b.Name).startsWith(fq) - folded(a.Name).startsWith(fq)) || b.To - a.To);
-    sugg.innerHTML = hits.length ? hits.slice(0, 25).map((r) => `<button type="button" data-pid="${esc(r.pid)}">${esc(r.Name)} <span>· ${esc(r.Team)} (${esc(r.Division)}) ${r.To}</span></button>`).join('') : '<div class="pg-empty">No player found</div>';
-    sugg.hidden = false;
+    // the span tells same-name players apart (two Andrew Larsens)
+    sugg.innerHTML = hits.length ? hits.slice(0, 25).map((r, i) => `<button type="button" role="option" id="p-sugg-${i}" aria-selected="false" tabindex="-1" data-pid="${esc(r.pid)}">${esc(r.Name)} <span>· ${esc(r.Team)} (${esc(r.Division)}) ${r.From < r.To ? `${r.From}–${r.To}` : r.To}</span></button>`).join('') : '<div class="pg-empty">No player found</div>';
+    sugg.hidden = false; sActive = -1; pq.removeAttribute('aria-activedescendant');
   }
-  pq.addEventListener('input', () => { clearTimeout(sT); sT = setTimeout(suggest, 80); });
-  pq.addEventListener('keydown', (e) => { if (e.key === 'Enter') sugg.querySelector('button')?.click(); if (e.key === 'Escape') sugg.hidden = true; });
+  let sActive = -1;
+  const sOpts = () => [...sugg.querySelectorAll('button')];
+  const sMove = (to) => {
+    const o = sOpts(); if (!o.length) return;
+    sActive = (to + o.length) % o.length;
+    o.forEach((b, i) => { b.setAttribute('aria-selected', String(i === sActive)); b.classList.toggle('on', i === sActive); });
+    o[sActive].scrollIntoView({ block: 'nearest' }); pq.setAttribute('aria-activedescendant', o[sActive].id);
+  };
+  const sClose = () => { sugg.hidden = true; sActive = -1; pq.removeAttribute('aria-activedescendant'); };
+  new MutationObserver(() => pq.setAttribute('aria-expanded', String(!sugg.hidden))).observe(sugg, { attributes: true, attributeFilter: ['hidden'] });
+  pq.addEventListener('input', () => { clearTimeout(sT); sT = setTimeout(() => { sT = null; suggest(); }, 80); });
+  pq.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (sugg.hidden || sT) { clearTimeout(sT); sT = null; suggest(); }
+      sMove(sActive < 0 && e.key === 'ArrowUp' ? -1 : sActive + (e.key === 'ArrowDown' ? 1 : -1));
+    } else if (e.key === 'Enter') {
+      // Enter acts on what's typed now, not on a list still waiting out the typing delay
+      if (sT) { clearTimeout(sT); sT = null; suggest(); }
+      sOpts()[Math.max(0, sActive)]?.click();
+    } else if (e.key === 'Escape') sClose();
+  });
+  sugg.addEventListener('keydown', (e) => { if (e.key === 'Escape') { sClose(); pq.focus(); } });
 
   function seasonTableHTML(src, type, rows, cols, head) {
     const pre = ['Season', 'Age', 'Team', 'Division'];
@@ -1051,6 +1079,9 @@
     alignStack(box);
   }
 
+  // one colour per division everywhere, so Teton is the same colour in Batting and Pitching and on every player (no gold: that's Matt's)
+  const DIV_COLOR = { Adams: '#d9822b', Sierra: '#3c8a2e', Adirondack: '#2f6fb3', Cascade: '#b0457a', Denali: '#7a5cc2', Everest: '#2a9d8f',
+    Olympic: '#8a6d3b', Rainier: '#c0392b', Rocky: '#5d7f99', Smoky: '#7d8a79', Teton: '#e0607e' };
   function dotChart(el, rows, series, opts) {
     const W = el.clientWidth || 600;
     const k = JSON.stringify([W, rows.map((r) => r.key), series, opts]);
@@ -1063,11 +1094,12 @@
     const ys = rows.flatMap((r) => series.map((s) => r[s.f])).filter((v) => v != null);
     if (!ys.length) return;
     // the axis fits the real seasons; a one-inning cameo is pinned to the edge instead of flattening the rest
-    const big = opts.minSize ? rows.filter((r) => (r[opts.size] || 0) >= opts.minSize) : rows;
+    const sz = opts.sizeBy || opts.size; // IP reads 49.1 for 49⅓, so pitching sizes by Outs
+    const big = opts.minSize ? rows.filter((r) => (r[sz] || 0) >= opts.minSize) : rows;
     const dom = big.flatMap((r) => series.map((s) => r[s.f])).filter((v) => v != null);
     const yv = dom.length ? dom : ys;
     const divs = [...new Set([...rows].sort((a, b) => a.Season - b.Season).map((r) => r.Division))];
-    const dc = (d) => dash.colors[divs.indexOf(d) % dash.colors.length];
+    const dc = (d) => DIV_COLOR[d] || 'var(--color-fg-muted)';
     const seasons = [...new Set(rows.map((r) => r.Season))].sort((a, b) => a - b);
     const x = d3.scalePoint(seasons, [m.l + 14, W - m.r - 14]).padding(seasons.length === 1 ? 0.5 : 0);
     const lo = Math.min(opts.ref, d3.min(yv)), hi = Math.max(opts.ref, d3.max(yv));
@@ -1086,27 +1118,41 @@
     const [ylo, yhi] = y.domain();
     svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', H - m.b).attr('y2', H - m.b).attr('stroke', 'var(--cds-chart-axis)');
     const tip = d3.select(el).append('div').attr('class', 'pg-tip').style('display', 'none');
-    const rmax = d3.max(rows, (r) => r[opts.size] || 0) || 1;
+    const rmax = d3.max(rows, (r) => r[sz] || 0) || 1;
     const rs = d3.scaleSqrt([0, rmax], [3, 9]);
     const byS = d3.group(rows, (r) => r.Season);
+    // several teams in one season fan out, but never past the neighbouring season on a narrow screen
+    const most = d3.max([...byS.values()], (v) => v.length);
+    const fan = Math.min(12, (seasons.length > 1 ? x.step() : W / 2) / (most + 1));
+    let pinned = null;
+    const hide = () => { pinned = null; tip.style('display', 'none'); svg.selectAll('circle.dot').attr('stroke-width', 2); };
+    const show = (d, node) => {
+      svg.selectAll('circle.dot').attr('stroke-width', 2); d3.select(node).attr('stroke-width', 3.5);
+      tip.style('display', null).html(`<div class="h">${d.r.Season} · ${esc(d.r.Team)} (${esc(d.r.Division)})</div>${series.map((z) => `<div><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${z.hollow ? 'transparent' : dc(d.r.Division)};border:2px solid ${dc(d.r.Division)};margin-right:5px"></i>${esc(z.f)} <b>${esc(fmt(z.f, d.r[z.f]))}</b></div>`).join('')}<div class="h">${esc(opts.size)} ${esc(fmt(opts.size, d.r[opts.size]))}${d.out ? ' · off the chart' : ''}</div>`);
+      // open on the side with more room, so it never covers the dot
+      const tw = tip.node().offsetWidth, left = d.cx > W / 2 ? d.cx - tw - 12 : d.cx + 12;
+      tip.style('left', Math.max(0, Math.min(W - tw, left)) + 'px').style('top', Math.max(0, d.cy - 50) + 'px');
+    };
+    // a tap pins the tooltip (touch has no hover); tapping the chart background or the same dot closes it
+    svg.on('click', (ev) => { if (!ev.target.closest('circle')) hide(); });
     series.forEach((s, si) => {
-      const col = dash.colors[s.c];
       const pts = rows.filter((r) => r[s.f] != null).map((r) => {
-        const sib = byS.get(r.Season); const kk = sib.indexOf(r); const off = (kk - (sib.length - 1) / 2) * 12;
+        const sib = byS.get(r.Season); const kk = sib.indexOf(r); const off = (kk - (sib.length - 1) / 2) * fan;
         const v = r[s.f], out = v < ylo || v > yhi;
         return { r, cx: x(r.Season) + off + (series.length > 1 ? (si - 0.5) * 6 : 0), cy: y(Math.max(ylo, Math.min(yhi, v))), out };
       });
-      svg.append('g').selectAll('circle').data(pts).join('circle')
-        .attr('cx', (d) => d.cx).attr('cy', (d) => d.cy).attr('r', (d) => rs(d.r[opts.size] || 0))
+      const g = svg.append('g');
+      g.selectAll('circle').data(pts).join('circle').attr('class', 'dot')
+        .attr('cx', (d) => d.cx).attr('cy', (d) => d.cy).attr('r', (d) => rs(d.r[sz] || 0))
         .attr('fill', (d) => (s.hollow ? 'var(--color-panel)' : dc(d.r.Division))).attr('stroke', (d) => dc(d.r.Division)).attr('stroke-width', 2)
         .attr('fill-opacity', s.hollow ? 1 : 0.85).attr('opacity', (d) => (d.out ? 0.45 : 1)).attr('stroke-dasharray', (d) => (d.out ? '2 2' : null))
-        .on('pointerenter', function (ev, d) {
-          d3.select(this).attr('stroke-width', 3.5);
-          tip.style('display', null).html(`<div class="h">${d.r.Season} · ${esc(d.r.Team)} (${esc(d.r.Division)})</div>${series.map((z) => `<div><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${z.hollow ? 'transparent' : dc(d.r.Division)};border:2px solid ${dc(d.r.Division)};margin-right:5px"></i>${esc(z.f)} <b>${esc(fmt(z.f, d.r[z.f]))}</b></div>`).join('')}<div class="h">${esc(opts.size)} ${esc(fmt(opts.size, d.r[opts.size]))}${d.out ? ' · off the chart' : ''}</div>`);
-          const tw = tip.node().offsetWidth;
-          tip.style('left', Math.max(0, Math.min(W - tw, d.cx + 10)) + 'px').style('top', Math.max(0, d.cy - 50) + 'px');
-        })
-        .on('pointerleave', function () { d3.select(this).attr('stroke-width', 2); tip.style('display', 'none'); });
+        .on('pointerenter', function (ev, d) { if (ev.pointerType === 'mouse' && !pinned) show(d, this); })
+        .on('pointerleave', function (ev) { if (ev.pointerType === 'mouse' && !pinned) hide(); })
+        .on('click', function (ev, d) { if (pinned === d) { hide(); return; } pinned = d; show(d, this); });
+      // a dot pinned to the edge says what it really is
+      g.selectAll('text').data(pts.filter((d) => d.out)).join('text').attr('class', 'off')
+        .attr('x', (d) => (d.cx > W - 60 ? d.cx - rs(d.r[sz] || 0) - 3 : d.cx + rs(d.r[sz] || 0) + 3)).attr('text-anchor', (d) => (d.cx > W - 60 ? 'end' : 'start'))
+        .attr('y', (d) => (d.r[s.f] < ylo ? d.cy - 6 : d.cy + 14)).text((d) => `${d.r[s.f] < ylo ? '▼' : '▲'} ${fmt(s.f, d.r[s.f])}`);
     });
     // dot colour = division; filled vs hollow = which stat
     const leg = [...(series.length > 1 ? series.map((s) => `<span><i style="background:${s.hollow ? 'transparent' : 'var(--color-fg-muted)'};border:2px solid var(--color-fg-muted)"></i>${esc(s.f)}</span>`) : []),
@@ -1132,8 +1178,7 @@
       // Age − Season is the same in every season (league age), so the current age follows from any line
       const ac = [bcr, pcr].find((r) => r && r.Age != null), nowY = (seasonsAvail() || [to])[0];
       const ageNow = ac ? ac.Age - ac.To + nowY : null;
-      const ht = head === bcr ? 'bat' : 'pit';
-      $('#p-sub').innerHTML = `${ageNow == null ? '' : `<span id="p-age" title="League age in ${nowY} (${nowY} − birth year)">Age ${ageNow}</span> · `}${to}: <a class="pg-chip" href="${teamHref(ht, head.To, head.Division, head.tid)}" data-type="${ht}" data-tid="${esc(head.tid)}" data-season="${head.To}" data-div="${esc(head.Division)}" title="See the team's leaderboard">${esc(head.Team)}</a> (${esc(head.Division)}) · on file ${from}–${to} · <a class="pg-link" href="https://pssbl.com/#!/player/${enc(P.pid)}" target="_blank" rel="noopener">pssbl.com profile ↗</a>`;
+      $('#p-sub').innerHTML = `${ageNow == null ? '' : `<span id="p-age" title="League age in ${nowY} (${nowY} − birth year)">Age ${ageNow}</span> · `}${to}: ${lastTeams(head, bcr, to)} · on file ${from === to ? `${to} only` : `${from}–${to}`} · <a class="pg-link" href="https://pssbl.com/#!/player/${enc(P.pid)}" target="_blank" rel="noopener">pssbl.com profile ↗</a>`;
       $('#p-group').hidden = false;
       const st = (src, row, f) => row && row[f] != null ? `<div class="pg-stat"><div class="k">Career ${esc(f)}</div><div class="v" data-source="${src}" data-field="${esc(f)}" data-where="key=${enc(row.key)}">${esc(fmt(f, row[f]))}</div></div>` : '';
       const strip = [];
@@ -1155,7 +1200,8 @@
       const card = $(type === 'bat' ? '#p-bat' : '#p-pit');
       const box = $(type === 'bat' ? '#p-bat-tables' : '#p-pit-tables');
       const chart = $(type === 'bat' ? '#p-bat-chart' : '#p-pit-chart');
-      if (bc && pc && !crow) { card.hidden = true; continue; }
+      // a one-way player: clear the other card too, so the last player's table and chart don't linger in the DOM
+      if (bc && pc && !crow) { card.hidden = true; box.innerHTML = ''; box._html = ''; chart.innerHTML = ''; chart._k = ''; continue; }
       card.hidden = false;
       const h = pidRows(ds.hist, P.pid), c = pidRows(ds.cur, P.pid);
       if (!h || !c) { box.classList.add('dash-skeleton'); box.style.minHeight = '6rem'; chart.classList.add('dash-skeleton'); continue; }
@@ -1163,29 +1209,52 @@
       const ord = (a, b) => a.Season - b.Season || (type === 'bat' ? b.PA - a.PA : b.Outs - a.Outs);
       const hs = [...h].sort(ord), cs = [...c].sort(ord);
       renderStack(box, type, hs, cs, crow, COLS[P.group]);
-      dotChart(chart, [...hs, ...cs], series, { ref: 100, size, minSize: type === 'bat' ? 10 : 3, src: `${ds.hist} ${ds.cur}`, legend });
+      dotChart(chart, [...hs, ...cs], series, { ref: 100, size, sizeBy: type === 'bat' ? 'PA' : 'Outs', minSize: type === 'bat' ? 10 : 9, src: `${ds.hist} ${ds.cur}`, legend });
     }
     if (head) renderRank();
     renderProj();
     renderGameLog();
   }
-  // "17th of 81 Sierra hitters in oWAR (2026)": where the player's latest season ranks in their own division
+  // every team the player suited up for in his latest season, most playing time first (the career row only knows one)
+  function lastTeams(head, bcr, to) {
+    const chip = (type, r) => `<a class="pg-chip" href="${teamHref(type, r.Season, r.Division, r.tid)}" data-type="${type}" data-tid="${esc(r.tid)}" data-season="${r.Season}" data-div="${esc(r.Division)}" title="See the team's leaderboard">${esc(r.Team)}</a> (${esc(r.Division)})`;
+    const own = ['bat', 'pit'].map((type) => [pidRows(DS[type].hist, P.pid), pidRows(DS[type].cur, P.pid)]);
+    if (own.flat().includes(null)) { const ht = head === bcr ? 'bat' : 'pit'; return chip(ht, { ...head, Season: head.To }); }
+    const seen = new Map();
+    own.forEach(([h, c], i) => {
+      const type = i ? 'pit' : 'bat';
+      for (const r of [...h, ...c]) {
+        if (r.Season !== to) continue;
+        const t = seen.get(r.tid) || { type, r, n: 0 };
+        t.n += type === 'bat' ? r.PA : r.Outs; seen.set(r.tid, t);
+      }
+    });
+    return [...seen.values()].sort((a, b) => b.n - a.n).map((t) => chip(t.type, t.r)).join(' · ');
+  }
+  // "17th of 81 Sierra hitters in wRC+ (2026, 30+ PA)": the player's main line in his latest season against his own division.
+  // wRC+ and FIP- are already scaled to the division; cameos below the floor neither rank nor get ranked.
+  const RANK = { bat: { w: 'PA', f: 'wRC+', min: 30, noun: 'hitters', unit: (n) => `${n} PA`, hi: true },
+    pit: { w: 'Outs', f: 'FIP-', min: 45, noun: 'pitchers', unit: (n) => `${ipStr(n / 3)} IP`, hi: false } };
   function renderRank() {
     const el = $('#p-rank'), seasons = seasonsAvail();
     if (!seasons) return;
     const out = [];
-    for (const [type, w, f, noun] of [['bat', 'PA', 'oWAR', 'hitters'], ['pit', 'Outs', 'WAR', 'pitchers']]) {
+    for (const type of ['bat', 'pit']) {
+      const { w, f, min, noun, unit, hi } = RANK[type];
       const h = pidRows(DS[type].hist, P.pid), c = pidRows(DS[type].cur, P.pid);
       if (!h || !c) return;
       const mine = [...h, ...c].filter((r) => r[w] > 0);
       if (!mine.length) continue;
       const y = Math.max(...mine.map((r) => r.Season));
       const best = mine.filter((r) => r.Season === y).sort((a, b) => b[w] - a[w])[0];
+      const floor = type === 'bat' ? `${min}+ PA` : `${min / 3}+ IP`;
+      if (best[w] < min || best[f] == null) { out.push(`${unit(best[w])} in ${esc(best.Division)} (${y}): too few to rank (${floor})`); continue; }
       const pool = seasonRows(y === seasons[0] ? DS[type].cur : DS[type].hist, y);
-      if (!pool || best[f] == null) return;
-      const div = memoize(`rankpool|${type}|${y}|${best.Division}`, [pool], () => pool.filter((r) => r.Division === best.Division && r[w] > 0 && r[f] != null));
-      const n = 1 + div.filter((r) => r[f] > best[f]).length;
-      out.push(`<b>${nth(n)}</b> of ${div.length} ${esc(best.Division)} ${noun} in ${f} (${y})`);
+      if (!pool) return;
+      const div = memoize(`rankpool|${type}|${y}|${best.Division}`, [pool], () => pool.filter((r) => r.Division === best.Division && r[w] >= min && r[f] != null));
+      const n = 1 + div.filter((r) => (hi ? r[f] > best[f] : r[f] < best[f])).length;
+      const tie = div.filter((r) => r[f] === best[f]).length > 1 ? 'T-' : '';
+      out.push(`<b>${tie}${nth(n)}</b> of ${div.length} ${esc(best.Division)} ${noun} in ${f} <span class="dim">(${y}, ${floor})</span>`);
     }
     const html = out.join(' · ');
     if (el._html !== html) { el.innerHTML = html; el._html = html; }
