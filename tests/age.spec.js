@@ -2,7 +2,7 @@
 const { test, expect } = require('@playwright/test');
 const { MATT, trackErrors, openSite, leaderTable } = require('./helpers');
 
-// Ages are on June 30 of each season, from the birth dates on pssbl.com team rosters.
+// League age (season − birth year, as pssbl.com counts it), from the birth dates on pssbl.com team rosters.
 const AJ = '3393';      // AJ Hansen, born 1993: 22 in 2015, 33 in 2026
 const NO_AGE = '7509';  // Brett Coleman: on no roster, so no birth date
 
@@ -30,10 +30,10 @@ test.describe('Age', () => {
     expect(errors).toEqual([]);
   });
 
-  test("Matt's age changes with the season (born after June 30)", async ({ page }) => {
+  test("Matt's league age counts his August birthday (35 in 2026)", async ({ page }) => {
     await openSite(page, `players/${MATT}`);
-    await expect(page.locator('#p-age')).toHaveText('Age 34');
-    await expect.poll(() => agesIn(page, '#p-bat-tables')).toMatchObject({ 2025: '33', 2026: '34' });
+    await expect(page.locator('#p-age')).toHaveText('Age 35');
+    await expect.poll(() => agesIn(page, '#p-bat-tables')).toMatchObject({ 2025: '34', 2026: '35' });
   });
 
   test('a player without a birth date shows blanks, not NaN', async ({ page }) => {

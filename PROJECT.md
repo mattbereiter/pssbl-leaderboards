@@ -104,7 +104,8 @@ Base URL: `https://pssbl.com/PHP/fetchData.php?type=…` (public and CORS-enable
 - **The date is the player's current one, not a historical snapshot:** the same player has the same date on every
   season's roster (Oct 31, 2026: 3,311 players, **0 conflicts**). If conflicts ever appear, compute.py takes the date
   from the newest team id.
-- **Convention:** baseball's, age on **June 30 of the season** (`compute.age()`). So Age − Season is constant per
+- **Convention:** **league age = season − birth year** (`compute.age()`), the age reached by Dec 31, which is how
+  pssbl.com counts it (Matt asked for this over baseball's June 30 rule: he's 35 in 2026, born Aug 1991). Age − Season is constant per
   player, and the page derives the current age as career `Age` + (latest season − `To`).
 - **Columns:** `Age` follows `Name` in the season lines (`batting_*`, `pitching_*`); career files carry the age in the
   player's last season (`To`). Date-range boards take it from the season lines; projection boards show the age now.

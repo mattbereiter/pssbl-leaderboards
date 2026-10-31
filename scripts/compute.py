@@ -71,7 +71,8 @@ seasons = sorted({int(f.split('_')[-1][:4]) for f in glob.glob(f'{RAW}/Cumulativ
 
 # ---- ages, from the birth dates on team rosters (type=Roster&teamId=…, scripts/fetch.py)
 # The roster feed returns the player's current birth date even for old seasons' rosters, so one
-# date per player covers every season. Age = baseball convention: age on June 30 of the season.
+# date per player covers every season. Age = league age, as pssbl.com counts it: season - birth year
+# (the age reached by Dec 31 of the season).
 _born = {}
 for f in sorted(glob.glob(f'{RAW}/roster/Roster_*.json'), key=lambda f: int(os.path.basename(f)[7:-5])):
     for z in load(f):
@@ -80,7 +81,7 @@ for f in sorted(glob.glob(f'{RAW}/roster/Roster_*.json'), key=lambda f: int(os.p
 def age(pid, y):
     b = _born.get(pid)
     if not b: return None
-    a = y - b.year - ((b.month, b.day) > (6, 30))
+    a = y - b.year
     return a if 14 <= a <= 100 else None  # a handful of birth dates are typos (born the season they played)
 
 bat_rows, pit_rows, guts, standings = [], [], [], []
