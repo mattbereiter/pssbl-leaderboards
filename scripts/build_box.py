@@ -16,7 +16,7 @@ for f in glob.glob(f'{RAW}/Games_*_20*.json'):
         meta[g['gameId']]=(y,d,0 if g['playoffRound'] in ('0','',None) else 1)
         games[g['gameId']]={'gameId':g['gameId'],'Season':y,'Date':d,'PO':meta[g['gameId']][2],
             'home':g['homeId'],'away':g['awayId'],'homeName':g['homeName'].strip(),'awayName':g['awayName'].strip(),
-            'homeDiv':g['homeDivision'],'awayDiv':g['awayDivision'],'hr':i(g['homeRuns']),'ar':i(g['awayRuns'])}
+            'homeDiv':g['homeDivision'],'awayDiv':g['awayDivision'],'hr':i(g['homeRuns']),'ar':i(g['awayRuns']),'Field':(g.get('fieldName') or '').strip()}
 tdiv={}
 for f in glob.glob(f'{RAW}/TeamNames_*.json'):
     y=int(f[-9:-5])
@@ -25,7 +25,7 @@ CUM={'b':set(),'p':set()}; CUM_BY={'b':collections.defaultdict(list),'p':collect
 for kind,fn in (('b','batting'),('p','pitching')):
     for r in csv.DictReader(open(f'{OUT}/pssbl_{fn}.csv',encoding='utf-8')):
         k=(int(r['Season']),r['pid'],r['tid']); CUM[kind].add(k); CUM_BY[kind][(k[0],k[1])].append(k)
-BC=['kind','Date','Season','gameId','PO','pid','Name','tid','ptid','Team','Division','GS','AB','R','H','2B','3B','HR','RBI','SB','CS','BB','SO','GDP','HBP','SH','SF','CI','Outs','W','L','SV','CG','ER','IBB','WP']
+BC=['kind','Date','Season','gameId','PO','pid','Name','tid','ptid','Team','Division','GS','AB','R','H','2B','3B','HR','RBI','SB','CS','BB','SO','GDP','HBP','SH','SF','CI','Outs','W','L','SV','CG','ER','IBB','WP','Ord']
 per=collections.defaultdict(list); missing=collections.Counter(); total=collections.Counter()
 for gid,(y,d,po) in meta.items():
     total[y]+=1
@@ -39,11 +39,13 @@ for gid,(y,d,po) in meta.items():
         r=agg.setdefault(k,collections.Counter())
         for a,c in [('ab','AB'),('r','R'),('h','H'),('d','2B'),('t','3B'),('hr','HR'),('rbi','RBI'),('sb','SB'),('cs','CS'),('bb','BB'),('so','SO'),('gdp','GDP'),('hbp','HBP'),('sh','SH'),('sf','SF'),('ci','CI')]: r[c]+=i(x.get(a))
         r['_n']=f"{x['firstName'].strip()} {x['lastName'].strip()}"
+        o=i(x.get('battingOrder')); r['Ord']=min(r['Ord'] or o,o) if o else r['Ord']  # lineup slot; subs share it, listed after the starter
     for x in p:
         k=('p',x['playerId'],x['teamId'])
         r=agg.setdefault(k,collections.Counter())
         for a,c in [('outs','Outs'),('w','W'),('l','L'),('sv','SV'),('cg','CG'),('h','H'),('r','R'),('er','ER'),('hr','HR'),('ibb','IBB'),('bb','BB'),('so','SO'),('hbp','HBP'),('wp','WP')]: r[c]+=i(x.get(a))
         if x.get('pitchingOrder')=='1': r['GS']=1
+        o=i(x.get('pitchingOrder')); r['Ord']=min(r['Ord'] or o,o) if o else r['Ord']
         r['_n']=f"{x['firstName'].strip()} {x['lastName'].strip()}"
     for (kind,pid,tid),r in agg.items():
         ptid=''
@@ -66,6 +68,6 @@ for y in sorted(per):
     print(y,len(rows),'games',total[y],'missing',missing[y],f"{os.path.getsize(f'{OUT}/pssbl_box_{y}.csv')/1e6:.2f}MB")
 json.dump({y:{'games':total[y],'missing':missing[y]} for y in total},open(f'{OUT}/box_coverage.json','w',encoding='utf-8'))
 with open(f'{OUT}/pssbl_games.csv','w',newline='',encoding='utf-8') as f:
-    w=csv.DictWriter(f,['gameId','Season','Date','PO','home','away','homeName','awayName','homeDiv','awayDiv','hr','ar'])
+    w=csv.DictWriter(f,['gameId','Season','Date','PO','home','away','homeName','awayName','homeDiv','awayDiv','hr','ar','Field'])
     w.writeheader(); w.writerows(sorted(games.values(),key=lambda g:(g['Date'],int(g['gameId']))))
 print('games',len(games))

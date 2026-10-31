@@ -228,6 +228,22 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
 #p-proj-body .pg-note { margin: 4px 0 0; }
 #p-proj-body .pg-stack { width: fit-content; max-width: 100%; }
 .pg-proj-fine { margin: var(--cds-gap-sm) 0 0; }
+/* box score */
+#p-log-table td a { font-weight: inherit; color: inherit; text-decoration: underline dotted; text-underline-offset: 2px; }
+#p-log-table td a:hover { color: var(--fg-green-ink); text-decoration: underline; }
+.gm-score { display: grid; grid-template-columns: auto auto; justify-content: start; gap: 2px var(--cds-gap-lg); margin: var(--cds-gap-sm) 0 0; font-family: var(--font-anthropic-serif); font-size: var(--cds-font-size-title); line-height: 1.15; }
+.gm-score a { color: var(--color-fg); text-decoration: none; } .gm-score a:hover { color: var(--fg-green-ink); text-decoration: underline; }
+.gm-score .r { text-align: right; font-variant-numeric: tabular-nums; }
+.gm-score .lose, .gm-score .lose a { color: var(--color-fg-muted); }
+.gm-teams { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr)); gap: var(--cds-gap-md); }
+.gm-teams > .pg-card { margin: 0; min-width: 0; }
+.gm-teams h3 a { color: var(--fg-green-ink); text-decoration: none; } .gm-teams h3 a:hover { text-decoration: underline; }
+.gm-teams .pg-stack + .pg-stack { margin-top: var(--cds-gap-sm); }
+.gm-teams .pg-stack .pg-tbl { width: 100%; }
+.gm-teams .pg-tbl td.name { width: 100%; }
+.gm-teams .pg-tbl .sub { padding-left: 1.1em; }
+.gm-teams .pg-tbl .dec { color: var(--color-fg-muted); }
+.gm-teams .pg-tbl tfoot td { position: static; }
 .pg-grouptabs.proj button { display: none; }
 @container (max-width: 760px) {
   .pg-top { flex-direction: column; }
@@ -343,6 +359,16 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     </div>
   </section>
 
+  <!-- GAME (box score) -->
+  <section class="pg-page" id="pg-game" hidden>
+    <div class="pg-card" id="gm-head">
+      <div class="pg-psub" id="gm-meta"></div>
+      <div class="gm-score" id="gm-score"><span class="dash-skeleton">—</span></div>
+    </div>
+    <p class="pg-note" id="gm-note"></p>
+    <div class="gm-teams" id="gm-teams"></div>
+  </section>
+
   <!-- STANDINGS -->
   <section class="pg-page" id="pg-standings" hidden>
     <div class="pg-ctrls">
@@ -397,7 +423,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   const WCP = { id: 'wcp', div: 'Adams', label: 'West Coast Pilots (all divisions)',
     pids: new Set(['8291', '6259', '7061', '7215', '6616', '5238', '6331', '3393', '8048', '8287', '4182', '4778', '6642', '7623', '7525', '4506']) };
   const keepTeam = () => (L.team === WCP.id ? WCP.id : 'All');
-  const STR = new Set(['key', 'pid', 'Name', 'Team', 'tid', 'ptid', 'Division', 'Date', 'kind', 'gameId', 'home', 'away', 'homeName', 'awayName', 'homeDiv', 'awayDiv']);
+  const STR = new Set(['key', 'pid', 'Name', 'Team', 'tid', 'ptid', 'Division', 'Date', 'kind', 'gameId', 'home', 'away', 'homeName', 'awayName', 'homeDiv', 'awayDiv', 'Field']);
   const DS = { bat: { cur: 'batting', hist: 'batting_hist', career: 'bat_career' }, pit: { cur: 'pitching', hist: 'pitching_hist', career: 'pit_career' } };
 
   // ---------- data access (typed once per load, tracked for redraw checks) ----------
@@ -488,16 +514,22 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   const P = { pid: MATT, group: 'dash', log: null, logType: null, logFor: MATT };
   const S = { season: null };
   const G = { season: null };
-  let tab = 'leaders';
-  const pages = ['leaders', 'players', 'standings', 'guts'];
+  const GM = { id: null };
+  let tab = 'leaders', backY = null, shownHash = null;
+  const pages = ['leaders', 'players', 'standings', 'guts', 'game'];
 
   function showTab(t) {
     if (t === 'me') { P.pid = MATT; t = 'players'; }
-    const changed = t !== tab;
+    const changed = t !== tab, from = tab;
+    if (from === 'players' && t === 'game') backY = scrollY;
     tab = t;
     pages.forEach((p) => { $('#pg-' + p).hidden = p !== t; });
     document.querySelectorAll('.pg-nav button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
     render();
+    // Back from a box score lands where the game log was (popstate and hashchange both fire; keep the second from undoing it)
+    if (fromHistory && location.hash === shownHash) return;
+    shownHash = fromHistory ? location.hash : null;
+    if (from === 'game' && t === 'players' && fromHistory && backY != null) { scrollTo(0, backY); backY = null; return; }
     if (changed || t === 'players') { const top = $('#top'); if (top.getBoundingClientRect().top < 0) top.scrollIntoView({ block: 'start' }); }
   }
   document.querySelectorAll('.pg-nav button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
@@ -570,9 +602,11 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.pg')) return;
     if (newTab(e) && e.target.closest('a[href^="#"]')) return;
+    const gm = e.target.closest('a[data-game]');
+    if (gm) { e.preventDefault(); GM.id = gm.dataset.game; showTab('game'); return; }
     const a = e.target.closest('[data-pid]');
     if (a) { e.preventDefault(); P.pid = a.dataset.pid; $('#p-sugg').hidden = true; $('#p-q').value = ''; showTab('players'); return; }
-    const t = e.target.closest('#st-grid a[data-tid], #pg-players a[data-tid]');
+    const t = e.target.closest('#st-grid a[data-tid], #pg-players a[data-tid], #pg-game a[data-tid]');
     if (t) { e.preventDefault(); Object.assign(L, teamState(t.dataset.type || 'bat', Number(t.dataset.season), t.dataset.div, t.dataset.tid)); showTab('leaders'); return; }
     if (!e.target.closest('.pg-search')) $('#p-sugg').hidden = true;
   });
@@ -1045,15 +1079,85 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     const tot = { ...run, ...logStats(type, run) };
     const pre = ['Date', 'Team', 'Opp', 'Result'];
     const thead = `<thead><tr>${pre.map((c) => `<th class="l">${c}</th>`).join('')}${cols.map((c) => `<th data-field="${esc(c)}" title="${esc(LOG_TIP[c] || DEF[c] || c)}">${esc(c)}</th>`).join('')}</tr></thead>`;
-    const body = lines.map(({ r, o, opp, res, rc, team, fill }) => `<tr data-key="${esc(r.gameId)}"><td class="l">${esc(fmtDay(r.Date))}${r.PO ? '<span class="po" title="Playoffs">PO</span>' : ''}</td>`
-      + `<td class="l"${fill ? ` title="Fill-in game, credited to ${esc(r.Team)}"` : ''}>${esc(team)}${fill ? '*' : ''}</td><td class="l">${esc(opp)}</td><td class="l res-${rc}">${esc(res)}</td>`
+    const body = lines.map(({ r, o, opp, res, rc, team, fill }) => `<tr data-key="${esc(r.gameId)}"><td class="l"><a href="#game/${esc(r.gameId)}" data-game="${esc(r.gameId)}">${esc(fmtDay(r.Date))}</a>${r.PO ? '<span class="po" title="Playoffs">PO</span>' : ''}</td>`
+      + `<td class="l"${fill ? ` title="Fill-in game, credited to ${esc(r.Team)}"` : ''}>${esc(team)}${fill ? '*' : ''}</td><td class="l">${esc(opp)}</td><td class="l res-${rc}">${res ? `<a href="#game/${esc(r.gameId)}" data-game="${esc(r.gameId)}" title="Box score">${esc(res)}</a>` : ''}</td>`
       + cols.map((c) => `<td>${esc(fmt(c, o[c]))}</td>`).join('') + '</tr>').join('');
     const foot = `<tfoot><tr><td class="l">Total</td><td class="l dim" colspan="3">${lines.length} game${lines.length === 1 ? '' : 's'}</td>${cols.map((c) => `<td>${c === 'Dec' ? '' : esc(fmt(c, tot[c]))}</td>`).join('')}</tr></tfoot>`;
     const html = `${thead}<tbody>${body}</tbody>${foot}`;
     tbl.setAttribute('data-source', id);
     if (tbl._html !== html) { tbl.innerHTML = html; tbl._html = html; }
     const fills = lines.some((l) => l.fill);
-    note.textContent = `Newest first. AVG/OBP/SLG and ERA are season to date. About 1–2% of games have no box score, so totals can fall a little short of the season line.${fills ? ' * Fill-in game for another team.' : ''}`;
+    note.textContent = `Newest first; click a date or score for the box score. AVG/OBP/SLG and ERA are season to date. About 1–2% of games have no box score, so totals can fall a little short of the season line.${fills ? ' * Fill-in game for another team.' : ''}`;
+  }
+
+  // ---------- BOX SCORE (#game/<gameId>) ----------
+  // both teams' lines come from that season's box_YYYY.csv; fill-ins sit under the team they played for (ptid)
+  const BOX = {
+    bat: ['AB', 'R', 'H', '2B', '3B', 'HR', 'RBI', 'BB', 'SO', 'HBP', 'SB', 'CS'],
+    pit: ['IP', 'H', 'R', 'ER', 'BB', 'SO', 'HR', 'HBP', 'WP'],
+  };
+  const fmtLong = (d) => d3.utcFormat('%A, %B %-d, %Y')(new Date(d + 'T00:00:00Z'));
+  const ipOuts = (outs) => `${Math.floor(outs / 3)}.${outs % 3}`;
+  function renderGame() {
+    const meta = $('#gm-meta'), score = $('#gm-score'), note = $('#gm-note'), teams = $('#gm-teams');
+    const set = (el, html) => { if (el._html !== html) { el.innerHTML = html; el._html = html; } };
+    if (bad('games')) { failed(score); return; }
+    const games = rowsOf('games');
+    if (!games) return;
+    const g = memoize('gamesById', [games], () => new Map(games.map((x) => [x.gameId, x]))).get(GM.id);
+    if (!g) { set(meta, ''); set(score, '<span>Game not found</span>'); set(note, `There's no game ${esc(GM.id)} on file.`); set(teams, ''); return; }
+    const div = g.homeDiv === g.awayDiv ? g.homeDiv : `${g.awayDiv} / ${g.homeDiv}`;
+    set(meta, [esc(fmtLong(g.Date)), esc(div), g.PO ? '<span class="po" title="Playoffs">Playoffs</span>' : 'Regular season', esc(g.Field)].filter(Boolean).join(' · '));
+    const teamLink = (tid, name, d) => `<a href="${teamHref('bat', g.Season, d, tid)}" data-type="bat" data-tid="${esc(tid)}" data-season="${g.Season}" data-div="${esc(d)}">${esc(name)}</a>`;
+    const side = (tid, name, d, runs, opp) => { const c = runs < opp ? ' class="lose"' : ''; return `<span${c}>${teamLink(tid, name, d)}</span><span class="r${runs < opp ? ' lose' : ''}">${runs}</span>`; };
+    set(score, side(g.away, g.awayName, g.awayDiv, g.ar, g.hr) + side(g.home, g.homeName, g.homeDiv, g.hr, g.ar));
+    const id = 'box_' + g.Season;
+    const none = () => { teams.classList.remove('dash-skeleton'); teams.style.minHeight = ''; set(note, ''); set(teams, '<div class="pg-card pg-empty" id="gm-none">No box score on file for this game.</div>'); };
+    if (bad(id)) return none();
+    const box = rowsOf(id);
+    if (!box) { teams.classList.add('dash-skeleton'); teams.style.minHeight = '20rem'; return; }
+    teams.classList.remove('dash-skeleton'); teams.style.minHeight = '';
+    const lines = memoize('game' + g.gameId, [box], () => box.filter((r) => r.gameId === g.gameId));
+    if (!lines.length) return none();
+    // season W-L and saves through this game, for the decision tags
+    const recs = memoize('gamerec' + g.gameId, [box], () => {
+      const pids = new Set(lines.filter((r) => r.kind === 'pit' && (r.W || r.L || r.SV)).map((r) => r.pid)), out = {};
+      for (const r of box) {
+        if (r.kind !== 'pit' || !pids.has(r.pid) || r.Date > g.Date || (r.Date === g.Date && Number(r.gameId) > Number(g.gameId))) continue;
+        const o = out[r.pid] || (out[r.pid] = { W: 0, L: 0, SV: 0 });
+        o.W += r.W || 0; o.L += r.L || 0; o.SV += r.SV || 0;
+      }
+      return out;
+    });
+    const dec = (r) => { const o = recs[r.pid]; return r.W ? `W (${o.W}–${o.L})` : r.L ? `L (${o.W}–${o.L})` : r.SV ? `SV (${o.SV})` : ''; };
+    let fills = false;
+    const card = (tid, name, d) => {
+      const mine = lines.filter((r) => (r.ptid || r.tid) === tid);
+      const tables = ['bat', 'pit'].map((kind) => {
+        // lineup (or pitching) order; a sub shares the slot and is listed after the starter
+        const rs = mine.filter((r) => r.kind === kind).map((r, i) => ({ r, i })).sort((a, b) => (a.r.Ord ?? 99) - (b.r.Ord ?? 99) || a.i - b.i).map((x) => x.r);
+        if (!rs.length) return '';
+        const cols = BOX[kind], tot = {}, seen = new Set();
+        for (const c of cols) tot[c] = 0;
+        const val = (r, c) => (c === 'IP' ? r.Outs || 0 : r[c] || 0);
+        const cell = (c, v) => (c === 'IP' ? ipOuts(v) : v);
+        const body = rs.map((r) => {
+          for (const c of cols) tot[c] += val(r, c);
+          const sub = kind === 'bat' && r.Ord != null && seen.has(r.Ord);
+          if (r.Ord != null) seen.add(r.Ord);
+          if (r.ptid) fills = true;
+          const tag = kind === 'pit' ? dec(r) : '';
+          return `<tr data-key="${esc(`${g.gameId}-${kind}-${r.pid}`)}"${r.pid === MATT ? ' class="me"' : ''}><td class="l name sticky1"><span${sub ? ' class="sub"' : ''}><a href="#players/${esc(r.pid)}" data-pid="${esc(r.pid)}"${r.ptid ? ` title="Fill-in, normally on ${esc(r.Team)}"` : ''}>${esc(r.Name)}</a>${r.ptid ? '*' : ''}${tag ? ` <span class="dec">${tag}</span>` : ''}</span></td>`
+            + cols.map((c) => `<td>${cell(c, val(r, c))}</td>`).join('') + '</tr>';
+        }).join('');
+        const head = `<thead><tr><th class="l sticky1">${kind === 'bat' ? 'Batting' : 'Pitching'}</th>${cols.map((c) => `<th data-field="${esc(c)}" title="${esc(DEF[c] || c)}">${esc(c)}</th>`).join('')}</tr></thead>`;
+        const foot = `<tfoot><tr><td class="l sticky1">Team</td>${cols.map((c) => `<td>${cell(c, tot[c])}</td>`).join('')}</tr></tfoot>`;
+        return `<div class="pg-stack"><table class="pg-tbl" data-source="${id}" data-row-key="key" data-kind="${kind}">${head}<tbody>${body}</tbody>${foot}</table></div>`;
+      }).join('');
+      return `<div class="pg-card" data-team="${esc(tid)}"><h3>${teamLink(tid, name, d)}</h3>${tables || '<div class="pg-empty">No lines on file.</div>'}</div>`;
+    };
+    set(teams, card(g.away, g.awayName, g.awayDiv) + card(g.home, g.homeName, g.homeDiv));
+    set(note, fills ? '* Fill-in player, normally on another team.' : '');
   }
 
   // ---------- PROJECTED IN ADAMS / SIERRA ----------
@@ -1219,6 +1323,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   const teamState = (type, season, div, team) => ({ ...LDEF, type, sort: defSort(type), season, div, team });
   function hashFor(t = tab, s = L) {
     const latest = (seasonsAvail() || [])[0];
+    if (t === 'game') return `game/${GM.id}`;
     if (t === 'players') {
       const q = new URLSearchParams();
       if (P.group !== 'dash') q.set('group', P.group);
@@ -1254,6 +1359,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       P.log = num(p.get('log')); P.logType = ['bat', 'pit'].includes(p.get('lt')) ? p.get('lt') : null; P.logFor = P.pid;
       return showTab('players');
     }
+    if (t === 'game' && /^\d+$/.test(arg || '')) { GM.id = arg; return showTab('game'); }
     if (t === 'standings') { S.season = num(p.get('season')); return showTab(t); }
     if (t === 'guts') { G.season = p.get('season') === 'All' ? 'All' : num(p.get('season')); return showTab(t); }
     // anything else is the leaderboard; unknown or bad values fall back to the defaults
@@ -1286,7 +1392,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   // ---------- render loop: redraw only when something this view uses changed ----------
   const root = document.querySelector('.pg');
   let lastSig = '';
-  const sig = () => JSON.stringify([tab, L, P, S, G, [...touched].sort().map((id) => { const d = dash.data(id); return [id, d.status, d.refreshing ? 1 : 0, refId(d.data)]; }), tab === 'players' ? Math.round(root.clientWidth / 8) : 0]);
+  const sig = () => JSON.stringify([tab, L, P, S, G, GM, [...touched].sort().map((id) => { const d = dash.data(id); return [id, d.status, d.refreshing ? 1 : 0, refId(d.data)]; }), tab === 'players' ? Math.round(root.clientWidth / 8) : 0]);
   function render() {
     touched = new Set();
     renderLede();
@@ -1294,6 +1400,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     else if (tab === 'players') renderPlayers();
     else if (tab === 'standings') renderStandings();
     else if (tab === 'guts') renderGuts();
+    else if (tab === 'game') renderGame();
     syncHash();
     lastSig = sig();
   }
