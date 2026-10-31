@@ -21,13 +21,13 @@ There are four tabs plus a shortcut. All are rendered by `src/page.html` (one sc
     name search, and a **date range** (full season, regular season, playoffs, a month, or custom From/To).
   - **Table:** sortable columns, 50 rows per page, and top-5 leader cards above it (the cards follow every filter,
     including the name search).
-  - **Projected → Adams / Sierra** (Season menu): the projection below for everyone whose last three seasons include
-    another division. Division becomes "From division"; Qualified = at least half their own numbers (eff PA ≥ k).
+  - **Projected → Adams / Sierra** (Season menu): the projection below for everyone with a line in the last three
+    seasons outside the target (so Adams players appear under Sierra and vice versa). Division becomes "From division"; Qualified = at least half their own numbers (eff PA ≥ k).
   - **Header line:** the top hitter and pitcher of the latest season. It's league news, not addressed to Matt.
 - **Players.** Season-by-season tables with a career row, a wRC+ dot chart (hitters) and ERA-/FIP- chart (pitchers),
   career stat strip, name search, and a link to the player's pssbl.com page. The "★ Matt" tab opens Matt (pid 8048).
-  - **Projected in Adams / Sierra** card (under the header): for anyone whose last three seasons include another
-    division, a guess at their line in Adams and in Sierra. See "Projection to Adams / Sierra" below.
+  - **Projected in Adams / Sierra** card (under the header): a guess at the player's line in Adams and/or Sierra
+    (whichever they haven't been playing only in). See "Projection to Adams / Sierra" below.
 - **Standings.** Per-division W-L-T, Pct, GB, RS/RA/Diff, Pythagenpat xW and Luck, team wRC+/FIP/oWAR/pWAR,
   and 🏆 for the winner of the division's last playoff game. Clicking a team filters Leaders to that team.
 - **Guts!** League constants for every division-season (lgwOBA, R/PA, cFIP, R/W, wOBA weights, …) and a glossary.
@@ -140,7 +140,8 @@ writes `translations.json` and registers it in the manifest (bumping `version`).
   Offsets match `project_to_adams.py` to < 1e-6.
 - **Leaders board** (`season=ProjAdams` / `ProjSierra`): `projRows()` runs `project()` for every such player;
   columns are recent PA/IP, effective PA/IP, Own% (shrink) and the projected line. Default sort wRC+ / FIP- (low first).
-- **Shown only** when the player's last three seasons include a division other than Adams/Sierra. The card states the
+- **Targets shown:** a target appears only if the player has a recent line outside it (Adams-only → Sierra row only,
+  Sierra-only → Adams only, Matt's Adams + Sierra → both). The card states the
   PA/IP it rests on, the own-numbers vs average split, and the caveats (self-selected two-division players, environment
   mixed with competition, no age data).
 

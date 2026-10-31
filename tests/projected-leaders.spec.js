@@ -18,7 +18,7 @@ test.describe('Leaders: Projected → Adams / Sierra', () => {
     const wrc = rows.map((r) => Number(r['wRC+']));
     expect(wrc[0]).toBeGreaterThanOrEqual(wrc[1]);
     for (const r of rows) expect(r.From).not.toBe('');
-    expect(rows.some((r) => r.Name === 'Matt Bereiter')).toBe(false); // all his recent seasons are Adams/Sierra
+    for (const r of rows) expect(r.From).not.toBe('Adams'); // Adams-only players have nothing to translate into Adams
 
     await page.locator('#lb-q').fill('aj hansen');
     await expect(leaderRows(page)).toHaveCount(1);
@@ -49,6 +49,23 @@ test.describe('Leaders: Projected → Adams / Sierra', () => {
     await page.locator('#lb-q').fill('aj hansen');
     await expect(leaderRows(page)).toHaveCount(1);
     expect((await leaderTable(page))[0]).toMatchObject({ 'wRC+': '129' });
+  });
+
+  test('Adams players show up projected to Sierra, Sierra players to Adams, Matt in both', async ({ page }) => {
+    await page.goto('/#leaders?season=ProjSierra&q=noah%20zwiren');
+    await expect(leaderRows(page)).toHaveCount(1);
+    expect((await leaderTable(page))[0]).toMatchObject({ From: 'Adams', 'wRC+': '104' });
+
+    await page.goto('/?2#leaders?season=ProjAdams&q=noah%20zwiren'); // ?n: a real load each time, not a hash change
+    await expect(page.locator('#lb-table caption')).toContainText('No players match');
+
+    await page.goto('/?3#leaders?season=ProjAdams&q=paul%20fisher');
+    await expect(leaderRows(page)).toHaveCount(1);
+    expect((await leaderTable(page))[0]).toMatchObject({ From: 'Sierra', 'wRC+': '132' });
+
+    await page.goto('/?4#leaders?season=ProjSierra&q=bereiter');
+    await expect(page.locator('#lb-table tbody tr.me')).toHaveCount(1);
+    expect((await leaderTable(page))[0]).toMatchObject({ 'wRC+': '79' });
   });
 
   test('going back to a normal season restores the usual table', async ({ page }) => {

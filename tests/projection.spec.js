@@ -62,11 +62,28 @@ test.describe('Projected in Adams / Sierra', () => {
     await expect(card).toContainText(/age/i);
   });
 
-  test('hidden for a player whose recent seasons are all in Adams or Sierra (Matt)', async ({ page }) => {
+  test('Matt (Adams + Sierra) gets both rows', async ({ page }) => {
     const errors = trackErrors(page);
     await page.goto(`/#players/${MATT}`);
-    await expect(page.locator('#p-bat-tables tr.career')).toHaveCount(1);
-    await expect(page.locator('#p-proj')).toBeHidden();
+    await expect(page.locator('#p-proj')).toBeVisible();
+    const bat = await projTable(page, '#p-proj-bat');
+    expect(bat.Adams).toMatchObject({ AVG: '.276', OBP: '.365', SLG: '.329', 'wRC+': '82' });
+    expect(bat.Sierra).toMatchObject({ AVG: '.287', OBP: '.358', SLG: '.340', 'wRC+': '79' });
+    await expect(page.locator('#p-proj')).toContainText('121 recency-weighted PA');
     expect(errors).toEqual([]);
+  });
+
+  test('an Adams-only player is projected to Sierra only, and vice versa', async ({ page }) => {
+    await page.goto('/#players/4305'); // Noah Zwiren, Adams 2024-26
+    await expect(page.locator('#p-proj')).toBeVisible();
+    let bat = await projTable(page, '#p-proj-bat');
+    expect(Object.keys(bat)).toEqual(['Sierra']);
+    expect(bat.Sierra).toMatchObject({ AVG: '.342', OBP: '.422', SLG: '.399', wOBA: '.369', 'wRC+': '104' });
+
+    await page.goto('/#players/1052'); // Paul Fisher, Sierra 2024-26
+    await expect(page.locator('#p-proj-bat tbody tr')).toHaveCount(1);
+    bat = await projTable(page, '#p-proj-bat');
+    expect(Object.keys(bat)).toEqual(['Adams']);
+    expect(bat.Adams).toMatchObject({ AVG: '.352', OBP: '.460', SLG: '.495', 'wRC+': '132' });
   });
 });

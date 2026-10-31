@@ -314,10 +314,10 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       <div class="pg-strip" id="p-strip"></div>
     </div>
     <div class="pg-card" id="p-proj" hidden>
-      <h3>Projected in Adams / Sierra</h3>
+      <h3 id="p-proj-title">Projected in Adams / Sierra</h3>
       <p class="pg-note" id="p-proj-lede"></p>
       <div id="p-proj-body"></div>
-      <p class="pg-note pg-proj-fine">A rough guide, not a forecast. The offsets come from players who played two divisions in the same season, and those players are self-selected; "easier" mixes the competition with each division's run environment; and there's no age data, so nobody ages here. Adams and Sierra are about the same level, so the two rows should be close.</p>
+      <p class="pg-note pg-proj-fine">A rough guide, not a forecast. The offsets come from players who played two divisions in the same season, and those players are self-selected; "easier" mixes the competition with each division's run environment; and there's no age data, so nobody ages here. Adams and Sierra are about the same level, so a player's Adams and Sierra lines come out close.</p>
     </div>
     <div class="pg-grouptabs" id="p-group" style="margin-bottom: var(--cds-gap-md); border-bottom-width: 0"><button data-v="dash" aria-pressed="true">Dashboard</button><button data-v="std" aria-pressed="false">Standard</button><button data-v="adv" aria-pressed="false">Advanced</button></div>
     <div class="pg-card" id="p-bat">
@@ -1065,7 +1065,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   PROJ.bat.board = ['PA', 'Eff PA', 'Own%', 'AVG', 'OBP', 'SLG', 'wOBA', 'wRC+', 'BB%', 'K%'];
   PROJ.pit.board = ['IP', 'Eff IP', 'Own%', 'FIP-', 'FIP', 'K%', 'BB%'];
   const PROJ_TARGETS = ['Adams', 'Sierra'];
-  // Leaders "Projected → Adams/Sierra": the same projection for everyone whose recent seasons include another division
+  // Leaders "Projected → Adams/Sierra": the same projection for everyone with a recent line outside the target division
   function isProj(v) { return typeof v === 'string' && v.startsWith('Proj') && PROJ_TARGETS.includes(v.slice(4)); }
   function projSort(type) { return type === 'bat' ? 'wRC+' : 'FIP-'; }
   function projData() {
@@ -1085,7 +1085,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       const out = [];
       for (const [pid, rs] of byPid) {
         const ls = projLines(type, rs, tr.seasons);
-        if (!ls.length || ls.every((l) => PROJ_TARGETS.includes(l.Division))) continue;
+        if (!ls.some((l) => l.Division !== target)) continue;
         const p = project(type, ls, tr, target);
         if (!p) continue;
         const last = rs.reduce((b, r) => (!b || r.Season > b.Season || (r.Season === b.Season && r[w] > b[w]) ? r : b), null);
@@ -1104,7 +1104,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     const tr = projData();
     if (!tr) return '';
     const yrs = Object.keys(tr.seasons).map(Number).sort((a, b) => a - b), k = Math.round(tr[type].k), u = PROJ[type].unit;
-    return `A guess at next season in ${target} for everyone whose ${yrs[0]}–${String(yrs[yrs.length - 1]).slice(2)} seasons include another division (Adams and Sierra are about the same level). `
+    return `A guess at next season in ${target} for everyone whose ${yrs[0]}–${String(yrs[yrs.length - 1]).slice(2)} seasons include a division other than ${target} (Adams and Sierra are about the same level, so Adams players show up under Sierra and vice versa). `
       + `Seasons are weighted 5/4/3, translated with same-season two-division offsets, then pulled toward the ${target} average; Own% is how much is the player's own numbers. `
       + `Qualified = at least half their own (${k} effective ${u}). A rough guide: two-division players are self-selected, and there's no age data.`;
   }
@@ -1148,14 +1148,16 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     const raw = ['bat', 'pit'].map((type) => { const h = pidRows(DS[type].hist, P.pid), c = pidRows(DS[type].cur, P.pid); return h && c ? [...h, ...c] : null; });
     if (!tr || raw.includes(null)) { card.hidden = true; return; }
     const lines = { bat: projLines('bat', raw[0], tr.seasons), pit: projLines('pit', raw[1], tr.seasons) };
-    // only for players whose recent seasons include a division other than Adams/Sierra
-    if (![...lines.bat, ...lines.pit].some((l) => !PROJ_TARGETS.includes(l.Division))) { card.hidden = true; return; }
+    // a target only for players with a recent line outside it (an Adams-only player gets Sierra, and vice versa)
+    const all = [...lines.bat, ...lines.pit];
+    const targets = PROJ_TARGETS.filter((T) => all.some((l) => l.Division !== T));
+    if (!targets.length) { card.hidden = true; return; }
     const yrs = Object.keys(tr.seasons).map(Number).sort((a, b) => b - a);
     const span = `${yrs[yrs.length - 1]}–${String(yrs[0]).slice(2)}`;
     const html = memoize('proj' + P.pid, [tr, ...raw], () => {
       const parts = ['bat', 'pit'].map((type) => {
         const ls = lines[type], cfg = PROJ[type];
-        const ps = PROJ_TARGETS.map((T) => [T, project(type, ls, tr, T)]).filter(([, p]) => p);
+        const ps = targets.map((T) => [T, project(type, ls, tr, T)]).filter(([, p]) => p);
         if (!ps.length) return '';
         const { eff, shrink } = ps[0][1];
         const byDiv = d3.rollups(ls, (v) => d3.sum(v, (l) => l.w), (l) => l.Division).sort((a, b) => b[1] - a[1]);
@@ -1167,7 +1169,8 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       });
       return parts.join('');
     });
-    $('#p-proj-lede').textContent = `How this player's last three seasons (${span}, weighted 5/4/3) might translate to Adams or Sierra. Lines from other divisions are adjusted by how the same players hit and pitched in two divisions in the same season, then pulled toward the division average: hard when the sample is small.`;
+    $('#p-proj-title').textContent = `Projected in ${targets.join(' / ')}`;
+    $('#p-proj-lede').textContent = `How this player's last three seasons (${span}, weighted 5/4/3) might translate to ${targets.join(' or ')}. Lines from other divisions are adjusted by how the same players hit and pitched in two divisions in the same season, then pulled toward the division average: hard when the sample is small.`;
     const body = $('#p-proj-body'); if (body._html !== html) { body.innerHTML = html; body._html = html; }
     card.hidden = !html;
   }
