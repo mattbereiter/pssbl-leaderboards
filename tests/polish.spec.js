@@ -171,6 +171,7 @@ test.describe('Journey polish: states and small things', () => {
     await page.goto('/#players/' + MATT);
     await expect(page.locator('#p-rank')).toContainText(/\d+(st|nd|rd|th) of \d+ \w+ hitters in wRC\+ \(\d{4}, 30\+ PA\)/);
     await expect(page.locator('#p-sub a.pg-chip').first()).toHaveAttribute('href', /^#leaders\?/);
+    await page.locator('#p-bat button[data-chart="team"]').click(); // team-by-team dots, coloured by division
     await expect(page.locator('#p-bat-chart .pg-legend')).toContainText('Adams');
     await expect(page.locator('#p-bat-chart .pg-legend')).toContainText('Sierra');
   });

@@ -21,6 +21,8 @@ test.describe('Players', () => {
     expect(line).toMatchObject({ Season: '2026', Team: 'Beavers', Div: 'Adams', AVG: '.292', OBP: '.390', SLG: '.333', 'wRC+': '82' });
 
     await expect(page.locator('#p-bat-tables tr.career')).toHaveCount(1);
+    await expect(page.locator('#p-pit')).toBeHidden(); // Matt hits first; pitching is the other tab
+    await page.locator('#p-type button[data-v="pit"]').click();
     await expect(page.locator('#p-pit')).toBeVisible();
     expect(errors).toEqual([]);
   });

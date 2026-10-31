@@ -29,10 +29,10 @@ test.describe('Players page fixes', () => {
 
   test('a one-season career row matches its season row', async ({ page }) => {
     await page.goto('/#players/' + ONE_SEASON);
-    const rows = page.locator('#p-bat-tables tbody tr');
-    await expect(rows).toHaveCount(2);
-    const cells = async (i) => (await rows.nth(i).locator('td').allInnerTexts()).slice(4);
-    expect(await cells(1)).toEqual(await cells(0));
+    const season = page.locator('#p-bat-tables tbody tr'), career = page.locator('#p-bat-tables tfoot tr.career');
+    await expect(season).toHaveCount(1);
+    const cells = async (row) => (await row.locator('td').allInnerTexts()).slice(4);
+    expect(await cells(career)).toEqual(await cells(season));
   });
 
   test('a chart dot opens its tooltip on a tap and closes on a tap elsewhere', async ({ page, isMobile }) => {
@@ -49,10 +49,13 @@ test.describe('Players page fixes', () => {
   });
 
   test('a division has the same colour in the batting and pitching charts', async ({ page }) => {
-    await page.goto('/#players/' + GLEASON);
+    await page.goto('/#players/' + GLEASON + '?chart=team');
     const swatch = (chart, div) => page.locator(`${chart} .pg-legend span`, { hasText: div }).locator('i').evaluate((i) => getComputedStyle(i).backgroundColor);
+    await expect(page.locator('#p-bat-chart .pg-legend')).toContainText('Teton');
+    const bat = await swatch('#p-bat-chart', 'Teton');
+    await page.locator('#p-type button[data-v="pit"]').click();
     await expect(page.locator('#p-pit-chart .pg-legend')).toContainText('Teton');
-    expect(await swatch('#p-bat-chart', 'Teton')).toBe(await swatch('#p-pit-chart', 'Teton'));
+    expect(await swatch('#p-pit-chart', 'Teton')).toBe(bat);
   });
 
   test('a one-way player does not keep the last player\'s hidden pitching table', async ({ page }) => {
