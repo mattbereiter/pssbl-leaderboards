@@ -24,6 +24,8 @@ There are four tabs plus a shortcut. All are rendered by `src/page.html` (one sc
   - **Header line:** the top hitter and pitcher of the latest season. It's league news, not addressed to Matt.
 - **Players.** Season-by-season tables with a career row, a wRC+ dot chart (hitters) and ERA-/FIP- chart (pitchers),
   career stat strip, name search, and a link to the player's pssbl.com page. The "★ Matt" tab opens Matt (pid 8048).
+  - **Projected in Adams / Sierra** card (under the header): for anyone whose last three seasons include another
+    division, a guess at their line in Adams and in Sierra. See "Projection to Adams / Sierra" below.
 - **Standings.** Per-division W-L-T, Pct, GB, RS/RA/Diff, Pythagenpat xW and Luck, team wRC+/FIP/oWAR/pWAR,
   and 🏆 for the winner of the division's last playoff game. Clicking a team filters Leaders to that team.
 - **Guts!** League constants for every division-season (lgwOBA, R/PA, cFIP, R/W, wOBA weights, …) and a glossary.
@@ -43,6 +45,7 @@ scripts/           # data pipeline, Python 3 stdlib only
   compute.py       # raw/ -> build/: season lines, careers, standings, guts (league constants)
   build_box.py     # raw/box -> build/: per-game player lines for the date filter
   update.py        # runs fetch + compute + build_box, splits/copies into public/data, stamps manifest, rebuilds page
+  translate.py     # public/data -> translations.json: division offsets + regression constants for the projection card
   build_page.py    # src/shell.html + src/page.html -> public/index.html
   verify.py        # sample players, compare counting stats with pssbl.com Career*; update.py runs it
 tests/             # Playwright smoke tests (npm test); serve.py serves public/ for them
@@ -114,6 +117,29 @@ Every number is relative to the **player's own division that season**, treated l
 - **Careers:** sums across all teams and divisions. wRC+ is rebuilt from summed wRAA and league runs;
   FIP/ERA- are IP-weighted.
 
+## Projection to Adams / Sierra (translate.py + Players card)
+
+A stdlib port of `analysis/project_to_adams.py`; **keep the three in step** (Python model, `scripts/translate.py`,
+`project()` in `src/page.html`). `update.py` runs `translate.py` after publishing the CSVs; it reads only `public/data`,
+writes `translations.json` and registers it in the manifest (bumping `version`).
+
+- **Offsets:** same player, same season, two divisions (≥ 20 PA or ≥ 10 IP in each). Weighted least squares on
+  division dummies within each player-season, pooled over all seasons, relative to Adams. Columns: AVG/OBP/SLG/wOBA/
+  BB%/K% (hitters, weighted by PA) and FIP-/K%/BB%/ERA- (pitchers, weighted by IP). To translate into target T:
+  `x − (off[div] − off[T])`.
+- **Regression constant:** odd vs even games in the box scores, division-season means removed, Pearson r, then
+  Spearman-Brown to a per-unit reliability c and k = (1 − c)/c. Oct 31, 2026: hitters r = .39 at 36 PA/half → **k = 57 PA**;
+  pitchers r = .63 at 20 IP/half → **k = 12 IP**.
+- **Per player (page JS):** the last three seasons weighted 5/4/3 × PA (or IP); effective sample = Σ weight/5 × PA;
+  shrink = n/(n + k) toward the target's average (guts means of the last three seasons for AVG/OBP/SLG/wOBA; PA/IP-weighted
+  player lines for BB%/K%; FIP- toward 100). wRC+ uses the target's R/PA; FIP = FIP-/100 × target ERA.
+- **Checks:** `tests/projection.spec.js` pins AJ Hansen (Adams .347/.467/.508, 132 wRC+; Sierra .357/.457/.519, 129)
+  and Cameron Lobb (Adams FIP- 81, 4.14 FIP; Sierra 86, 4.77), which match the pandas script exactly.
+  Offsets match `project_to_adams.py` to < 1e-6.
+- **Shown only** when the player's last three seasons include a division other than Adams/Sierra. The card states the
+  PA/IP it rests on, the own-numbers vs average split, and the caveats (self-selected two-division players, environment
+  mixed with competition, no age data).
+
 ## Front-end architecture (src/)
 
 - **`shell.html`** defines `window.dash`, a minimal stand-in for the Claude dashboard runtime the page was first
@@ -129,7 +155,7 @@ Every number is relative to the **player's own division that season**, treated l
   - **Redraw check:** `render()` redraws only the active tab. `sig()` plus `lastSig` skip redraws when nothing that
     view read has changed.
   - **Dataset ids** (`DS`): `batting`/`pitching` hold the latest season, `batting_hist`/`pitching_hist` hold
-    2015–previous, plus `bat_career`/`pit_career`, `standings`, `guts`, and `box_YYYY`. The latest season is the max
+    2015–previous, plus `bat_career`/`pit_career`, `standings`, `guts`, `translations` (JSON object, read via `dash.data` directly), and `box_YYYY`. The latest season is the max
     `Season` in guts. History, careers and box scores load only when a view needs them.
   - **Column sets:** `BAT`/`PIT` (dash/std/adv). Formats come from `R3`/`PCT`/`F2`/`F1`; `LOW` lists
     lower-is-better columns (sets the first sort direction); `DEF` holds header tooltips.
@@ -178,7 +204,8 @@ These come from same-player, same-season pairs across divisions.
 
 ## Open ideas and known loose ends
 
-- **"Translations" tab:** convert any line between divisions using the offsets above. Matt showed interest.
+- **Translations:** done as the Players-page "Projected in Adams / Sierra" card (Oct 31, 2026). Still open: a
+  Leaders-tab "Translate to: Adams" toggle to compare a whole division, or other target divisions.
 - **UX review (Oct 31, 2026), still open:** Players should open on search, not Matt; inline stat definitions
   ("Qualified" threshold, Standings/Guts tooltips); Standings tables clip at desktop width; arrow keys in player search;
   44px tap targets and 16px inputs on phones; a Retry on failed loads.

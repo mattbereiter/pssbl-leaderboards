@@ -113,6 +113,12 @@
 .pg-stack { overflow: auto; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); }
 .pg-stack .pg-tbl { width: auto; }
 .pg-stack .pg-tbl + .pg-tbl tbody tr:first-child td { border-top: 0; }
+#p-proj-body { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm) var(--cds-gap-lg); }
+#p-proj-body > div { min-width: 0; max-width: 100%; }
+#p-proj-body h4 { margin: 0 0 4px; font-size: var(--cds-font-size-caption); text-transform: uppercase; letter-spacing: .05em; color: var(--fg-green-ink); font-weight: 700; }
+#p-proj-body .pg-note { margin: 4px 0 0; }
+#p-proj-body .pg-stack { width: fit-content; max-width: 100%; }
+.pg-proj-fine { margin: var(--cds-gap-sm) 0 0; }
 @container (max-width: 760px) {
   .pg-top { flex-direction: column; }
   .pg-brand { padding-bottom: 0; }
@@ -196,6 +202,12 @@
         </div>
       </div>
       <div class="pg-strip" id="p-strip"></div>
+    </div>
+    <div class="pg-card" id="p-proj" hidden>
+      <h3>Projected in Adams / Sierra</h3>
+      <p class="pg-note" id="p-proj-lede"></p>
+      <div id="p-proj-body"></div>
+      <p class="pg-note pg-proj-fine">A rough guide, not a forecast. The offsets come from players who played two divisions in the same season, and those players are self-selected; "easier" mixes the competition with each division's run environment; and there's no age data, so nobody ages here. Adams and Sierra are about the same level, so the two rows should be close.</p>
     </div>
     <div class="pg-grouptabs" id="p-group" style="margin-bottom: var(--cds-gap-md); border-bottom-width: 0"><button data-v="dash" aria-pressed="true">Dashboard</button><button data-v="std" aria-pressed="false">Standard</button><button data-v="adv" aria-pressed="false">Advanced</button></div>
     <div class="pg-card" id="p-bat">
@@ -835,6 +847,79 @@
       renderStack(box, type, hs, cs, crow, COLS[P.group]);
       dotChart(chart, [...hs, ...cs], series, { ref: 100, size, src: `${ds.hist} ${ds.cur}`, legend });
     }
+    renderProj();
+  }
+
+  // ---------- PROJECTED IN ADAMS / SIERRA ----------
+  // Mirrors analysis/project_to_adams.py; offsets, regression constants and target baselines come from scripts/translate.py.
+  const PROJ = {
+    bat: { w: 'PA', unit: 'PA', cols: ['AVG', 'OBP', 'SLG', 'wOBA', 'BB%', 'K%'], show: ['AVG', 'OBP', 'SLG', 'wOBA', 'wRC+', 'BB%', 'K%'], title: 'Hitting' },
+    pit: { w: 'Outs', unit: 'IP', cols: ['FIP-', 'K%', 'BB%'], show: ['FIP-', 'FIP', 'K%', 'BB%'], title: 'Pitching' },
+  };
+  const PROJ_TARGETS = ['Adams', 'Sierra'];
+  const ipStr = (ip) => { const outs = Math.round(ip * 3); return `${Math.floor(outs / 3)}.${outs % 3}`; };
+  // one line per season-division in the weighted seasons: summed PA (or IP), PA/IP-weighted rates
+  function projLines(type, rows, seasons) {
+    const { w, cols } = PROJ[type], acc = new Map();
+    for (const r of rows) {
+      if (!(String(r.Season) in seasons) || !(r[w] > 0)) continue;
+      const k = r.Season + '|' + r.Division;
+      const a = acc.get(k) || { Season: r.Season, Division: r.Division, w: 0, s: {} };
+      a.w += r[w];
+      for (const c of cols) a.s[c] = (a.s[c] || 0) + (r[c] || 0) * r[w];
+      acc.set(k, a);
+    }
+    return [...acc.values()].map((a) => {
+      const o = { Season: a.Season, Division: a.Division, w: type === 'pit' ? a.w / 3 : a.w };
+      for (const c of cols) o[c] = a.s[c] / a.w;
+      return o;
+    });
+  }
+  function project(type, lines, tr, target) {
+    const { cols } = PROJ[type], T = tr.targets[target], off = tr[type].offsets;
+    const ls = lines.filter((l) => off[l.Division]);
+    if (!ls.length) return null;
+    const sw = (l) => tr.seasons[String(l.Season)] * l.w;
+    const W = d3.sum(ls, sw), eff = d3.sum(ls, (l) => tr.seasons[String(l.Season)] / 5 * l.w);
+    const shrink = eff / (eff + tr[type].k), p = { eff, shrink };
+    for (const c of cols) {
+      const tot = d3.sum(ls, (l) => (l[c] - (off[l.Division][c] - off[target][c])) * sw(l)) / W;
+      const mean = type === 'pit' ? (c === 'FIP-' ? 100 : T.pit[c]) : (c in T.bat ? T.bat[c] : T[c]);
+      p[c] = shrink * tot + (1 - shrink) * mean;
+    }
+    if (type === 'bat') p['wRC+'] = 100 * ((p.wOBA - T.wOBA) / 1.2 + T['R/PA']) / T['R/PA'];
+    else p.FIP = p['FIP-'] / 100 * T.ERA;
+    return p;
+  }
+  function renderProj() {
+    const card = $('#p-proj');
+    touched.add('translations');
+    const t = dash.data('translations'), tr = t.status === 'ok' && t.data && t.data.seasons ? t.data : null;
+    const raw = ['bat', 'pit'].map((type) => { const h = pidRows(DS[type].hist, P.pid), c = pidRows(DS[type].cur, P.pid); return h && c ? [...h, ...c] : null; });
+    if (!tr || raw.includes(null)) { card.hidden = true; return; }
+    const lines = { bat: projLines('bat', raw[0], tr.seasons), pit: projLines('pit', raw[1], tr.seasons) };
+    // only for players whose recent seasons include a division other than Adams/Sierra
+    if (![...lines.bat, ...lines.pit].some((l) => !PROJ_TARGETS.includes(l.Division))) { card.hidden = true; return; }
+    const yrs = Object.keys(tr.seasons).map(Number).sort((a, b) => b - a);
+    const span = `${yrs[yrs.length - 1]}–${String(yrs[0]).slice(2)}`;
+    const html = memoize('proj' + P.pid, [tr, ...raw], () => {
+      const parts = ['bat', 'pit'].map((type) => {
+        const ls = lines[type], cfg = PROJ[type];
+        const ps = PROJ_TARGETS.map((T) => [T, project(type, ls, tr, T)]).filter(([, p]) => p);
+        if (!ps.length) return '';
+        const { eff, shrink } = ps[0][1];
+        const byDiv = d3.rollups(ls, (v) => d3.sum(v, (l) => l.w), (l) => l.Division).sort((a, b) => b[1] - a[1]);
+        const used = byDiv.map(([d, n]) => `${esc(d)} ${type === 'pit' ? ipStr(n) : Math.round(n)}`).join(' · ');
+        const head = `<thead><tr><th class="l" data-field="In">In</th>${cfg.show.map((c) => `<th data-field="${esc(c)}" title="${esc(DEF[c] || '')}">${esc(c)}</th>`).join('')}</tr></thead>`;
+        const body = ps.map(([T, p]) => `<tr data-key="${esc(T)}"><td class="l">${esc(T)}</td>${cfg.show.map((c) => `<td>${esc(c === 'wRC+' || c === 'FIP-' ? String(Math.round(p[c])) : fmt(c, p[c]))}</td>`).join('')}</tr>`).join('');
+        return `<div><h4>${cfg.title}</h4><div class="pg-stack"><table class="pg-tbl" id="p-proj-${type}" data-source="translations">${head}<tbody>${body}</tbody></table></div>`
+          + `<p class="pg-note">${span} ${cfg.unit}: ${used}. Rests on ${Math.round(eff)} recency-weighted ${cfg.unit}, so it's ${Math.round(shrink * 100)}% this player's own numbers and ${100 - Math.round(shrink * 100)}% the division average.</p></div>`;
+      });
+      return parts.join('');
+    });
+    $('#p-proj-lede').textContent = `How this player's last three seasons (${span}, weighted 5/4/3) might translate to Adams or Sierra. Lines from other divisions are adjusted by how the same players hit and pitched in two divisions in the same season, then pulled toward the division average: hard when the sample is small.`;
+    const body = $('#p-proj-body'); if (body._html !== html) { body.innerHTML = html; body._html = html; }
+    card.hidden = !html;
   }
 
   // ---------- STANDINGS ----------

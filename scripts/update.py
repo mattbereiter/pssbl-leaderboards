@@ -65,6 +65,8 @@ for f in sorted(glob.glob(f'{BUILD}/pssbl_box_*.csv')):
     shutil.copy(f, f'{DATA}/box_{y}.csv')
     manifest['datasets'][f'box_{y}'] = f'box_{y}.csv'
 json.dump(manifest, open(f'{DATA}/manifest.json', 'w', encoding='utf-8'), indent=1)
+# division offsets + regression constants for the Players page projection (reads public/data, adds itself to the manifest)
+runpy.run_path(os.path.join(ROOT, 'scripts', 'translate.py'), run_name='__main__')
 runpy.run_path(os.path.join(ROOT, 'scripts', 'build_page.py'), run_name='__main__')
 if '--offline' not in args:
     # counting stats must match pssbl.com's own career pages; stop here rather than push bad data

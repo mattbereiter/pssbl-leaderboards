@@ -1,6 +1,6 @@
 {
  "updated": "2026-10-31",
- "version": "20261031002721",
+ "version": "20261031010142",
  "latest": 2026,
  "datasets": {
   "batting": "batting_current.csv",
@@ -21,6 +21,7 @@
   "box_2023": "box_2023.csv",
   "box_2024": "box_2024.csv",
   "box_2025": "box_2025.csv",
-  "box_2026": "box_2026.csv"
+  "box_2026": "box_2026.csv",
+  "translations": "translations.json"
  }
 }
