@@ -7,7 +7,7 @@ API; this is an unofficial fan site.
 
 ## How it's put together
 
-- `public/` is the whole website (Netlify publishes this folder as-is, no build step).
+- `public/` is the whole website (GitHub Pages publishes this folder as-is, no build step).
   - `index.html` — the page (generated from `src/`, don't edit directly)
   - `data/` — the stats files the page loads, listed in `data/manifest.json`
   - `d3.min.js` — charting library (d3 v7.9.0)
@@ -28,7 +28,7 @@ python scripts/update.py         # afterwards: re-downloads the latest season an
 git add -A && git commit -m "Update stats" && git push
 ```
 
-Netlify sees the push and the site is live again in about a minute.
+The Pages workflow sees the push and the site is live again in about a minute.
 
 ## Changing the page
 

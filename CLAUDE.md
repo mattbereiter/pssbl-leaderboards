@@ -10,7 +10,8 @@ Don't duplicate it here.
 
 ## Project shape
 
-A static site with no build server. Netlify publishes `public/` as-is on every push to `main`.
+A static site with no build server. GitHub Pages publishes `public/` as-is on every push to `main`
+(`.github/workflows/pages.yml`; live at https://mattbereiter.github.io/pssbl-leaderboards/).
 
 - **Page code** lives in `src/page.html` (markup, styles, the whole app script) and `src/shell.html` (the HTML wrapper,
   theme tokens and the small data loader). `public/index.html` is **generated**. Never edit it by hand.
@@ -31,7 +32,7 @@ python scripts/build_page.py        # src/ -> public/index.html
 python scripts/verify.py            # spot-check public/data against pssbl.com (update.py runs it too)
 npm test                            # Playwright smoke tests (first time: npm install && npx playwright install chromium webkit)
 cd public && python -m http.server 8000   # preview at http://localhost:8000
-git add -A && git commit -m "..." && git push   # Netlify deploys in ~20 s
+git add -A && git commit -m "..." && git push   # Pages deploys in ~1 min
 ```
 
 ## Rules for working here
