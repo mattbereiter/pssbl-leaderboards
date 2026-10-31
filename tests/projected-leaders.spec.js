@@ -122,6 +122,7 @@ test.describe('Leaders: Projected → Adams / Sierra', () => {
 
   test('Carl Gleason (Adirondack/Rainier/Teton) projects to a sane line', async ({ page }) => {
     await page.goto('/#players/843');
+    await page.locator('#p-proj summary').click(); // collapsed at the foot of the page
     await expect(page.locator('#p-proj-bat')).toBeVisible();
     const cells = await page.locator('#p-proj-bat tbody tr').first().locator('td').allTextContents();
     const [avg, obp, slg] = cells.slice(1, 4).map(Number);

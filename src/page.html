@@ -58,7 +58,7 @@
 .pg-tbl a, .pg-link, .pg-chip { color: var(--fg-green-ink); text-decoration: none; font-weight: 600; cursor: pointer; background: none; border: 0; padding: 0; font: inherit; }
 .pg-tbl a:hover, .pg-link:hover { text-decoration: underline; }
 .pg-tbl .dim { color: var(--color-fg-muted); }
-#p-log-wrap { border-top: 1px solid var(--color-border-line); border-radius: var(--cds-radius); max-height: 60vh; }
+#p-log-wrap { border-top: 1px solid var(--color-border-line); border-radius: var(--cds-radius); max-height: none; }
 .pg-tbl tfoot td { position: sticky; bottom: 0; font-weight: 700; border-top: 2px solid var(--color-fg-muted); border-bottom: 0; }
 .pg-tbl td.res-W { color: var(--color-ok); } .pg-tbl td.res-L { color: var(--color-bad); }
 .pg-tbl .po { font-size: .6875rem; font-weight: 700; color: var(--fg-green-ink); margin-left: 4px; }
@@ -101,10 +101,6 @@
 .pg-pname { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; line-height: 1.1; }
 .pg-pname.me::after { content: " ★"; color: #c69331; }
 .pg-psub { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); margin-top: 4px; }
-.pg-strip { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); margin-top: var(--cds-gap-md); }
-.pg-stat { min-width: 4.5rem; }
-.pg-stat .k { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); text-transform: uppercase; letter-spacing: .04em; }
-.pg-stat .v { font-family: var(--font-anthropic-serif); font-size: var(--cds-font-size-title); font-variant-numeric: tabular-nums; line-height: 1.15; }
 .pg-search { position: relative; min-width: min(100%, 18rem); }
 .pg-search input { width: 100%; }
 .pg-sugg { position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); max-height: 18rem; overflow: auto; margin-top: 2px; }
@@ -131,6 +127,70 @@
 [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
 [data-dash-source-state=empty] { color: transparent; }
 
+/* players: header with Quick Look */
+.pg-phead { align-items: start; }
+.pg-who { min-width: 0; flex: 1 1 22rem; }
+.pg-roles { display: flex; gap: 6px; margin-top: 6px; }
+.pg-roles:empty { display: none; }
+.pg-role { font-size: .6875rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--fg-green-ink); border: 1px solid color-mix(in srgb, var(--fg-green-ink) 45%, transparent); border-radius: 4px; padding: 0 6px; }
+#p-sub .pg-link { text-decoration: underline; text-underline-offset: 2px; text-decoration-color: color-mix(in srgb, currentColor 45%, transparent); }
+#p-rank { min-height: 1.3em; }
+.pg-quick { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm) var(--cds-gap-xl); margin-top: var(--cds-gap-md); }
+.pg-quick:empty { display: none; }
+.pg-quick > .dash-skeleton { width: 100%; min-height: 4.5rem; }
+.pg-quick .pg-stack { width: fit-content; max-width: 100%; border: 0; }
+.pg-ql { font-size: var(--cds-font-size-body); }
+.pg-ql caption { text-align: left; font-size: .6875rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--fg-green-ink); padding-bottom: 2px; }
+.pg-ql th, .pg-ql td { padding: 3px 9px; }
+.pg-ql thead th { position: static; background: none; color: var(--color-fg-muted); font-weight: 600; font-size: var(--cds-font-size-caption); }
+.pg-ql tbody tr:hover td { background: var(--color-panel); }
+.pg-ql tr.career td { border-top: 1px solid var(--color-fg-muted); border-bottom: 0; }
+.pg-ql td.l { color: var(--color-fg-muted); }
+/* percentiles against the division */
+.pg-pcts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: var(--cds-gap-sm) var(--cds-gap-xl); }
+.pg-pcts h3 { font-size: var(--cds-font-size-caption); font-weight: 600; color: var(--color-fg-muted); margin: 0 0 6px; }
+.pg-pcts h3 b { color: var(--color-fg); }
+.pg-pbar { display: grid; grid-template-columns: 3.4rem minmax(0, 1fr) 2rem 3.4rem; gap: 10px; align-items: center; font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; padding: 3px 0; }
+.pg-pbar .k { font-weight: 600; cursor: help; }
+.pg-pbar .tr { position: relative; height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--color-fg) 8%, transparent); }
+.pg-pbar .tr::before { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--cds-chart-reference); }
+.pg-pbar .tr i { position: absolute; top: -4px; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; border: 2px solid var(--color-panel); background: var(--color-fg-muted); }
+.pg-pbar .tr i.hi { background: var(--color-ok); } .pg-pbar .tr i.lo { background: var(--color-bad); }
+.pg-pbar .p { text-align: right; font-weight: 700; }
+.pg-pbar .v { text-align: right; color: var(--color-fg-muted); }
+.pg-pcts .pg-note { margin: 4px 0 0; }
+/* stats card: Batting/Pitching tabs, column sets, one table per role */
+#p-type { margin-bottom: var(--cds-gap-sm); }
+#p-type[hidden] { display: none; }
+.pg-colsets { margin-bottom: var(--cds-gap-sm); }
+.pg-grouptabs button:focus-visible { outline: 2px solid var(--fg-green-ink); outline-offset: -2px; }
+.pg-seasons { width: fit-content; max-width: 100%; }
+.pg-seasons.tall { max-height: 70vh; }
+.pg-seasons .sticky1 { box-shadow: 1px 0 0 var(--color-border-line); }
+.pg-tbl tr.tot td { font-weight: 700; }
+.pg-tbl tr.sub td { color: var(--color-fg-muted); }
+.pg-tbl tr.sub td.team { padding-left: 1.2em; }
+.pg-tbl tr.sub td.team a { font-weight: 500; }
+.pg-tbl tfoot tr.career td { background: color-mix(in srgb, var(--color-fg) 4%, var(--color-panel)); }
+.pg-chead { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm); align-items: center; justify-content: space-between; margin: var(--cds-gap-md) 0 var(--cds-gap-xs); }
+.pg-chead .pg-note { margin: 0; flex: 1 1 18rem; }
+.pg-chart line.link { stroke: var(--cds-chart-muted); stroke-width: 1.5; }
+.pg-chart path.arc { fill: none; stroke: var(--fg-green); stroke-width: 2.5; stroke-linejoin: round; }
+.pg-chart text.cap { font-weight: 700; }
+.pg-chart rect.gap { fill: var(--cds-chart-grid); }
+/* game log: the last ten games, with the rest a tap away */
+.pg-more { all: unset; cursor: pointer; display: block; margin-top: var(--cds-gap-sm); font-size: var(--cds-font-size-caption); font-weight: 700; color: var(--fg-green-ink); padding: 6px 0; }
+.pg-more:hover { text-decoration: underline; }
+.pg-more:focus-visible { outline: 2px solid var(--fg-green-ink); }
+.pg-more[hidden] { display: none; }
+.pg-tbl tr.zero td { color: var(--color-fg-muted); }
+/* players landing: rosters by division */
+.pg-findhead { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm) var(--cds-gap-md); align-items: end; justify-content: space-between; margin-bottom: var(--cds-gap-sm); }
+.pg-findhead h3 { margin: 0; }
+.pg-rosters .pg-lcard { min-height: 0; }
+.pg-rosters li .t { font-variant-numeric: tabular-nums; }
+.pg-recent { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+
 .pg { container-type: inline-size; }
 /* reserve the space data will fill, so the page doesn't jump while it loads */
 #lb-season { min-width: 167px; } #lb-range { min-width: 138px; } #lb-div { min-width: 116px; } #lb-team { min-width: 204px; } #lb-min { min-width: 98px; }
@@ -154,6 +214,14 @@
 #p-proj-body .pg-note { margin: 4px 0 0; }
 #p-proj-body .pg-stack { width: fit-content; max-width: 100%; }
 .pg-proj-fine { margin: var(--cds-gap-sm) 0 0; }
+#p-proj summary { cursor: pointer; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+#p-proj summary h3 { margin: 0; display: inline; }
+#p-proj summary::before { content: "▸"; color: var(--fg-green-ink); }
+#p-proj[open] summary::before { content: "▾"; }
+#p-proj summary::-webkit-details-marker { display: none; }
+#p-proj summary .pg-note { margin: 0; }
+#p-proj[open] summary { margin-bottom: var(--cds-gap-sm); }
+#p-proj summary:focus-visible { outline: 2px solid var(--fg-green-ink); outline-offset: 2px; }
 /* box score */
 #p-log-table td a { font-weight: inherit; color: inherit; text-decoration: underline dotted; text-underline-offset: 2px; }
 #p-log-table td a:hover { color: var(--fg-green-ink); text-decoration: underline; }
@@ -208,8 +276,15 @@
   .pg-tblwrap { max-height: 64vh; }
   .pg-grouptabs .pg-count { flex-basis: 100%; margin: 4px 0 2px; order: 9; }
   .pg-grouptabs button { flex: 1; text-align: center; }
-  .pg-stat .v { font-size: var(--cds-font-size-heading); }
-  .pg-pname { font-size: var(--cds-font-size-heading); }
+  .pg-pname { font-size: 1.5rem; }
+  .pg-seg button, .pg-grouptabs button, .pg-more { min-height: 44px; }
+  .pg-search input { font-size: 16px; min-height: 44px; }
+  .pg-sugg button { padding: 12px 10px; }
+  .pg-quick { gap: var(--cds-gap-sm); }
+  .pg-ql { font-size: var(--cds-font-size-caption); }
+  .pg-ql th, .pg-ql td { padding: 3px 5px; }
+  .pg-pbar { grid-template-columns: 3rem minmax(0, 1fr) 1.8rem 3rem; gap: 8px; }
+  .pg-colsets .pg-seg { width: 100%; }
   .pg-pager label { flex-basis: 100%; }
 }
 </style>
@@ -226,6 +301,7 @@
     </nav>
   </header>
 
+  <main id="main">
   <p class="pg-lede" id="lede"><span class="dash-skeleton">—</span></p>
 
   <!-- LEADERS -->
@@ -255,40 +331,43 @@
     </div>
   </section>
 
-  <!-- PLAYERS -->
+  <!-- PLAYERS: who and how good first (name, Quick Look, percentiles), then the season tables and chart, the game log, and the projection last -->
   <section class="pg-page" id="pg-players" hidden>
     <div class="pg-card" id="p-head">
       <div class="pg-phead">
-        <div>
-          <h2 class="pg-pname" id="p-name">—</h2>
+        <div class="pg-who">
+          <h1 class="pg-pname" id="p-name">—</h1>
+          <div class="pg-roles" id="p-roles"></div>
           <div class="pg-psub" id="p-sub"></div>
           <div class="pg-prank" id="p-rank"></div>
         </div>
         <div class="pg-ctrl pg-search wide">Find a player
-          <input id="p-q" type="search" placeholder="Type a name…" aria-label="Find a player" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="p-sugg" aria-expanded="false">
+          <input id="p-q" type="search" placeholder="Type a name…" aria-label="Find a player" autocomplete="off" enterkeyhint="go" role="combobox" aria-autocomplete="list" aria-controls="p-sugg" aria-expanded="false">
           <div class="pg-sugg" id="p-sugg" role="listbox" aria-label="Matching players" hidden></div>
         </div>
       </div>
-      <div class="pg-strip" id="p-strip"></div>
+      <div class="pg-quick" id="p-strip"></div>
     </div>
-    <div class="pg-card" id="p-proj" hidden>
-      <h3 id="p-proj-title">Projected in Adams / Sierra</h3>
-      <p class="pg-note" id="p-proj-lede"></p>
-      <div id="p-proj-body"></div>
-      <p class="pg-note pg-proj-fine">A rough guide, not a forecast. The division adjustments come from players who played two divisions in the same season, and those players are self-selected; "easier" mixes the competition with each division's run environment; and there's no aging curve yet (ages are on file, but the model doesn't use them), so nobody ages here. Adams and Sierra are about the same level, so a player's Adams and Sierra lines come out close.</p>
+    <div class="pg-card" id="p-find" hidden>
+      <div class="pg-findhead"><h3>Browse <span id="p-find-season"></span> rosters</h3><label class="pg-ctrl">Division<select id="p-find-div" aria-label="Division to browse"></select></label></div>
+      <div class="pg-leaders pg-rosters" id="p-find-teams"></div>
     </div>
-    <div class="pg-grouptabs" id="p-group" style="margin-bottom: var(--cds-gap-md); border-bottom-width: 0"><button data-v="dash" aria-pressed="true">Dashboard</button><button data-v="std" aria-pressed="false">Standard</button><button data-v="adv" aria-pressed="false">Advanced</button></div>
-    <div class="pg-card" id="p-bat">
-      <h3>Batting</h3>
-      <p class="pg-note">wRC+ by team-season (dot size = PA). 100 is division average; higher is better.</p>
-      <div class="pg-chart" id="p-bat-chart"></div>
-      <div class="pg-stack" id="p-bat-tables"></div>
+    <div class="pg-card" id="p-pct" hidden>
+      <div class="pg-pcts" id="p-pct-body"></div>
     </div>
-    <div class="pg-card" id="p-pit">
-      <h3>Pitching</h3>
-      <p class="pg-note">ERA- and FIP- by team-season. 100 is division average; lower is better.</p>
-      <div class="pg-chart" id="p-pit-chart"></div>
-      <div class="pg-stack" id="p-pit-tables"></div>
+    <div class="pg-card" id="p-stats" hidden>
+      <div class="pg-grouptabs" id="p-type" role="group" aria-label="Stats"><button data-v="bat" aria-pressed="true">Batting</button><button data-v="pit" aria-pressed="false">Pitching</button></div>
+      <div class="pg-ctrls pg-colsets"><div class="pg-seg" id="p-group" role="group" aria-label="Columns"><button data-v="dash" aria-pressed="true">Dashboard</button><button data-v="std" aria-pressed="false">Standard</button><button data-v="adv" aria-pressed="false">Advanced</button></div></div>
+      <div id="p-bat">
+        <div class="pg-stack pg-seasons" id="p-bat-tables" tabindex="0" role="region" aria-label="Batting by season"></div>
+        <div class="pg-chead"><p class="pg-note">wRC+ by season, every team that year combined. 100 is division average; up is better.</p><div class="pg-seg pg-chartview" role="group" aria-label="Chart"><button data-chart="season" aria-pressed="true">Seasons</button><button data-chart="team" aria-pressed="false">Teams</button></div></div>
+        <div class="pg-chart" id="p-bat-chart"></div>
+      </div>
+      <div id="p-pit" hidden>
+        <div class="pg-stack pg-seasons" id="p-pit-tables" tabindex="0" role="region" aria-label="Pitching by season"></div>
+        <div class="pg-chead"><p class="pg-note">FIP- by season, with ERA- as the ring. 100 is division average; lower is better, so better plots higher.</p><div class="pg-seg pg-chartview" role="group" aria-label="Chart"><button data-chart="season" aria-pressed="true">Seasons</button><button data-chart="team" aria-pressed="false">Teams</button></div></div>
+        <div class="pg-chart" id="p-pit-chart"></div>
+      </div>
     </div>
     <div class="pg-card" id="p-log">
       <h3>Game log</h3>
@@ -297,8 +376,15 @@
         <div class="pg-ctrl" id="p-log-type-ctrl">Stats<div class="pg-seg" id="p-log-type"><button data-v="bat" aria-pressed="true">Batting</button><button data-v="pit" aria-pressed="false">Pitching</button></div></div>
       </div>
       <p class="pg-note" id="p-log-note"></p>
-      <div class="pg-tblwrap" id="p-log-wrap"><table class="pg-tbl" id="p-log-table" data-row-key="key"></table></div>
+      <div class="pg-tblwrap" id="p-log-wrap" tabindex="0" role="region" aria-label="Game log"><table class="pg-tbl" id="p-log-table" data-row-key="key"></table></div>
+      <button type="button" class="pg-more" id="p-log-more" hidden></button>
     </div>
+    <details class="pg-card" id="p-proj" hidden>
+      <summary><h3 id="p-proj-title">Projected in Adams / Sierra</h3> <span class="pg-note" id="p-proj-sum"></span></summary>
+      <p class="pg-note" id="p-proj-lede"></p>
+      <div id="p-proj-body"></div>
+      <p class="pg-note pg-proj-fine">A rough guide, not a forecast. The division adjustments come from players who played two divisions in the same season, and those players are self-selected; "easier" mixes the competition with each division's run environment; and there's no aging curve yet (ages are on file, but the model doesn't use them), so nobody ages here. Adams and Sierra are about the same level, so a player's Adams and Sierra lines come out close.</p>
+    </details>
   </section>
 
   <!-- GAME (box score) -->
@@ -361,6 +447,7 @@
       <div class="pg-tblwrap" id="gu-wrap" style="border-top:1px solid var(--color-border-line); border-radius: var(--cds-radius)"><table class="pg-tbl" id="gu-table" data-row-key="key"></table></div>
     </div>
   </section>
+  </main>
 </div>
 
 <script>
@@ -483,10 +570,11 @@
 
   // ---------- state ----------
   const L = { type: 'bat', season: null, div: 'All', team: 'All', min: 'q', group: 'dash', q: '', sort: 'oWAR', dir: -1, page: 0, size: 50, range: 'full', from: null, to: null };
-  const P = { pid: MATT, group: 'dash', log: null, logType: null, logFor: MATT };
+  const P = { pid: MATT, group: 'dash', log: null, logType: null, logFor: MATT, type: null, chart: 'season', logAll: false, findDiv: null, viewFor: null, recentFor: null,
+    sort: { bat: ['Season', 1], pit: ['Season', 1] } };
   const S = { season: null };
   const G = { season: null };
-  const GM = { id: null };
+  const GM = { id: null, hl: null };
   let tab = 'leaders', backY = null, shownHash = null;
   // transient view state: a one-off note when a filter had to change, a row to highlight, scroll fixes after the next draw
   let notice = '', hlPid = null, hlScroll = false, wantTeam = null, quietTeam = false, resetX = false, revealSort = false;
@@ -508,7 +596,8 @@
     if (from === 'game' && t === 'players' && fromHistory && backY != null) { scrollTo(0, backY); backY = null; return; }
     if (changed || t === 'players') { const top = $('#top'); if (top.getBoundingClientRect().top < 0) top.scrollIntoView({ block: 'start' }); }
   }
-  document.querySelectorAll('.pg-nav button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+  // Players opens the finder; ★ Matt opens his page
+  document.querySelectorAll('.pg-nav button').forEach((b) => b.addEventListener('click', () => { if (b.dataset.tab === 'players') P.pid = null; showTab(b.dataset.tab); }));
 
   const seg = (sel, onPick) => {
     const el = $(sel);
@@ -521,6 +610,16 @@
   const setGroup = seg('#lb-group', (v) => upd(() => { L.group = v; }));
   const setPGroup = seg('#p-group', (v) => { P.group = v; render(); });
   const setLogType = seg('#p-log-type', (v) => { P.logType = v; render(); });
+  const setPType = seg('#p-type', (v) => { P.type = v; render(); });
+  $('#pg-players').addEventListener('click', (e) => { const b = e.target.closest('button[data-chart]'); if (b) { P.chart = b.dataset.chart; render(); } });
+  // season tables sort by any column; seasons with several teams move as a block, by their Total
+  for (const t of ['bat', 'pit']) $(`#p-${t}-tables`).addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-sort]'); if (!b) return;
+    const c = b.dataset.sort, [sc, sd] = P.sort[t];
+    P.sort = { ...P.sort, [t]: [c, sc === c ? -sd : c === 'Season' || LOW[t].has(c) ? 1 : -1] }; render();
+  });
+  $('#p-log-more').addEventListener('click', () => { P.logAll = !P.logAll; render(); });
+  $('#p-find-div').addEventListener('change', (e) => { P.findDiv = e.target.value; render(); });
   $('#p-log-season').addEventListener('change', (e) => { P.log = Number(e.target.value); render(); });
 
   $('#lb-season').addEventListener('change', (e) => upd(() => {
@@ -616,7 +715,7 @@
     if (!e.target.closest('.pg')) return;
     if (newTab(e) && e.target.closest('a[href^="#"]')) return;
     const gm = e.target.closest('a[data-game]');
-    if (gm) { e.preventDefault(); GM.id = gm.dataset.game; showTab('game'); return; }
+    if (gm) { e.preventDefault(); GM.id = gm.dataset.game; GM.hl = gm.dataset.hl || null; showTab('game'); return; }
     const a = e.target.closest('[data-pid]');
     if (a) { e.preventDefault(); P.pid = a.dataset.pid; $('#p-sugg').hidden = true; $('#p-q').value = ''; showTab('players'); return; }
     const t = e.target.closest('#st-grid a[data-tid], #pg-players a[data-tid], #pg-game a[data-tid]');
@@ -1047,37 +1146,127 @@
   });
   sugg.addEventListener('keydown', (e) => { if (e.key === 'Escape') { sClose(); pq.focus(); } });
 
-  function seasonTableHTML(src, type, rows, cols, head) {
-    const pre = ['Season', 'Age', 'Team', 'Division'];
-    const thead = `<thead><tr${head ? '' : ' class="ghost"'}>${pre.map((c) => `<th data-field="${c}" class="l"${DEF[c] ? ` title="${esc(DEF[c])}"` : ''}>${c === 'Division' ? 'Div' : c}</th>`).join('')}${cols.map((c) => `<th data-field="${esc(c)}" title="${esc(DEF[c] || c)}">${esc(c)}</th>`).join('')}</tr></thead>`;
-    const body = rows.map((r) => `<tr data-key="${esc(r.key)}"${r.pid === MATT ? ' class="me-row"' : ''}><td class="l">${r.Season}</td><td class="l age">${r.Age == null ? '' : r.Age}</td><td class="l"><a href="${teamHref(type, r.Season, r.Division, r.tid)}" data-type="${type}" data-tid="${esc(r.tid)}" data-season="${r.Season}" data-div="${esc(r.Division)}">${esc(r.Team)}</a></td><td class="l dim">${esc(r.Division)}</td>${cols.map((c) => `<td>${esc(cell(type, c, r))}</td>`).join('')}</tr>`).join('');
-    return `<table class="pg-tbl" data-source="${src}" data-row-key="key">${thead}<tbody>${body}</tbody></table>`;
+  // ---------- PLAYERS: season groups ----------
+  // A season with several teams gets one combined line, like FanGraphs' Total rows: counting stats add up, rates come
+  // from the sums, and wRC+, ERA- and FIP- (each line already scaled to its own division) are weighted by PA or outs.
+  const BSUM = ['G', 'PA', 'AB', 'H', '1B', '2B', '3B', 'HR', 'R', 'RBI', 'BB', 'IBB', 'SO', 'HBP', 'SF', 'SH', 'GDP', 'SB', 'CS', 'wRAA', 'wSB', 'wRC', 'Off', 'oWAR'];
+  const PSUM = ['W', 'L', 'SV', 'HLD', 'G', 'GS', 'CG', 'SHO', 'Outs', 'TBF', 'H', 'R', 'ER', 'HR', 'BB', 'IBB', 'SO', 'HBP', 'WP', 'WAR'];
+  const per = (a, b) => (b > 0 ? a / b : null);
+  function combine(type, rows) {
+    const o = { Season: rows[0].Season, Age: rows[0].Age, teams: rows.length, Divs: [...new Set(rows.map((r) => r.Division))] };
+    for (const c of type === 'bat' ? BSUM : PSUM) o[c] = d3.sum(rows, (r) => r[c] || 0);
+    const wavg = (c, w) => { const rs = rows.filter((r) => r[c] != null && r[w] > 0), n = d3.sum(rs, (r) => r[w]); return n ? d3.sum(rs, (r) => r[c] * r[w]) / n : null; };
+    if (type === 'bat') {
+      const pa = o.PA, ab = o.AB, tb = o['1B'] + 2 * o['2B'] + 3 * o['3B'] + 4 * o.HR, bip = ab - o.SO - o.HR + o.SF;
+      Object.assign(o, { AVG: per(o.H, ab), OBP: per(o.H + o.BB + o.HBP, ab + o.BB + o.HBP + o.SF), SLG: per(tb, ab), BABIP: per(o.H - o.HR, bip),
+        'BB%': pa ? 100 * o.BB / pa : null, 'K%': pa ? 100 * o.SO / pa : null, 'BB/K': per(o.BB, o.SO), wOBA: wavg('wOBA', 'PA'), 'oWAR/600': pa ? o.oWAR * 600 / pa : null });
+      o.OPS = o.OBP == null ? null : o.OBP + (o.SLG || 0);
+      o.ISO = ab ? o.SLG - o.AVG : null;
+      const lgR = o.wRC - o.wRAA; // wRC = wRAA + division runs per PA × PA, line by line
+      o['wRC+'] = lgR > 0 ? Math.round(100 * o.wRC / lgR) : null;
+    } else {
+      const ip = o.Outs / 3, ab = o.TBF - o.BB - o.HBP, bip = o.H - o.HR + o.Outs - o.SO, lob = o.H + o.BB + o.HBP - 1.4 * o.HR;
+      Object.assign(o, { IP: Math.floor(o.Outs / 3) + (o.Outs % 3) / 10, 'K/9': ip ? 9 * o.SO / ip : null, 'BB/9': ip ? 9 * o.BB / ip : null, 'HR/9': ip ? 9 * o.HR / ip : null,
+        'K%': o.TBF ? 100 * o.SO / o.TBF : null, 'BB%': o.TBF ? 100 * o.BB / o.TBF : null, 'K-BB%': o.TBF ? 100 * (o.SO - o.BB) / o.TBF : null,
+        AVG: per(o.H, ab), WHIP: ip ? (o.H + o.BB) / ip : null, BABIP: per(o.H - o.HR, bip), 'LOB%': lob > 0 ? 100 * (o.H + o.BB + o.HBP - o.R) / lob : null,
+        ERA: ip ? 9 * o.ER / ip : null, FIP: wavg('FIP', 'Outs'), 'WAR/200': ip ? o.WAR * 200 / ip : null });
+      const em = wavg('ERA-', 'Outs'), fm = wavg('FIP-', 'Outs');
+      o['ERA-'] = em == null ? null : Math.round(em); o['FIP-'] = fm == null ? null : Math.round(fm);
+      o['E-F'] = o.ERA != null && o.FIP != null ? o.ERA - o.FIP : null;
+    }
+    return o;
   }
-  function careerTableHTML(src, row, cols, type) {
-    return `<table class="pg-tbl" data-source="${src}" data-row-key="key"><thead><tr class="ghost"><th class="l">Span</th><th class="l"></th><th class="l" data-field="Seasons">Seasons</th><th class="l"></th>${cols.map((c) => `<th data-field="${esc(c)}">${esc(c)}</th>`).join('')}</tr></thead><tbody><tr class="career" data-key="${esc(row.key)}"><td class="l">Career</td><td class="l"></td><td class="l">${row.Seasons} season${row.Seasons === 1 ? '' : 's'}</td><td class="l dim">${row.From}–${row.To}</td>${cols.map((c) => `<td>${esc(cell(type, c, row))}</td>`).join('')}</tr></tbody></table>`;
+  // [{ season, rows (most playing time first), tot: the season's line (the row itself for one team) }], oldest first
+  function seasonGroups(type, rows) {
+    const w = type === 'bat' ? 'PA' : 'Outs';
+    return memoize(`groups|${type}|${P.pid}`, [rows], () => d3.groups(rows, (r) => r.Season).sort((a, b) => a[0] - b[0]).map(([season, rs]) => {
+      const sorted = [...rs].sort((a, b) => b[w] - a[w]);
+      return { season, rows: sorted, tot: sorted.length > 1 ? combine(type, sorted) : sorted[0] };
+    }));
   }
-  function alignStack(box) {
-    const tables = [...box.querySelectorAll('table')];
-    const firsts = tables.map((t) => t.tBodies[0] && t.tBodies[0].rows[0]).filter(Boolean);
-    if (firsts.length < 2) return;
-    const n = Math.max(...firsts.map((r) => r.cells.length));
-    const ws = [];
-    for (let i = 0; i < n; i++) ws[i] = Math.ceil(Math.max(...firsts.map((r) => r.cells[i] ? r.cells[i].getBoundingClientRect().width : 0)));
-    firsts.forEach((r) => [...r.cells].forEach((c, i) => { c.style.minWidth = ws[i] + 'px'; }));
-    const tw = Math.max(...tables.map((t) => t.getBoundingClientRect().width));
-    tables.forEach((t) => { t.style.width = tw + 'px'; });
+  // where a hidden one-way card used to keep the last player's table: everything a type shows comes from these
+  const ownRows = (type) => { const h = pidRows(DS[type].hist, P.pid), c = pidRows(DS[type].cur, P.pid); return h && c ? memoize(`own|${type}|${P.pid}`, [h, c], () => [...h, ...c]) : null; };
+
+  // one table per role: a row per team-season, a Total row over seasons with several teams, Career in the footer; headers sort
+  function seasonTable(type, groups, careerRow, cols) {
+    const ds = DS[type], [sc, sd] = P.sort[type];
+    const val = (g) => (sc === 'Season' ? g.season : g.tot[sc]);
+    const gs = [...groups].sort((a, b) => { const x = val(a), y = val(b); return x == null ? 1 : y == null ? -1 : (x - y) * sd || a.season - b.season; });
+    const th = (c, cls, label = c) => `<th data-field="${esc(c)}" class="${cls}"${DEF[c] ? ` title="${esc(DEF[c])}"` : ''}${sc === c ? ` aria-sort="${sd > 0 ? 'ascending' : 'descending'}"` : ''}><button type="button" data-sort="${esc(c)}">${esc(label)}</button></th>`;
+    const thead = `<thead><tr>${th('Season', 'l sticky1')}<th class="l" data-field="Age" title="${esc(DEF.Age)}">Age</th><th class="l" data-field="Team">Team</th><th class="l col-div" data-field="Division">Div</th>${cols.map((c) => th(c, '')).join('')}</tr></thead>`;
+    const teamA = (r) => `<a href="${teamHref(type, r.Season, r.Division, r.tid)}" data-type="${type}" data-tid="${esc(r.tid)}" data-season="${r.Season}" data-div="${esc(r.Division)}">${esc(r.Team)}</a>`;
+    const line = (r, cls, team, div) => `<tr data-key="${esc(r.key)}"${cls ? ` class="${cls}"` : ''}><td class="l sticky1">${r.Season}</td><td class="l age">${r.Age == null ? '' : r.Age}</td><td class="l team">${team}</td><td class="l dim col-div">${div}</td>${cols.map((c) => `<td>${esc(cell(type, c, r))}</td>`).join('')}</tr>`;
+    const body = gs.map((g) => {
+      if (g.rows.length === 1) { const r = g.rows[0]; return line(r, r.pid === MATT ? 'me-row' : '', teamA(r), esc(r.Division)); }
+      return line({ ...g.tot, key: `${g.season}-total` }, 'tot', `${g.rows.length} teams`, esc(g.tot.Divs.length === 1 ? g.tot.Divs[0] : `${g.tot.Divs.length} divs`))
+        + g.rows.map((r) => line(r, 'sub', teamA(r), esc(r.Division))).join('');
+    }).join('');
+    const foot = careerRow ? `<tfoot><tr class="career" data-key="${esc(careerRow.key)}"><td class="l sticky1">Career</td><td class="l"></td><td class="l">${careerRow.Seasons} season${careerRow.Seasons === 1 ? '' : 's'}</td><td class="l dim col-div">${careerRow.From === careerRow.To ? careerRow.To : `${careerRow.From}–${careerRow.To}`}</td>${cols.map((c) => `<td data-source="${ds.career}" data-field="${esc(c)}" data-where="key=${enc(careerRow.key)}">${esc(cell(type, c, careerRow))}</td>`).join('')}</tr></tfoot>` : '';
+    return `<table class="pg-tbl" data-source="${ds.hist} ${ds.cur}" data-row-key="key">${thead}<tbody>${body}</tbody>${foot}</table>`;
   }
-  function renderStack(box, type, hist, cur, careerRow, cols) {
-    const ds = DS[type];
-    const parts = [];
-    if (hist.length) parts.push(seasonTableHTML(ds.hist, type, hist, cols, true));
-    if (cur.length) parts.push(seasonTableHTML(ds.cur, type, cur, cols, !hist.length));
-    if (careerRow) parts.push(careerTableHTML(ds.career, careerRow, cols, type));
-    const html = parts.join('');
-    if (box._html === html) return;
-    box.innerHTML = html; box._html = html;
-    alignStack(box);
+
+  // Quick Look: the latest season (all teams) over Career, FanGraphs-style
+  const QL = { bat: ['G', 'PA', 'HR', 'AVG', 'OBP', 'SLG', 'wRC+', 'oWAR'], pit: ['W', 'L', 'SV', 'IP', 'ERA', 'FIP', 'K%', 'WAR'] };
+  function quickLook(type, last, careerRow) {
+    const cols = QL[type], src = DS[type].career;
+    const row = (label, r, attrs) => `<tr${attrs}><td class="l">${label}</td>${cols.map((c) => `<td${attrs ? ` data-source="${src}" data-field="${esc(c)}" data-where="key=${enc(r.key)}"` : ''}>${esc(cell(type, c, r))}</td>`).join('')}</tr>`;
+    const season = last ? row(`${last.season}${last.rows.length > 1 ? ` · ${last.rows.length} teams` : ''}`, last.tot, '') : '';
+    return `<div class="pg-stack"><table class="pg-tbl pg-ql" id="p-ql-${type}"><caption>${type === 'bat' ? 'Batting' : 'Pitching'}</caption><thead><tr><th class="l"></th>${cols.map((c) => `<th data-field="${esc(c)}" title="${esc(DEF[c] || c)}">${esc(c)}</th>`).join('')}</tr></thead><tbody>${season}${row('Career', careerRow, ' class="career"')}</tbody></table></div>`;
   }
+
+  // the player's main line in his latest season and the division pool it ranks in (wRC+ and FIP- are already division-scaled)
+  const RANK = { bat: { w: 'PA', f: 'wRC+', min: 30, noun: 'hitters', unit: (n) => `${n} PA`, hi: true },
+    pit: { w: 'Outs', f: 'FIP-', min: 45, noun: 'pitchers', unit: (n) => `${ipStr(n / 3)} IP`, hi: false } };
+  function rankPool(type) {
+    const { w, f, min } = RANK[type], seasons = seasonsAvail(), mine0 = ownRows(type);
+    if (!seasons || !mine0) return null;
+    const mine = mine0.filter((r) => r[w] > 0);
+    if (!mine.length) return { none: true };
+    const y = Math.max(...mine.map((r) => r.Season));
+    const best = mine.filter((r) => r.Season === y).sort((a, b) => b[w] - a[w])[0];
+    const floor = type === 'bat' ? `${min}+ PA` : `${min / 3}+ IP`;
+    if (best[w] < min || best[f] == null) return { y, best, floor, small: true };
+    const pool = seasonRows(y === seasons[0] ? DS[type].cur : DS[type].hist, y);
+    if (!pool) return null;
+    const div = memoize(`rankpool|${type}|${y}|${best.Division}`, [pool], () => pool.filter((r) => r.Division === best.Division && r[w] >= min && r[f] != null));
+    return { y, best, floor, div };
+  }
+  // "17th of 81 Sierra hitters in wRC+ (2026, 30+ PA)"
+  function renderRank() {
+    const el = $('#p-rank'), out = [];
+    for (const type of ['bat', 'pit']) {
+      const { f, w, noun, unit, hi } = RANK[type], rp = rankPool(type);
+      if (!rp) return;
+      if (rp.none) continue;
+      const { y, best, floor, div } = rp;
+      if (rp.small) { out.push(`${unit(best[w])} in ${esc(best.Division)} (${y}): too few to rank (${floor})`); continue; }
+      const n = 1 + div.filter((r) => (hi ? r[f] > best[f] : r[f] < best[f])).length;
+      const tie = div.filter((r) => r[f] === best[f]).length > 1 ? 'T-' : '';
+      out.push(`<b>${tie}${nth(n)}</b> of ${div.length} ${esc(best.Division)} ${noun} in ${f} <span class="dim">(${y}, ${floor})</span>`);
+    }
+    const html = out.join(' · ');
+    if (el._html !== html) { el.innerHTML = html; el._html = html; }
+  }
+  // percentile bars: where the latest line sits among the division's hitters or pitchers that season (50 = middle)
+  const PCTL = { bat: [['wRC+', 1], ['OBP', 1], ['ISO', 1], ['BB%', 1], ['K%', 0], ['oWAR', 1]], pit: [['FIP-', 0], ['ERA-', 0], ['K%', 1], ['BB%', 0], ['WAR', 1]] };
+  function pctHTML(type) {
+    const rp = rankPool(type);
+    if (!rp || rp.none || rp.small) return '';
+    const { y, best, floor, div } = rp, n = div.length;
+    const bars = PCTL[type].filter(([c]) => best[c] != null).map(([c, up]) => {
+      const vs = div.map((r) => r[c]).filter((v) => v != null), v = best[c];
+      const below = vs.filter((x) => (up ? x < v : x > v)).length, same = vs.filter((x) => x === v).length;
+      const p = vs.length > 1 ? Math.round(100 * (below + (same - 1) / 2) / (vs.length - 1)) : 50;
+      return `<div class="pg-pbar" data-stat="${esc(c)}"><span class="k" title="${esc(DEF[c] || c)}${up ? '' : ' (lower is better, so a low number ranks high)'}">${esc(c)}</span><span class="tr" role="img" aria-label="${esc(c)} ${p}th percentile"><i class="${p >= 67 ? 'hi' : p <= 33 ? 'lo' : ''}" style="left:${p}%"></i></span><span class="p">${p}</span><span class="v">${esc(cell(type, c, best))}</span></div>`;
+    }).join('');
+    const team = (ownRows(type) || []).filter((r) => r.Season === y && r[RANK[type].w] > 0).length > 1 ? ` with ${esc(best.Team)}` : '';
+    return `<div data-type="${type}"><h3><b>${type === 'bat' ? 'Hitting' : 'Pitching'} percentiles</b> · ${y}${team} vs ${n} ${esc(best.Division)} ${RANK[type].noun} (${floor})</h3>${bars}</div>`;
+  }
+
+  // recently opened players, for the Players landing page (this browser only)
+  const RECENT = 'pssbl-recent-players';
+  const recentGet = () => { try { const v = JSON.parse(localStorage.getItem(RECENT) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };
+  const recentAdd = (pid, name) => { try { localStorage.setItem(RECENT, JSON.stringify([{ pid, name }, ...recentGet().filter((r) => r.pid !== pid)].slice(0, 8))); } catch (e) { /* private mode: no list */ } };
 
   // one colour per division everywhere, so Teton is the same colour in Batting and Pitching and on every player (no gold: that's Matt's)
   const DIV_COLOR = { Adams: '#d9822b', Sierra: '#3c8a2e', Adirondack: '#2f6fb3', Cascade: '#b0457a', Denali: '#7a5cc2', Everest: '#2a9d8f',
@@ -1160,60 +1349,193 @@
     if (leg.length) d3.select(el).insert('div', 'svg').attr('class', 'pg-legend').html(leg.join(''));
   }
 
+  // career arc: one point per season (all teams combined) on a real year axis. Pitching plots FIP- upside down so up is
+  // better on both cards, with ERA- as a ring joined to it. Tap or click a point to pin its numbers.
+  function arcChart(el, type, groups, careerRow) {
+    const pit = type === 'pit', f = pit ? 'FIP-' : 'wRC+', w = pit ? 'Outs' : 'PA', min = pit ? 9 : 10;
+    const W = el.clientWidth || 600, H = 190, m = { t: 14, r: 92, b: 26, l: 40 };
+    const pts = groups.filter((g) => g.tot[f] != null).map((g) => ({ g, s: g.season, v: g.tot[f], v2: pit ? g.tot['ERA-'] : null, small: (g.tot[w] || 0) < min }));
+    const cv = careerRow ? careerRow[f] : null, me = P.pid === MATT;
+    const k = JSON.stringify([W, type, pts.map((p) => [p.s, p.v, p.v2, p.small]), cv, me]);
+    if (el._k === k) return;
+    el._k = k;
+    el.innerHTML = '';
+    if (!pts.length) return;
+    const x0 = pts[0].s, x1 = pts[pts.length - 1].s;
+    const x = d3.scaleLinear(x0 === x1 ? [x0 - 1, x1 + 1] : [x0, x1], [m.l + 12, W - m.r - 6]);
+    // the axis fits real seasons; a cameo is pinned to the edge and labelled instead of stretching it
+    const dom = pts.filter((p) => !p.small).flatMap((p) => [p.v, p.v2]).filter((v) => v != null);
+    const yv = [...(dom.length ? dom : pts.map((p) => p.v)), 100, ...(cv == null ? [] : [cv])];
+    const lo = d3.min(yv), hi = d3.max(yv), pad = Math.max(8, (hi - lo) * 0.1);
+    const y = d3.scaleLinear([lo - pad, hi + pad], pit ? [m.t, H - m.b] : [H - m.b, m.t]).nice(5);
+    const [dlo, dhi] = y.domain(), clamp = (v) => Math.max(dlo, Math.min(dhi, v)), out = (v) => v < dlo || v > dhi;
+    const name = $('#p-name').textContent;
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('height', H).attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img')
+      .attr('aria-label', `${name}: ${f} by season, ${pts.map((p) => `${p.s} ${p.v}`).join(', ')}${cv == null ? '' : `; career ${cv}`}. 100 is division average; ${pit ? 'lower' : 'higher'} is better.`);
+    const yt = y.ticks(5);
+    svg.append('g').selectAll('line').data(yt).join('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y).attr('y2', y).attr('stroke', 'var(--cds-chart-grid)');
+    svg.append('g').selectAll('text').data(yt.filter((d) => Math.abs(y(d) - y(100)) > 10)).join('text').attr('x', m.l - 6).attr('y', (d) => y(d) + 4).attr('text-anchor', 'end').text((d) => d);
+    if (x0 < 2020 && x1 > 2020) {
+      svg.append('rect').attr('class', 'gap').attr('x', x(2019.6)).attr('width', x(2020.4) - x(2019.6)).attr('y', m.t).attr('height', H - m.t - m.b);
+      svg.append('text').attr('x', x(2020)).attr('y', m.t + 10).attr('text-anchor', 'middle').style('font-size', '10px').text(W < 500 ? '—' : 'no 2020');
+    }
+    svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(100)).attr('y2', y(100)).attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '4 3');
+    svg.append('text').attr('x', m.l - 6).attr('y', y(100) + 4).attr('text-anchor', 'end').attr('class', 'cap').text('100');
+    svg.append('text').attr('x', W - m.r + 6).attr('y', y(100) + 4).text('avg');
+    if (cv != null) {
+      const col = me ? '#c69331' : 'var(--fg-green-ink)';
+      svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(clamp(cv))).attr('y2', y(clamp(cv))).attr('stroke', col).attr('stroke-dasharray', '2 4');
+      svg.append('text').attr('x', W - m.r + 6).attr('y', y(clamp(cv)) + (Math.abs(y(cv) - y(100)) < 12 ? (y(cv) < y(100) ? -4 : 13) : 4)).style('fill', col).attr('class', 'cap').text(`${me ? '★ ' : ''}career ${cv}`);
+    }
+    // years: every one that fits
+    const span = x1 - x0 + 1, step = Math.max(1, Math.ceil(span / Math.floor((W - m.l - m.r) / 40)));
+    const ticks = d3.range(x0, x1 + 1).filter((s) => s !== 2020 && (s - x0) % step === 0);
+    svg.append('g').selectAll('text').data(ticks).join('text').attr('x', x).attr('y', H - 8).attr('text-anchor', 'middle').text((d) => (step > 1 || W < 500 ? `'${String(d).slice(2)}` : d));
+    svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', H - m.b).attr('y2', H - m.b).attr('stroke', 'var(--cds-chart-axis)');
+    // the line breaks where a season is missing
+    const runs = [];
+    for (const p of pts) { const last = runs[runs.length - 1]; if (last && p.s - last[last.length - 1].s === 1) last.push(p); else runs.push([p]); }
+    for (const r of runs.filter((r) => r.length > 1)) svg.append('path').attr('class', 'arc').attr('d', d3.line((p) => x(p.s), (p) => y(clamp(p.v)))(r));
+    if (pit) svg.append('g').selectAll('line').data(pts.filter((p) => p.v2 != null)).join('line').attr('class', 'link').attr('x1', (p) => x(p.s)).attr('x2', (p) => x(p.s)).attr('y1', (p) => y(clamp(p.v))).attr('y2', (p) => y(clamp(p.v2)));
+    if (pit) svg.append('g').selectAll('circle').data(pts.filter((p) => p.v2 != null)).join('circle').attr('cx', (p) => x(p.s)).attr('cy', (p) => y(clamp(p.v2))).attr('r', 3.5).attr('fill', 'var(--color-panel)').attr('stroke', 'var(--color-fg-muted)').attr('stroke-width', 1.5).attr('pointer-events', 'none');
+    const tip = d3.select(el).append('div').attr('class', 'pg-tip').style('display', 'none');
+    let pinned = null;
+    const hide = () => { pinned = null; tip.style('display', 'none'); svg.selectAll('circle.dot').attr('stroke-width', 2); };
+    const show = (p, node) => {
+      svg.selectAll('circle.dot').attr('stroke-width', 2); d3.select(node).attr('stroke-width', 3.5);
+      const g = p.g, teams = g.rows.length > 1 ? `${g.rows.length} teams` : `${esc(g.rows[0].Team)} (${esc(g.rows[0].Division)})`;
+      tip.style('display', null).html(`<div class="h">${p.s} · ${teams}</div><div>${esc(f)} <b>${esc(fmt(f, p.v))}</b>${pit && p.v2 != null ? ` · ERA- <b>${esc(fmt('ERA-', p.v2))}</b>` : ''}</div><div class="h">${pit ? `${esc(fmt('IP', g.tot.IP))} IP` : `${g.tot.PA} PA`}${out(p.v) ? ' · off the chart' : ''}</div>`);
+      const tw = tip.node().offsetWidth, cx = x(p.s), left = cx > W / 2 ? cx - tw - 12 : cx + 12;
+      tip.style('left', Math.max(0, Math.min(W - tw, left)) + 'px').style('top', Math.max(0, y(clamp(p.v)) - 50) + 'px');
+    };
+    svg.on('click', (ev) => { if (!ev.target.closest('circle')) hide(); });
+    const col = me ? '#c69331' : 'var(--fg-green)';
+    svg.append('g').selectAll('circle').data(pts).join('circle').attr('class', 'dot')
+      .attr('cx', (p) => x(p.s)).attr('cy', (p) => y(clamp(p.v))).attr('r', (p) => (p.small ? 3.5 : 5))
+      .attr('fill', (p) => (p.small || out(p.v) ? 'var(--color-panel)' : col)).attr('stroke', col).attr('stroke-width', 2)
+      .on('pointerenter', function (ev, p) { if (ev.pointerType === 'mouse' && !pinned) show(p, this); })
+      .on('pointerleave', function (ev) { if (ev.pointerType === 'mouse' && !pinned) hide(); })
+      .on('click', function (ev, p) { if (pinned === p) { hide(); return; } pinned = p; show(p, this); });
+    svg.append('g').selectAll('text').data(pts.filter((p) => out(p.v))).join('text').attr('class', 'off')
+      .attr('x', (p) => (x(p.s) > W - m.r - 50 ? x(p.s) - 8 : x(p.s) + 8)).attr('text-anchor', (p) => (x(p.s) > W - m.r - 50 ? 'end' : 'start'))
+      .attr('y', (p) => y(clamp(p.v)) + 4).text((p) => `${(p.v < dlo) !== pit ? '▼' : '▲'} ${fmt(f, p.v)}`);
+  }
+
   function renderPlayers() {
     setPGroup(P.group);
     if (sWaiting && playerIndex()) suggest(); // typed before the player list arrived
-    if (bad('bat_career') || bad('batting_hist')) { $('#p-name').textContent = ''; failed($('#p-strip')); return; }
+    if (P.viewFor !== P.pid) { P.viewFor = P.pid; P.type = null; P.logAll = false; P.sort = { bat: ['Season', 1], pit: ['Season', 1] }; }
+    const nm = $('#p-name'), cards = ['#p-pct', '#p-stats', '#p-log', '#p-proj'];
+    const set = (el, html) => { if (el._html !== html) { el.innerHTML = html; el._html = html; } };
+    if (!P.pid) return renderFinder(nm, cards, set);
+    $('#p-find').hidden = true;
+    if (bad('bat_career') || bad('batting_hist')) { nm.textContent = ''; failed($('#p-strip')); return; }
     const bc = rowsOf('bat_career'), pc = rowsOf('pit_career');
-    const nm = $('#p-name');
-    if (!bc || !pc) { nm.classList.add('dash-skeleton'); $('#p-strip').innerHTML = '<span class="dash-skeleton">—</span>'; }
+    if (!bc || !pc) { nm.classList.add('dash-skeleton'); set($('#p-strip'), '<div class="dash-skeleton"></div>'); }
     const bcr = bc && memoize('bcr' + P.pid, [bc], () => bc.find((r) => r.pid === P.pid) || null);
     const pcr = pc && memoize('pcr' + P.pid, [pc], () => pc.find((r) => r.pid === P.pid) || null);
     const head = bcr && pcr ? (bcr.To >= pcr.To ? bcr : pcr) : (bcr || pcr);
-    if (head) {
-      nm.classList.remove('dash-skeleton');
-      nm.textContent = head.Name; nm.classList.toggle('me', P.pid === MATT);
-      nm.setAttribute('data-source', head === bcr ? 'bat_career' : 'pit_career'); nm.setAttribute('data-field', 'Name'); nm.setAttribute('data-where', `key=${enc(head.key)}`);
-      const from = Math.min(bcr ? bcr.From : 9999, pcr ? pcr.From : 9999), to = Math.max(bcr ? bcr.To : 0, pcr ? pcr.To : 0);
-      // Age − Season is the same in every season (league age), so the current age follows from any line
-      const ac = [bcr, pcr].find((r) => r && r.Age != null), nowY = (seasonsAvail() || [to])[0];
-      const ageNow = ac ? ac.Age - ac.To + nowY : null;
-      $('#p-sub').innerHTML = `${ageNow == null ? '' : `<span id="p-age" title="League age in ${nowY} (${nowY} − birth year)">Age ${ageNow}</span> · `}${to}: ${lastTeams(head, bcr, to)} · on file ${from === to ? `${to} only` : `${from}–${to}`} · <a class="pg-link" href="https://pssbl.com/#!/player/${enc(P.pid)}" target="_blank" rel="noopener">pssbl.com profile ↗</a>`;
-      $('#p-group').hidden = false;
-      const st = (src, row, f) => row && row[f] != null ? `<div class="pg-stat"><div class="k">Career ${esc(f)}</div><div class="v" data-source="${src}" data-field="${esc(f)}" data-where="key=${enc(row.key)}">${esc(fmt(f, row[f]))}</div></div>` : '';
-      const strip = [];
-      if (bcr && bcr.PA > 0) strip.push(...['PA', 'AVG', 'OBP', 'SLG', 'wRC+', 'oWAR'].map((f) => st('bat_career', bcr, f)));
-      if (pcr && pcr.Outs > 0) strip.push(...['IP', 'ERA', 'FIP', 'K%', 'WAR'].map((f) => st('pit_career', pcr, f)));
-      const sh = strip.join('');
-      const sEl = $('#p-strip'); if (sEl._html !== sh) { sEl.innerHTML = sh; sEl._html = sh; }
-    } else if (bc && pc) {
-      nm.classList.remove('dash-skeleton'); nm.classList.remove('me'); nm.textContent = 'Player not found';
-      $('#p-sub').textContent = ''; $('#p-rank').textContent = ''; $('#p-group').hidden = true;
-      const msg = `<p class="pg-note" style="margin:0">No player with id ${esc(P.pid)} on file. Try the search box, or <a class="pg-link" href="#players/${MATT}" data-pid="${MATT}">see an example player</a>.</p>`;
-      const sEl = $('#p-strip'); if (sEl._html !== msg) { sEl.innerHTML = msg; sEl._html = msg; }
+    if (!head) {
+      if (bc && pc) {
+        nm.classList.remove('dash-skeleton', 'me'); nm.textContent = 'Player not found';
+        for (const s of ['#p-sub', '#p-rank', '#p-roles']) set($(s), '');
+        cards.forEach((s) => { $(s).hidden = true; });
+        set($('#p-strip'), `<p class="pg-note" style="margin:0">No player with id ${esc(P.pid)} on file. Try the search box, or <a class="pg-link" href="#players/${MATT}" data-pid="${MATT}">see an example player</a>.</p>`);
+      }
+      return;
+    }
+    nm.classList.remove('dash-skeleton');
+    nm.textContent = head.Name; nm.classList.toggle('me', P.pid === MATT);
+    nm.setAttribute('data-source', head === bcr ? 'bat_career' : 'pit_career'); nm.setAttribute('data-field', 'Name'); nm.setAttribute('data-where', `key=${enc(head.key)}`);
+    if (P.recentFor !== P.pid) { P.recentFor = P.pid; recentAdd(P.pid, head.Name); }
+    const from = Math.min(bcr ? bcr.From : 9999, pcr ? pcr.From : 9999), to = Math.max(bcr ? bcr.To : 0, pcr ? pcr.To : 0);
+    // Age − Season is the same in every season (league age), so the current age follows from any line
+    const ac = [bcr, pcr].find((r) => r && r.Age != null), nowY = (seasonsAvail() || [to])[0];
+    const ageNow = ac ? ac.Age - ac.To + nowY : null;
+    set($('#p-sub'), `${ageNow == null ? '' : `<span id="p-age" title="League age in ${nowY} (${nowY} − birth year)">Age ${ageNow}</span> · `}${to}: ${lastTeams(head, bcr, to)} · on file ${from === to ? `${to} only` : `${from}–${to}`} · <a class="pg-link" href="https://pssbl.com/#!/player/${enc(P.pid)}" target="_blank" rel="noopener">pssbl.com profile ↗</a>`);
+    // the game log opens on the latest season: ask for its box scores now instead of after the season tables
+    statusOf('box_' + to); statusOf('games');
+
+    // pitcher first only for real pitchers: a hitter gets about 4 PA a game and a starter faces about 25 batters, so a
+    // two-way regular (Bigelow: 2.3 batters faced per PA) stays a hitter and a staff ace (Gibson: 5) doesn't
+    const has = { bat: !!(bcr && bcr.PA > 0), pit: !!(pcr && pcr.Outs > 0) };
+    const primary = has.pit && (!has.bat || pcr.TBF > 3 * bcr.PA) ? 'pit' : 'bat';
+    const order = primary === 'pit' ? ['pit', 'bat'] : ['bat', 'pit'];
+    const type = has[P.type] ? P.type : primary;
+    set($('#p-roles'), order.filter((t) => has[t]).map((t) => `<span class="pg-role">${t === 'bat' ? 'Hitter' : 'Pitcher'}</span>`).join(''));
+    const careerOf = { bat: bcr, pit: pcr };
+    const groups = {};
+    for (const t of order) { const own = has[t] ? ownRows(t) : []; groups[t] = own && seasonGroups(t, own); }
+    set($('#p-strip'), order.filter((t) => has[t]).map((t) => quickLook(t, groups[t] && groups[t][groups[t].length - 1], careerOf[t])).join(''));
+
+    // percentiles: skeleton until the season pools arrive, then nothing for a player too new to rank
+    const pct = order.filter((t) => has[t]).map((t) => [t, rankPool(t)]);
+    const pctEl = $('#p-pct');
+    if (pct.some(([, rp]) => !rp)) { pctEl.hidden = false; pctEl.classList.add('dash-skeleton'); pctEl.style.minHeight = '9rem'; }
+    else {
+      pctEl.classList.remove('dash-skeleton'); pctEl.style.minHeight = '';
+      const html = pct.map(([t]) => pctHTML(t)).join('');
+      set($('#p-pct-body'), html); pctEl.hidden = !html;
     }
 
-    const parts = { bat: [bcr, BAT, 'PA', [{ f: 'wRC+', c: 0 }], false], pit: [pcr, PIT, 'IP', [{ f: 'FIP-', c: 0 }, { f: 'ERA-', c: 1, hollow: true }], true] };
-    for (const type of ['bat', 'pit']) {
-      const [crow, COLS, size, series, legend] = parts[type];
-      const ds = DS[type];
-      const card = $(type === 'bat' ? '#p-bat' : '#p-pit');
-      const box = $(type === 'bat' ? '#p-bat-tables' : '#p-pit-tables');
-      const chart = $(type === 'bat' ? '#p-bat-chart' : '#p-pit-chart');
-      // a one-way player: clear the other card too, so the last player's table and chart don't linger in the DOM
-      if (bc && pc && !crow) { card.hidden = true; box.innerHTML = ''; box._html = ''; chart.innerHTML = ''; chart._k = ''; continue; }
+    $('#p-stats').hidden = false;
+    $('#p-type').hidden = !(has.bat && has.pit);
+    const tabs = $('#p-type');
+    if (tabs.firstElementChild.dataset.v !== order[0]) tabs.append(...order.map((t) => tabs.querySelector(`[data-v="${t}"]`)));
+    setPType(type);
+    document.querySelectorAll('#pg-players [data-chart]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.chart === P.chart)));
+    for (const t of ['bat', 'pit']) {
+      const card = $(t === 'bat' ? '#p-bat' : '#p-pit'), box = $(t === 'bat' ? '#p-bat-tables' : '#p-pit-tables'), chart = $(t === 'bat' ? '#p-bat-chart' : '#p-pit-chart');
+      // only the open tab is drawn; the other is emptied so no stale player lingers in it
+      if (t !== type || !has[t]) { card.hidden = true; set(box, ''); chart.innerHTML = ''; chart._k = ''; continue; }
       card.hidden = false;
-      const h = pidRows(ds.hist, P.pid), c = pidRows(ds.cur, P.pid);
-      if (!h || !c) { box.classList.add('dash-skeleton'); box.style.minHeight = '6rem'; chart.classList.add('dash-skeleton'); continue; }
+      const gs = groups[t];
+      if (!gs) { box.classList.add('dash-skeleton'); box.style.minHeight = `${1.6 * (careerOf[t].Seasons + 2)}rem`; chart.classList.add('dash-skeleton'); continue; }
       box.classList.remove('dash-skeleton'); box.style.minHeight = ''; chart.classList.remove('dash-skeleton');
-      const ord = (a, b) => a.Season - b.Season || (type === 'bat' ? b.PA - a.PA : b.Outs - a.Outs);
-      const hs = [...h].sort(ord), cs = [...c].sort(ord);
-      renderStack(box, type, hs, cs, crow, COLS[P.group]);
-      dotChart(chart, [...hs, ...cs], series, { ref: 100, size, sizeBy: type === 'bat' ? 'PA' : 'Outs', minSize: type === 'bat' ? 10 : 9, src: `${ds.hist} ${ds.cur}`, legend });
+      set(box, seasonTable(t, gs, careerOf[t], (t === 'bat' ? BAT : PIT)[P.group]));
+      box.classList.toggle('tall', box.querySelectorAll('tbody tr').length > 18);
+      chart.setAttribute('data-source', `${DS[t].hist} ${DS[t].cur}`);
+      if (P.chart === 'team') {
+        const rows = [...gs.flatMap((g) => g.rows)];
+        dotChart(chart, rows, t === 'bat' ? [{ f: 'wRC+', c: 0 }] : [{ f: 'FIP-', c: 0 }, { f: 'ERA-', c: 1, hollow: true }], { ref: 100, size: t === 'bat' ? 'PA' : 'IP', sizeBy: t === 'bat' ? 'PA' : 'Outs', minSize: t === 'bat' ? 10 : 9, src: `${DS[t].hist} ${DS[t].cur}` });
+      } else arcChart(chart, t, gs, careerOf[t]);
     }
-    if (head) renderRank();
+    renderRank();
     renderProj();
     renderGameLog();
+  }
+
+  // #players with no id: search, recently opened players, and this season's rosters by division
+  function renderFinder(nm, cards, set) {
+    nm.classList.remove('dash-skeleton', 'me'); nm.removeAttribute('data-source'); nm.removeAttribute('data-field'); nm.removeAttribute('data-where');
+    nm.textContent = 'Players';
+    cards.forEach((s) => { $(s).hidden = true; });
+    set($('#p-roles'), ''); set($('#p-rank'), '');
+    const list = playerIndex(), seasons = seasonsAvail();
+    set($('#p-sub'), list ? `Every PSSBL player since ${d3.min(list, (r) => r.From)}: ${list.length.toLocaleString()} of them. Search by name, or browse a roster below.` : 'Search by name, or browse a roster below.');
+    const recent = recentGet();
+    set($('#p-strip'), `<div class="pg-recent">${recent.length ? 'Recently opened:' : 'Start with'} ${(recent.length ? recent : [{ pid: MATT, name: 'Matt Bereiter' }]).map((r) => `<a class="pg-chip" href="#players/${esc(r.pid)}" data-pid="${esc(r.pid)}">${esc(r.name)}${r.pid === MATT ? ' ★' : ''}</a>`).join('')}</div>`);
+    const find = $('#p-find'); find.hidden = false;
+    const bat = rowsOf(DS.bat.cur), pit = rowsOf(DS.pit.cur), teams = $('#p-find-teams');
+    if (!bat || !pit || !seasons) { teams.classList.add('dash-skeleton'); teams.style.minHeight = '20rem'; return; }
+    teams.classList.remove('dash-skeleton'); teams.style.minHeight = '';
+    $('#p-find-season').textContent = seasons[0];
+    const divs = [...new Set(bat.map((r) => r.Division))].sort();
+    if (!divs.includes(P.findDiv)) P.findDiv = divs.includes('Adams') ? 'Adams' : divs[0];
+    fillSelect($('#p-find-div'), divs.map((d) => [d, d]), P.findDiv);
+    const html = memoize('roster|' + P.findDiv, [bat, pit], () => {
+      const by = new Map();
+      const add = (r, k) => {
+        if (r.Division !== P.findDiv) return;
+        const t = by.get(r.tid) || by.set(r.tid, { name: r.Team, tid: r.tid, ps: new Map() }).get(r.tid);
+        const p = t.ps.get(r.pid) || t.ps.set(r.pid, { pid: r.pid, name: r.Name, PA: 0, Outs: 0 }).get(r.pid);
+        p[k] += r[k] || 0;
+      };
+      bat.forEach((r) => add(r, 'PA')); pit.forEach((r) => add(r, 'Outs'));
+      return [...by.values()].sort((a, b) => a.name.localeCompare(b.name)).map((t) => `<div class="pg-lcard" data-tid="${esc(t.tid)}"><h4><a class="pg-link" href="${teamHref('bat', seasons[0], P.findDiv, t.tid)}" data-type="bat" data-tid="${esc(t.tid)}" data-season="${seasons[0]}" data-div="${esc(P.findDiv)}">${esc(t.name)}</a></h4><ol>`
+        + [...t.ps.values()].sort((a, b) => b.PA + b.Outs - a.PA - a.Outs).map((p) => `<li${p.pid === MATT ? ' class="me"' : ''}><span class="n"><a href="#players/${esc(p.pid)}" data-pid="${esc(p.pid)}">${esc(p.name)}</a></span><span class="t">${[p.PA ? `${p.PA} PA` : '', p.Outs ? `${ipStr(p.Outs / 3)} IP` : ''].filter(Boolean).join(' · ')}</span></li>`).join('') + '</ol></div>').join('');
+    });
+    set(teams, html);
   }
   // every team the player suited up for in his latest season, most playing time first (the career row only knows one)
   function lastTeams(head, bcr, to) {
@@ -1231,34 +1553,6 @@
     });
     return [...seen.values()].sort((a, b) => b.n - a.n).map((t) => chip(t.type, t.r)).join(' · ');
   }
-  // "17th of 81 Sierra hitters in wRC+ (2026, 30+ PA)": the player's main line in his latest season against his own division.
-  // wRC+ and FIP- are already scaled to the division; cameos below the floor neither rank nor get ranked.
-  const RANK = { bat: { w: 'PA', f: 'wRC+', min: 30, noun: 'hitters', unit: (n) => `${n} PA`, hi: true },
-    pit: { w: 'Outs', f: 'FIP-', min: 45, noun: 'pitchers', unit: (n) => `${ipStr(n / 3)} IP`, hi: false } };
-  function renderRank() {
-    const el = $('#p-rank'), seasons = seasonsAvail();
-    if (!seasons) return;
-    const out = [];
-    for (const type of ['bat', 'pit']) {
-      const { w, f, min, noun, unit, hi } = RANK[type];
-      const h = pidRows(DS[type].hist, P.pid), c = pidRows(DS[type].cur, P.pid);
-      if (!h || !c) return;
-      const mine = [...h, ...c].filter((r) => r[w] > 0);
-      if (!mine.length) continue;
-      const y = Math.max(...mine.map((r) => r.Season));
-      const best = mine.filter((r) => r.Season === y).sort((a, b) => b[w] - a[w])[0];
-      const floor = type === 'bat' ? `${min}+ PA` : `${min / 3}+ IP`;
-      if (best[w] < min || best[f] == null) { out.push(`${unit(best[w])} in ${esc(best.Division)} (${y}): too few to rank (${floor})`); continue; }
-      const pool = seasonRows(y === seasons[0] ? DS[type].cur : DS[type].hist, y);
-      if (!pool) return;
-      const div = memoize(`rankpool|${type}|${y}|${best.Division}`, [pool], () => pool.filter((r) => r.Division === best.Division && r[w] >= min && r[f] != null));
-      const n = 1 + div.filter((r) => (hi ? r[f] > best[f] : r[f] < best[f])).length;
-      const tie = div.filter((r) => r[f] === best[f]).length > 1 ? 'T-' : '';
-      out.push(`<b>${tie}${nth(n)}</b> of ${div.length} ${esc(best.Division)} ${noun} in ${f} <span class="dim">(${y}, ${floor})</span>`);
-    }
-    const html = out.join(' · ');
-    if (el._html !== html) { el.innerHTML = html; el._html = html; }
-  }
 
   // ---------- GAME LOG ----------
   // one row per game from that season's box scores; opponent and score come from games.csv
@@ -1275,7 +1569,8 @@
     return { IP: Math.floor(s.Outs / 3) + (s.Outs % 3) / 10, ERA: s.Outs ? 27 * s.ER / s.Outs : null, Dec: s.W ? 'W' : s.L ? 'L' : s.SV ? 'SV' : '' };
   }
   function renderGameLog() {
-    const card = $('#p-log'), wrap = $('#p-log-wrap'), tbl = $('#p-log-table'), note = $('#p-log-note');
+    const card = $('#p-log'), wrap = $('#p-log-wrap'), tbl = $('#p-log-table'), note = $('#p-log-note'), more = $('#p-log-more');
+    more.hidden = true;
     if (P.logFor !== P.pid) { P.logFor = P.pid; P.log = null; P.logType = null; }
     const own = ['bat', 'pit'].flatMap((type) => [pidRows(DS[type].hist, P.pid), pidRows(DS[type].cur, P.pid)]);
     if (own.includes(null)) { wrap.classList.add('dash-skeleton'); return; }
@@ -1323,13 +1618,17 @@
     const pre = ['Date', 'Team', 'Opp', 'Result'];
     const thead = `<thead><tr>${pre.map((c) => `<th class="l">${c}</th>`).join('')}${cols.map((c) => `<th data-field="${esc(c)}" title="${esc(LOG_TIP[c] || DEF[c] || c)}">${esc(c)}</th>`).join('')}</tr></thead>`;
     const hrDash = (c, v) => (type === 'pit' && c === 'HR' && season > 2016 ? '—' : fmt(c, v));
-    const body = lines.map(({ r, o, opp, res, rc, team, fill }) => `<tr data-key="${esc(r.gameId)}"><td class="l"><a href="#game/${esc(r.gameId)}" data-game="${esc(r.gameId)}">${esc(fmtDay(r.Date))}</a>${r.PO ? '<span class="po" title="Playoffs">PO</span>' : ''}</td>`
-      + `<td class="l"${fill ? ` title="Fill-in game, credited to ${esc(r.Team)}"` : ''}>${esc(team)}${fill ? '*' : ''}</td><td class="l">${esc(opp)}</td><td class="l res-${rc}">${res ? `<a href="#game/${esc(r.gameId)}" data-game="${esc(r.gameId)}" title="Box score">${esc(res)}</a>` : ''}</td>`
+    // the last ten games; the rest are a tap away instead of a scroll box inside the page
+    const shown = P.logAll || lines.length <= 12 ? lines : lines.slice(0, 10);
+    const body = shown.map(({ r, o, opp, res, rc, team, fill }) => `<tr data-key="${esc(r.gameId)}"${type === 'bat' && !o.PA ? ' class="zero" title="No plate appearance: in the game as a runner or in the field"' : ''}><td class="l"><a href="#game/${esc(r.gameId)}" data-game="${esc(r.gameId)}" data-hl="${esc(P.pid)}">${esc(fmtDay(r.Date))}</a>${r.PO ? '<span class="po" title="Playoffs">PO</span>' : ''}</td>`
+      + `<td class="l"${fill ? ` title="Fill-in game, credited to ${esc(r.Team)}"` : ''}>${esc(team)}${fill ? '*' : ''}</td><td class="l">${esc(opp)}</td><td class="l res-${rc}">${res ? `<a href="#game/${esc(r.gameId)}" data-game="${esc(r.gameId)}" data-hl="${esc(P.pid)}" title="Box score">${esc(res)}</a>` : ''}</td>`
       + cols.map((c) => `<td>${esc(hrDash(c, o[c]))}</td>`).join('') + '</tr>').join('');
-    const foot = `<tfoot><tr><td class="l">Total</td><td class="l dim" colspan="3">${lines.length} game${lines.length === 1 ? '' : 's'}</td>${cols.map((c) => `<td>${c === 'Dec' ? '' : esc(hrDash(c, tot[c]))}</td>`).join('')}</tr></tfoot>`;
+    const foot = `<tfoot><tr><td class="l">Total</td><td class="l dim" colspan="3">${lines.length} game${lines.length === 1 ? '' : 's'}</td>${cols.map((c) => `<td>${c === 'Dec' ? esc(`${run.W}–${run.L}${run.SV ? `, ${run.SV} SV` : ''}`) : esc(hrDash(c, tot[c]))}</td>`).join('')}</tr></tfoot>`;
     const html = `${thead}<tbody>${body}</tbody>${foot}`;
     tbl.setAttribute('data-source', id);
     if (tbl._html !== html) { tbl.innerHTML = html; tbl._html = html; }
+    more.hidden = lines.length <= 12;
+    more.textContent = P.logAll ? 'Show the last 10 games' : `Show all ${lines.length} games`;
     const fills = lines.some((l) => l.fill);
     note.textContent = `Newest first; click a date or score for the box score. AVG/OBP/SLG and ERA are season to date. About 1–2% of games have no box score, so totals can fall a little short of the season line.${fills ? ' * Fill-in game for another team.' : ''}`;
   }
@@ -1391,7 +1690,8 @@
           if (r.Ord != null) seen.add(r.Ord);
           if (r.ptid) fills = true;
           const tag = kind === 'pit' ? dec(r) : '';
-          return `<tr data-key="${esc(`${g.gameId}-${kind}-${r.pid}`)}"${r.pid === MATT ? ' class="me"' : ''}><td class="l name sticky1"><span${sub ? ' class="sub"' : ''}><a href="#players/${esc(r.pid)}" data-pid="${esc(r.pid)}"${r.ptid ? ` title="Fill-in, normally on ${esc(r.Team)}"` : ''}>${esc(r.Name)}</a>${r.ptid ? '*' : ''}${tag ? ` <span class="dec">${tag}</span>` : ''}</span></td>`
+          const cls = [r.pid === MATT ? 'me' : '', r.pid === GM.hl ? 'hl' : ''].filter(Boolean).join(' ');
+          return `<tr data-key="${esc(`${g.gameId}-${kind}-${r.pid}`)}"${cls ? ` class="${cls}"` : ''}><td class="l name sticky1"><span${sub ? ' class="sub"' : ''}><a href="#players/${esc(r.pid)}" data-pid="${esc(r.pid)}"${r.ptid ? ` title="Fill-in, normally on ${esc(r.Team)}"` : ''}>${esc(r.Name)}</a>${r.ptid ? '*' : ''}${tag ? ` <span class="dec">${tag}</span>` : ''}</span></td>`
             + cols.map((c) => `<td>${cell(c, val(r, c))}</td>`).join('') + '</tr>';
         }).join('');
         const head = `<thead><tr><th class="l sticky1">${kind === 'bat' ? 'Batting' : 'Pitching'}</th>${cols.map((c) => `<th data-field="${esc(c)}" title="${esc(DEF[c] || c)}">${esc(c)}</th>`).join('')}</tr></thead>`;
@@ -1507,12 +1807,14 @@
     if (!targets.length) { card.hidden = true; return; }
     const yrs = Object.keys(tr.seasons).map(Number).sort((a, b) => b - a);
     const span = `${yrs[yrs.length - 1]}–${String(yrs[0]).slice(2)}`;
-    const html = memoize('proj' + P.pid, [tr, ...raw], () => {
+    const { html, sum } = memoize('proj' + P.pid, [tr, ...raw], () => {
+      const sums = [];
       const parts = ['bat', 'pit'].map((type) => {
         const ls = lines[type], cfg = PROJ[type];
         const ps = targets.map((T) => [T, project(type, ls, tr, T)]).filter(([, p]) => p);
         if (!ps.length) return '';
-        const { eff, shrink } = ps[0][1];
+        const { eff, shrink } = ps[0][1], key = type === 'bat' ? 'wRC+' : 'FIP-';
+        sums.push(`${key} ${ps.map(([, p]) => Math.round(p[key])).join(' / ')}`);
         const byDiv = d3.rollups(ls, (v) => d3.sum(v, (l) => l.w), (l) => l.Division).sort((a, b) => b[1] - a[1]);
         const used = byDiv.map(([d, n]) => `${esc(d)} ${type === 'pit' ? ipStr(n) : Math.round(n)}`).join(' · ');
         const head = `<thead><tr><th class="l" data-field="In">In</th>${cfg.show.map((c) => `<th data-field="${esc(c)}" title="${esc(DEF[c] || '')}">${esc(c)}</th>`).join('')}</tr></thead>`;
@@ -1520,8 +1822,9 @@
         return `<div><h4>${cfg.title}</h4><div class="pg-stack"><table class="pg-tbl" id="p-proj-${type}" data-source="translations">${head}<tbody>${body}</tbody></table></div>`
           + `<p class="pg-note">${span} ${cfg.unit}: ${used}. Rests on ${Math.round(eff)} recency-weighted ${cfg.unit}, so it's ${Math.round(shrink * 100)}% this player's own numbers and ${100 - Math.round(shrink * 100)}% the division average.</p></div>`;
       });
-      return parts.join('');
+      return { html: parts.join(''), sum: sums.join(' · ') };
     });
+    $('#p-proj-sum').textContent = sum;
     $('#p-proj-title').textContent = `Projected in ${targets.join(' / ')}`;
     $('#p-proj-lede').textContent = `How this player's last three seasons (${span}, weighted 5/4/3) might translate to ${targets.join(' or ')}. Lines from other divisions are adjusted by how the same players hit and pitched in two divisions in the same season, then pulled toward the division average: hard when the sample is small.`;
     const body = $('#p-proj-body'); if (body._html !== html) { body.innerHTML = html; body._html = html; }
@@ -1573,13 +1876,17 @@
   const teamState = (type, season, div, team) => ({ ...LDEF, type, sort: defSort(type), season, div, team, min: '0' });
   function hashFor(t = tab, s = L) {
     const latest = (seasonsAvail() || [])[0];
-    if (t === 'game') return `game/${GM.id}`;
+    if (t === 'game') return `game/${GM.id}` + (GM.hl ? `?p=${GM.hl}` : '');
     if (t === 'players') {
       const q = new URLSearchParams();
       if (P.group !== 'dash') q.set('group', P.group);
       if (P.log != null) q.set('log', P.log);
       if (P.logType) q.set('lt', P.logType);
+      if (P.type) q.set('stats', P.type);
+      if (P.chart !== 'season') q.set('chart', P.chart);
+      if (P.logAll) q.set('games', 'all');
       const qs = q.toString();
+      if (!P.pid) return 'players';
       return `players/${P.pid}` + (qs ? '?' + qs : '');
     }
     if (t === 'standings' || t === 'guts') {
@@ -1604,12 +1911,15 @@
     const p = new URLSearchParams(qs);
     const num = (v) => (v != null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : null);
     if (t === 'players' || t === 'me') {
-      P.pid = t === 'players' && /^\d+$/.test(arg || '') ? arg : MATT;
+      // #players alone is the finder; #me is Matt
+      P.pid = t === 'me' ? MATT : /^\d+$/.test(arg || '') ? arg : null;
       P.group = GROUPS.includes(p.get('group')) ? p.get('group') : 'dash';
       P.log = num(p.get('log')); P.logType = ['bat', 'pit'].includes(p.get('lt')) ? p.get('lt') : null; P.logFor = P.pid;
+      P.type = ['bat', 'pit'].includes(p.get('stats')) ? p.get('stats') : null; P.chart = p.get('chart') === 'team' ? 'team' : 'season';
+      P.viewFor = P.pid; P.logAll = p.get('games') === 'all'; P.sort = { bat: ['Season', 1], pit: ['Season', 1] };
       return showTab('players');
     }
-    if (t === 'game' && /^\d+$/.test(arg || '')) { GM.id = arg; return showTab('game'); }
+    if (t === 'game' && /^\d+$/.test(arg || '')) { GM.id = arg; GM.hl = /^\d+$/.test(p.get('p') || '') ? p.get('p') : null; return showTab('game'); }
     if (t === 'standings') { S.season = num(p.get('season')); return showTab(t); }
     if (t === 'guts') { G.season = p.get('season') === 'All' ? 'All' : num(p.get('season')); return showTab(t); }
     // anything else is the leaderboard; unknown or bad values fall back to the defaults

@@ -14,10 +14,12 @@ test.describe('Box scores', () => {
   test('a game-log row opens that game, and Back returns to the player', async ({ page }) => {
     const errors = trackErrors(page);
     await page.goto(`/#players/${MATT}`);
+    await page.locator('#p-log-more').click();
     const may3 = page.locator('#p-log-table tbody tr[data-key="21972"]');
     await may3.scrollIntoViewIfNeeded();
     await may3.locator('a[data-game]').last().click();
-    await expect(page).toHaveURL(/#game\/21972$/);
+    await expect(page).toHaveURL(new RegExp(`#game/21972\\?p=${MATT}$`));
+    await expect(page.locator(`#gm-teams tr.hl[data-key="21972-bat-${MATT}"]`)).toBeVisible(); // the player you came from
     await expect(page.locator('#pg-game')).toBeVisible();
     await expect(page.locator('#pg-players')).toBeHidden();
     await expect(page.locator('#gm-score')).toContainText('Beavers');

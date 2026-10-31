@@ -3,12 +3,17 @@ const { test, expect } = require('@playwright/test');
 const { trackErrors, MATT } = require('./helpers');
 
 const rows = (page) => page.locator('#p-log-table tbody tr');
+// the log opens on the last ten games
+const showAll = (page) => page.locator('#p-log-more').click();
 
 test.describe('Players: game log', () => {
   test('lists every game of the latest season, newest first, with opponent and score', async ({ page }) => {
     const errors = trackErrors(page);
     await page.goto(`/#players/${MATT}`);
     await expect(page.locator('#p-log-season')).toHaveValue('2026');
+    await expect(rows(page)).toHaveCount(10);
+    await expect(page.locator('#p-log-more')).toHaveText('Show all 35 games');
+    await showAll(page);
     await expect(rows(page)).toHaveCount(35);
     const first = await rows(page).first().locator('td').first().textContent();
     const last = await rows(page).last().locator('td').first().textContent();
@@ -25,6 +30,7 @@ test.describe('Players: game log', () => {
 
   test('switches to pitching and to an older season, and the link keeps it', async ({ page }) => {
     await page.goto(`/#players/${MATT}`);
+    await showAll(page);
     await expect(rows(page)).toHaveCount(35);
     await page.locator('#p-log-type button[data-v="pit"]').click();
     await expect(rows(page)).toHaveCount(19);
@@ -44,7 +50,7 @@ test.describe('Players: game log', () => {
   });
 
   test('another player starts on their own latest season', async ({ page }) => {
-    await page.goto(`/#players/${MATT}?log=2025`);
+    await page.goto(`/#players/${MATT}?log=2025&games=all`);
     await expect(rows(page)).toHaveCount(14);
     await page.goto('/#players/3393');
     await expect(rows(page).first()).toBeVisible();
