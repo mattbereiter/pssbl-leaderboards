@@ -740,9 +740,10 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     if (proj) $('#lb-note').textContent = projNote(L.type, proj);
 
     const divs = memoize('divs|' + id + L.season, [inSeason], () => [...new Set(inSeason.flatMap((r) => r.Divs || [r.Division]))].sort());
-    if (L.div !== 'All' && !divs.includes(L.div)) L.div = 'All';
-    fillSelect($('#lb-div'), [['All', 'All divisions'], ...divs.map((d) => [d, d])], L.div);
-    const inDiv = L.div === 'All' ? inSeason : memoize('div|' + id + L.season + L.div, [inSeason], () => inSeason.filter((r) => (r.Divs || [r.Division]).includes(L.div)));
+    if (L.div !== 'All' && !(proj && L.div === TOP4.id) && !divs.includes(L.div)) L.div = 'All';
+    fillSelect($('#lb-div'), [['All', 'All divisions'], ...(proj ? [[TOP4.id, TOP4.divs.join(', ')]] : []), ...divs.map((d) => [d, d])], L.div);
+    const inDiv = L.div === 'All' ? inSeason : memoize('div|' + id + L.season + L.div, [inSeason], () => inSeason.filter((r) => L.div === TOP4.id
+      ? (r.Divs || [r.Division]).every((d) => TOP4.divs.includes(d)) : (r.Divs || [r.Division]).includes(L.div)));
     const teams = memoize('teams|' + id + L.season + L.div, [inDiv], () => [...new Map(inDiv.map((r) => [r.tid, `${r.Team}${L.div === 'All' || proj ? ' (' + (r.TeamDiv || r.Division) + ')' : ''}`])).entries()].sort((a, b) => a[1].localeCompare(b[1])));
     const wcpOn = L.div === WCP.div;
     if (L.team !== 'All' && !(wcpOn && L.team === WCP.id) && !teams.some(([t]) => t === L.team)) L.team = 'All';
@@ -1076,6 +1077,8 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   PROJ.bat.board = ['PA', 'Eff PA', 'Own%', 'AVG', 'OBP', 'SLG', 'wOBA', 'wRC+', 'BB%', 'K%'];
   PROJ.pit.board = ['IP', 'Eff IP', 'Own%', 'FIP-', 'FIP', 'K%', 'BB%'];
   const PROJ_TARGETS = ['Adams', 'Sierra'];
+  // projected boards: "From" filter for players whose recent seasons were all in the top four divisions
+  const TOP4 = { id: 'Top4', divs: ['Adams', 'Sierra', 'Rocky', 'Denali'] };
   // Leaders "Projected → Adams/Sierra": the same projection for everyone with a recent line outside the target division
   function isProj(v) { return typeof v === 'string' && v.startsWith('Proj') && PROJ_TARGETS.includes(v.slice(4)); }
   function projSort(type) { return type === 'bat' ? 'wRC+' : 'FIP-'; }
