@@ -236,6 +236,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   .pg-lcard { scroll-snap-align: start; }
   .pg-card { padding: var(--cds-pad-sm); }
   .pg-tbl .col-div { display: none; }
+  .pg-tbl.show-div .col-div { display: table-cell; }
   .pg-tbl td.name { max-width: 8.5rem; overflow: hidden; text-overflow: ellipsis; }
   .pg-tbl .rk { width: 2rem; min-width: 2rem; }
   .pg-tbl .sticky2 { left: 2rem; }
@@ -365,6 +366,10 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
 <script>
 (() => {
   const MATT = '8048';
+  // West Coast Pilots: Matt's 2026 MSBL Arizona World Series team, spread over PSSBL teams. Offered as a Team under Adams.
+  const WCP = { id: 'wcp', div: 'Adams', label: 'West Coast Pilots (all divisions)',
+    pids: new Set(['8291', '6259', '7061', '7215', '6616', '5238', '6331', '3393', '8048', '8287', '4182', '4778', '6642', '7623', '7525', '4506']) };
+  const keepTeam = () => (L.team === WCP.id ? WCP.id : 'All');
   const STR = new Set(['key', 'pid', 'Name', 'Team', 'tid', 'ptid', 'Division', 'Date', 'kind', 'gameId']);
   const DS = { bat: { cur: 'batting', hist: 'batting_hist', career: 'bat_career' }, pit: { cur: 'pitching', hist: 'pitching_hist', career: 'pit_career' } };
 
@@ -477,11 +482,11 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     return (v) => el.querySelectorAll('button[data-v]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === v)));
   };
   const upd = (fn) => { fn(); L.page = 0; render(); };
-  const setType = seg('#lb-type', (v) => { if (L.type !== v) upd(() => { L.type = v; L.sort = v === 'bat' ? 'oWAR' : 'WAR'; L.dir = -1; L.min = 'q'; L.team = 'All'; }); });
+  const setType = seg('#lb-type', (v) => { if (L.type !== v) upd(() => { L.type = v; L.sort = v === 'bat' ? 'oWAR' : 'WAR'; L.dir = -1; L.min = 'q'; L.team = keepTeam(); }); });
   const setGroup = seg('#lb-group', (v) => upd(() => { L.group = v; }));
   const setPGroup = seg('#p-group', (v) => { P.group = v; render(); });
 
-  $('#lb-season').addEventListener('change', (e) => upd(() => { L.season = e.target.value === 'Career' ? 'Career' : Number(e.target.value); L.team = 'All'; L.range = 'full'; L.from = L.to = null; }));
+  $('#lb-season').addEventListener('change', (e) => upd(() => { L.season = e.target.value === 'Career' ? 'Career' : Number(e.target.value); L.team = keepTeam(); L.range = 'full'; L.from = L.to = null; }));
   $('#lb-range').addEventListener('change', (e) => upd(() => { L.range = e.target.value; if (L.range !== 'custom') L.from = L.to = null; }));
   const onDate = (el, k) => {
     el.addEventListener('change', () => {
@@ -690,9 +695,13 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     fillSelect($('#lb-div'), [['All', 'All divisions'], ...divs.map((d) => [d, d])], L.div);
     const inDiv = L.div === 'All' ? inSeason : memoize('div|' + id + L.season + L.div, [inSeason], () => inSeason.filter((r) => r.Division === L.div));
     const teams = memoize('teams|' + id + L.season + L.div, [inDiv], () => [...new Map(inDiv.map((r) => [r.tid, `${r.Team}${L.div === 'All' ? ' (' + r.Division + ')' : ''}`])).entries()].sort((a, b) => a[1].localeCompare(b[1])));
-    if (L.team !== 'All' && !teams.some(([t]) => t === L.team)) L.team = 'All';
-    fillSelect($('#lb-team'), [['All', career ? 'All (last team)' : 'All teams'], ...teams], L.team);
-    const inTeam = L.team === 'All' ? inDiv : inDiv.filter((r) => r.tid === L.team);
+    const wcpOn = L.div === WCP.div;
+    if (L.team !== 'All' && !(wcpOn && L.team === WCP.id) && !teams.some(([t]) => t === L.team)) L.team = 'All';
+    fillSelect($('#lb-team'), [['All', career ? 'All (last team)' : 'All teams'], ...teams, ...(wcpOn ? [[WCP.id, WCP.label]] : [])], L.team);
+    const pilots = L.team === WCP.id;
+    const inTeam = L.team === 'All' ? inDiv : pilots ? memoize('wcp|' + id + L.season, [inSeason], () => inSeason.filter((r) => WCP.pids.has(r.pid))) : inDiv.filter((r) => r.tid === L.team);
+    table.classList.toggle('show-div', pilots);
+    if (pilots) $('#lb-note').textContent = 'Every Pilot, from every division. Divisions differ in strength, so compare by wRC+, FIP-, ERA- and WAR, not raw AVG or ERA. ' + $('#lb-note').textContent;
     const cols = (L.type === 'bat' ? BAT : PIT)[L.group];
     const fixed = ['Name', 'Team', 'Division', ...(career ? ['Seasons'] : [])];
     if (!cols.includes(L.sort) && !fixed.includes(L.sort)) { L.sort = L.type === 'bat' ? (cols.includes('oWAR') ? 'oWAR' : cols.includes('wRC+') ? 'wRC+' : 'PA') : (cols.includes('WAR') ? 'WAR' : 'IP'); L.dir = -1; }
