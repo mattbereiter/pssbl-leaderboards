@@ -90,6 +90,18 @@ test.describe('Shareable links and Back', () => {
     await expect(page.locator('#leaders')).toBeVisible(); // the original tab stays put
   });
 
+  test('the West Coast Pilots view is shareable too', async ({ page }) => {
+    await openSite(page);
+    await page.locator('#lb-div').selectOption('Adams');
+    await page.locator('#lb-team').selectOption('wcp');
+    await expect.poll(() => hash(page)).toContain('team=wcp');
+    const url = page.url();
+    await page.goto('about:blank');
+    await page.goto(url);
+    await expect(page.locator('#lb-team')).toHaveValue('wcp');
+    await expect(page.locator('#lb-note')).toContainText('Every Pilot');
+  });
+
   test('a bad link falls back to the leaderboard', async ({ page }) => {
     const errors = trackErrors(page);
     await page.goto('/#nonsense?season=1999&min=abc&group=zzz');
