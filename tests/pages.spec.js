@@ -47,11 +47,14 @@ test.describe('Players', () => {
 });
 
 test.describe('Standings', () => {
-  test('shows every division with teams, and a team click filters Leaders', async ({ page }) => {
+  test('shows every division with teams, and a team click filters Leaders', async ({ page, request }) => {
     const errors = trackErrors(page);
     await openSite(page, 'standings');
     const cards = page.locator('#st-grid .pg-card');
-    await expect(cards).toHaveCount(10);
+    const manifest = await (await request.get('data/manifest.json')).json();
+    const stand = await (await request.get('data/standings.json')).json();
+    const divs = new Set(stand.filter((r) => r.Season === manifest.latest).map((r) => r.Division));
+    await expect(cards).toHaveCount(divs.size);
     for (const c of await cards.all()) expect(await c.locator('tbody tr').count()).toBeGreaterThan(1);
 
     const link = page.locator('#div-Adams tbody tr a[data-tid]').first();
@@ -65,10 +68,12 @@ test.describe('Standings', () => {
 });
 
 test.describe('Guts', () => {
-  test('lists the league constants and the glossary', async ({ page }) => {
+  test('lists the league constants and the glossary', async ({ page, request }) => {
     const errors = trackErrors(page);
     await openSite(page, 'guts');
-    await expect(page.locator('#gu-table tbody tr')).toHaveCount(10);
+    const manifest = await (await request.get('data/manifest.json')).json();
+    const guts = await (await request.get('data/guts.json')).json();
+    await expect(page.locator('#gu-table tbody tr')).toHaveCount(guts.filter((r) => r.Season === manifest.latest).length);
     await expect(page.locator('#gu-table thead')).toContainText('cFIP');
     await page.locator('#gu-season').selectOption('All');
     expect(await page.locator('#gu-table tbody tr').count()).toBeGreaterThan(90);

@@ -74,7 +74,7 @@ test.describe('Leaders', () => {
   });
 
   test('Matt is always shown and marked gold, even below the qualifying bar', async ({ page }) => {
-    await openSite(page);
+    await openSite(page, 'leaders?season=2026'); // pinned: his 2026 split is Beavers (qualified) + Brewers (not)
     await page.locator('#lb-q').fill('bereiter');
     await expect(leaderRows(page)).toHaveCount(2); // Beavers (qualified) + Brewers (not)
     await expect(page.locator(`#lb-table tbody tr.me a[data-pid="${MATT}"]`)).toHaveCount(2);

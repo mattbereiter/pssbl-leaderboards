@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { MATT, trackErrors, openSite, leaderTable } = require('./helpers');
+const { MATT, trackErrors, openSite, leaderTable, latestSeason } = require('./helpers');
 
 // League age (season − birth year, as pssbl.com counts it), from the birth dates on pssbl.com team rosters.
 const AJ = '3393';      // AJ Hansen, born 1993: 22 in 2015, 33 in 2026
@@ -20,19 +20,19 @@ async function agesIn(page, sel) {
 }
 
 test.describe('Age', () => {
-  test('Players shows the age for each season and the current age', async ({ page }) => {
+  test('Players shows the age for each season and the current age', async ({ page, request }) => {
     const errors = trackErrors(page);
     await openSite(page, `players/${AJ}`);
     await expect(page.locator('#p-name')).toHaveText('AJ Hansen');
-    await expect(page.locator('#p-age')).toHaveText('Age 33');
+    await expect(page.locator('#p-age')).toHaveText(`Age ${33 + (await latestSeason(request)) - 2026}`); // current league age moves with the newest season
     // the history table arrives after the current season's, so wait for it
     await expect.poll(() => agesIn(page, '#p-bat-tables')).toMatchObject({ 2015: '22', 2019: '26', 2026: '33' });
     expect(errors).toEqual([]);
   });
 
-  test("Matt's league age counts his August birthday (35 in 2026)", async ({ page }) => {
+  test("Matt's league age counts his August birthday (35 in 2026)", async ({ page, request }) => {
     await openSite(page, `players/${MATT}`);
-    await expect(page.locator('#p-age')).toHaveText('Age 35');
+    await expect(page.locator('#p-age')).toHaveText(`Age ${35 + (await latestSeason(request)) - 2026}`);
     await expect.poll(() => agesIn(page, '#p-bat-tables')).toMatchObject({ 2025: '34', 2026: '35' });
   });
 

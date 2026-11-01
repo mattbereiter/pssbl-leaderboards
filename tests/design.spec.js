@@ -58,7 +58,7 @@ test.describe('Design pass', () => {
 
   test('7. a box score opened from a game log links back to it and keeps that tab lit', async ({ page }) => {
     const errors = trackErrors(page);
-    await page.goto(`/#players/${MATT}`);
+    await page.goto(`/#players/${MATT}?log=2026`);
     await page.locator('#p-log-more').click();
     await page.locator('#p-log-table tbody tr[data-key="21972"] a[data-game]').last().click();
     await expect(page.locator('#gm-back')).toHaveText('← Matt Bereiter’s game log');
@@ -73,7 +73,7 @@ test.describe('Design pass', () => {
   });
 
   test('8. Matt gets his ★ in the leader cards, and the gold chart label is readable', async ({ page }) => {
-    await openSite(page, 'leaders?team=1520');
+    await openSite(page, 'leaders?season=2026&team=1520');
     const me = page.locator('#lb-cards li.me .n a').first();
     await expect(me).toHaveText('Matt Bereiter');
     expect(await me.evaluate((el) => getComputedStyle(el, '::after').content)).toBe('"★"');

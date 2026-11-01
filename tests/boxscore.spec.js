@@ -8,7 +8,7 @@ const totals = async (card, kind) => (await tableRows(card.locator(`table[data-k
 test.describe('Box scores', () => {
   test('a game-log row opens that game, and Back returns to the player', async ({ page }) => {
     const errors = trackErrors(page);
-    await page.goto(`/#players/${MATT}`);
+    await page.goto(`/#players/${MATT}?log=2026`);
     await page.locator('#p-log-more').click();
     const may3 = page.locator('#p-log-table tbody tr[data-key="21972"]');
     await may3.scrollIntoViewIfNeeded();

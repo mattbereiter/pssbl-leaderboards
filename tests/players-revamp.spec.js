@@ -13,7 +13,7 @@ test.describe('Players revamp', () => {
     const ql = page.locator('#p-ql-bat');
     await expect(ql).toBeVisible();
     await expect(ql.locator('tbody tr')).toHaveCount(2);
-    await expect(ql.locator('tbody tr').first()).toContainText('2026');
+    await expect(ql.locator('tbody tr').first()).toContainText(/20\d\d/); // his latest season, whichever it is
     await expect(ql.locator('tbody tr.career')).toContainText('Career');
     await expect(page.locator('#p-roles .pg-role')).toHaveText(['Hitter', 'Pitcher']);
   });

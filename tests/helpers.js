@@ -101,4 +101,21 @@ async function pickTeams(page, ...tids) {
   await expect(page.locator('#lb-team-list')).toBeHidden();
 }
 
-module.exports = { MATT, trackErrors, openSite, hash, settled, tableRows, leaderRows, leaderTable, goTab, pickDivs, pickTeams };
+/** The latest season in the published data (from the manifest), so specs needn't hard-code the year. */
+async function latestSeason(request) {
+  return (await (await request.get('data/manifest.json')).json()).latest;
+}
+
+/** Distinct team names a player has lines for in the current-season files (batting and pitching). */
+async function currentTeams(request, pid) {
+  const names = new Set();
+  for (const f of ['batting_current.csv', 'pitching_current.csv']) {
+    const lines = (await (await request.get('data/' + f)).text()).trim().split(/\r?\n/);
+    const heads = lines[0].split(',');
+    const [ip, it] = [heads.indexOf('pid'), heads.indexOf('Team')];
+    for (const l of lines.slice(1)) { const c = l.split(','); if (c[ip] === String(pid)) names.add(c[it]); }
+  }
+  return [...names].sort();
+}
+
+module.exports = { latestSeason, currentTeams, MATT, trackErrors, openSite, hash, settled, tableRows, leaderRows, leaderTable, goTab, pickDivs, pickTeams };
