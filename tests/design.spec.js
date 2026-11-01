@@ -82,4 +82,22 @@ test.describe('Design pass', () => {
     await expect(label).toBeVisible();
     expect(await label.evaluate((el) => el.style.fill)).toContain('--fg-star-ink');
   });
+
+  test('9. the theme button flips light and dark, remembers it, and hands back to the OS', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'light' });
+    await openSite(page);
+    const bg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    const btn = page.locator('#theme-btn');
+    await expect(btn).toHaveAttribute('aria-label', 'Switch to dark theme');
+    const light = await bg();
+    await btn.click();
+    await expect(btn).toHaveAttribute('aria-label', 'Switch to light theme');
+    expect(await bg()).not.toBe(light);
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await page.locator('#theme-btn').click(); // back to the OS's light: the override is dropped
+    await expect(page.locator('html')).not.toHaveAttribute('data-theme', /./);
+    expect(await page.evaluate(() => localStorage.getItem('pssbl-theme'))).toBeNull();
+    expect(await bg()).toBe(light);
+  });
 });

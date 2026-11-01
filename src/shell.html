@@ -25,13 +25,20 @@
   --cds-chart-reference: color-mix(in srgb, var(--color-fg) 45%, transparent);
   --cds-chart-muted: color-mix(in srgb, var(--color-fg) 25%, transparent);
 }
+/* dark follows the OS unless the page's theme button picked one (data-theme on <html>, remembered per browser) */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     color-scheme: dark;
     --color-bg: #111411; --color-panel: #1a1e19; --color-fg: #e6eae4; --color-fg-muted: #9ba398; --color-border-line: #2d332b;
     --color-ok: #66bb6a; --color-warn: #ffb74d; --color-bad: #ef5350;
     --cds-shadow-popover: 0 6px 24px rgba(0,0,0,.5);
   }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #111411; --color-panel: #1a1e19; --color-fg: #e6eae4; --color-fg-muted: #9ba398; --color-border-line: #2d332b;
+  --color-ok: #66bb6a; --color-warn: #ffb74d; --color-bad: #ef5350;
+  --cds-shadow-popover: 0 6px 24px rgba(0,0,0,.5);
 }
 html, body { margin: 0; background: var(--color-bg); color: var(--color-fg); font-family: var(--font-anthropic-sans); -webkit-text-size-adjust: 100%; }
 #dash-root { --dash-gutter: 16px; padding: 16px var(--dash-gutter) 8px; }
@@ -46,6 +53,25 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
 /* room under the footer so a fixed corner badge (Netlify's, when it's switched on) never sits over the last controls */
 @media (max-width: 760px) { .site-foot { padding-bottom: 88px; } }
 </style>
+<script>
+/* Light/dark choice, set before first paint so a remembered theme never flashes. The page shows its theme button
+   only when window.siteTheme exists, so the Claude dashboard (which themes itself) never gets one. */
+(() => {
+  const KEY = 'pssbl-theme', root = document.documentElement;
+  const os = () => (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  let saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) {}
+  if (saved === 'light' || saved === 'dark') root.dataset.theme = saved;
+  window.siteTheme = {
+    get: () => root.dataset.theme || os(),
+    set(t) {
+      // picking the OS's own theme drops the override, so the site follows the OS again
+      if (t === os()) delete root.dataset.theme; else root.dataset.theme = t;
+      try { if (root.dataset.theme) localStorage.setItem(KEY, t); else localStorage.removeItem(KEY); } catch (e) {}
+    },
+  };
+})();
+</script>
 <script>
 /* Stand-in for the Claude dashboard runtime: loads the files listed in data/manifest.json
    and tells the page whenever one arrives or the width changes. It runs before d3.min.js so the manifest request
