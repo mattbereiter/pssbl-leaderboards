@@ -13,8 +13,9 @@ Reads only public/data, so update.py runs it after publishing the CSVs; it regis
 """
 import csv, datetime, glob, json, math, os, statistics, sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA = os.environ.get('PSSBL_DATA') or os.path.join(ROOT, 'public', 'data')  # update.py points it at its staging folder
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import common  # noqa: E402
+DATA = os.environ.get('PSSBL_DATA') or common.DATA  # update.py points it at its staging folder
 REF, TARGETS = 'Adams', ('Adams', 'Sierra')
 BAT_COLS, PIT_COLS = ['AVG', 'OBP', 'SLG', 'wOBA', 'BB%', 'K%'], ['FIP-', 'K%', 'BB%', 'ERA-']
 BAT_FAC, PIT_FAC, PIT_OFF = ['AVG', 'ISO', 'xOB', 'wOBA', 'BB%', 'K%'], ['K%', 'BB%'], ['FIP-', 'ERA-']
