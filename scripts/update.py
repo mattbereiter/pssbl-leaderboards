@@ -9,12 +9,9 @@ Then commit and push; GitHub Pages redeploys the site from main automatically.
 """
 import csv, datetime, glob, json, os, runpy, shutil, subprocess, sys, time
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(ROOT, 'scripts'))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fetch  # noqa: E402
-
-RAW, BUILD, DATA = (os.path.join(ROOT, d) for d in ('raw', 'build', os.path.join('public', 'data')))
-FIRST = 2015
+from common import ROOT, RAW, BUILD, DATA, FIRST  # noqa: E402
 args = set(sys.argv[1:])
 this_year = time.localtime().tm_year
 
