@@ -16,7 +16,6 @@ W = dict(BB=.69, HBP=.72, S=.89, D=1.27, T=1.62, HR=2.10)
 WOBA_SCALE = 1.20
 QUAL_PA_PER_G = 2.0
 QUAL_IP_PER_G = 0.5
-MATT = '8048'
 
 def i(x):
     try: return int(x or 0)
@@ -371,7 +370,8 @@ def dump(name, rows):
             for z in rows:
                 w.writerow(['' if z.get(c) is None else ('true' if z[c] is True else 'false' if z[c] is False else z[c]) for c in cols])
     else:
-        json.dump(rows, open(p, 'w', encoding='utf-8'), separators=(',', ':'))
+        with open(p, 'w', encoding='utf-8') as f:
+            json.dump(rows, f, separators=(',', ':'))
     print(name, len(rows), f'{os.path.getsize(p)/1e6:.2f} MB')
 
 dump('pssbl_batting.csv', bat_rows)

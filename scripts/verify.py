@@ -26,10 +26,11 @@ def ours(kind, cols):
     """{pid: {season: {col: total}}} summed over every team line."""
     out = {}
     for suffix in ('current', 'history'):
-        for r in csv.DictReader(open(os.path.join(DATA, f'{kind}_{suffix}.csv'), encoding='utf-8')):
-            s = out.setdefault(r['pid'], {}).setdefault(int(r['Season']), dict.fromkeys(cols, 0))
-            for c in cols:
-                s[c] += int(float(r[c] or 0))
+        with open(os.path.join(DATA, f'{kind}_{suffix}.csv'), encoding='utf-8', newline='') as f:
+            for r in csv.DictReader(f):
+                s = out.setdefault(r['pid'], {}).setdefault(int(r['Season']), dict.fromkeys(cols, 0))
+                for c in cols:
+                    s[c] += int(float(r[c] or 0))
     return out
 
 
