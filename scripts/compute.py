@@ -22,8 +22,10 @@ def i(x):
     except: return 0
 
 def r(x, n):
+    """Round halves up, like the page's Math.round (Python's round() sends 16.25 to 16.2, the page to 16.3)."""
     if x is None or (isinstance(x, float) and (math.isnan(x) or math.isinf(x))): return None
-    return int(round(x)) if n == 0 else round(x, n)
+    v = math.floor(x * 10**n + 0.5)
+    return int(v) if n == 0 else v / 10**n
 
 def div0(a, b): return a / b if b else None
 
@@ -177,7 +179,7 @@ for y in seasons:
                 'Qual': pa >= QUAL_PA_PER_G * tg,
                 '_lgRPA': lgRPA,
                 # unrounded, so careers and team totals don't add up rounding error
-                '_wRAA': wraa, '_wSB': wsb, '_oWAR': (wraa + wsb + repPA*pa)/RPW,
+                '_wRAA': wraa, '_wSB': wsb, '_oWAR': (wraa + wsb + repPA*pa)/RPW, '_wnum': wnum(s),
             })
 
         # ---- pitching rows
@@ -294,7 +296,7 @@ def career_bat():
             for k in ('G','PA','AB','H','1B','2B','3B','HR','R','RBI','BB','IBB','SO','HBP','SF','SH','GDP','SB','CS'): S[k] += b[k]
             S['wRAA'] += b['_wRAA'] or 0; S['wSB'] += b['_wSB'] or 0; S['oWAR'] += b['_oWAR'] or 0; S['TG'] += b['TG']
             S['lgR'] += b['_lgRPA'] * b['PA']
-            S['wnum'] += (b['wOBA'] or 0) * (b['AB'] + b['BB'] - b['IBB'] + b['SF'] + b['HBP'])
+            S['wnum'] += b['_wnum']
             S['wden'] += b['AB'] + b['BB'] - b['IBB'] + b['SF'] + b['HBP']
         pa, ab = S['PA'], S['AB']
         last = max(L, key=lambda b: (b['Season'], b['PA']))
