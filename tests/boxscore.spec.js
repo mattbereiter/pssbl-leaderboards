@@ -66,9 +66,11 @@ test.describe('Box scores', () => {
     const errors = trackErrors(page);
     await page.goto('/#guts');
     const id = await page.evaluate(async () => {
-      // a 2026 game with no lines in box_2026.csv
-      const [g, b] = await Promise.all(['games.csv', 'box_2026.csv'].map((f) => fetch('/data/' + f).then((r) => r.text())));
-      const have = new Set(b.split('\n').slice(1).map((l) => l.split(',')[3]));
+      // a 2026 game with no lines in that season's monthly box files
+      const m = await fetch('/data/manifest.json').then((r) => r.json());
+      const files = ['games.csv', ...Object.values(m.datasets).filter((f) => f.startsWith('box_2026_'))];
+      const [g, ...bs] = await Promise.all(files.map((f) => fetch('/data/' + f).then((r) => r.text())));
+      const have = new Set(bs.flatMap((b) => b.split('\n').slice(1).map((l) => l.split(',')[3])));
       return g.split('\n').slice(1).map((l) => l.split(',')).find((c) => c[1] === '2026' && !have.has(c[0]))[0];
     });
     await page.goto(`/#game/${id}`);

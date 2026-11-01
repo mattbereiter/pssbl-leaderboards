@@ -58,7 +58,8 @@ scripts/           # data pipeline, Python 3 stdlib only
   fetch.py         # pssbl.com API -> raw/ (cache, not committed); `fetch.py --rosters` backfills missing rosters
   compute.py       # raw/ -> build/: season lines, careers, standings, guts (league constants)
   build_box.py     # raw/box -> build/: per-game player lines for the date filter and game log, plus games.csv (scores, home/away, field); box lines carry `Ord` (batting/pitching order) for the #game/<id> box score
-  update.py        # runs fetch + compute + build_box, splits/copies into public/data, stamps manifest, rebuilds page
+  common.py        # shared paths and constants, plus raw loaders that run once per process (box scores parsed once)
+  update.py        # runs fetch + compute + build_box, splits/copies into public/data (box scores by month, per-player files, lede), stamps manifest, rebuilds page
   translate.py     # public/data -> translations.json: division offsets + regression constants for the projection card
   build_page.py    # src/shell.html + src/page.html -> public/index.html
   verify.py        # sample players, compare counting stats with pssbl.com Career*; update.py runs it
@@ -199,8 +200,9 @@ writes `translations.json` and registers it in the manifest (bumping `version`).
   - **Redraw check:** `render()` redraws only the active tab. `sig()` plus `lastSig` skip redraws when nothing that
     view read has changed.
   - **Dataset ids** (`DS`): `batting`/`pitching` hold the latest season, `batting_hist`/`pitching_hist` hold
-    2015–previous, plus `bat_career`/`pit_career`, `standings`, `guts`, `translations` (JSON object, read via `dash.data` directly), `games` (one row per finished game: home/away ids and names, runs, field; the Players game log joins box lines to it for opponent and result, and `#game/<gameId>` renders both teams' box lines from it), and `box_YYYY`. The latest season is the max
-    `Season` in guts. History, careers and box scores load only when a view needs them.
+    2015–previous, plus `bat_career`/`pit_career`, `standings`, `guts`, `translations` (JSON object, read via `dash.data` directly), `games` (one row per finished game: home/away ids and names, runs, field; `#game/<gameId>` finds the game here), `lede` (the front page's top hitter and pitcher), and `box_YYYY_MM` (one month of box lines; each season's guts rows list its months in `BoxMonths`, and pitching lines with a W, L or SV carry the season-to-date `sW`/`sL`/`sSV`).
+    The Players page reads `player_NN` (every pid ending in NN, `bucketOf`/`mineOf`): the player's season lines (`t` = bat/pit), career rows (bc/pc) and box lines with the game's teams and score joined on (log), plus `players` (the slim index for the search box).
+    The latest season is the max `Season` in guts. History, careers and box scores load only when a view needs them.
   - **Column sets:** `BAT`/`PIT` (dash/std/adv). Formats come from `R3`/`PCT`/`F2`/`F1`; `LOW` lists
     lower-is-better columns (sets the first sort direction); `DEF` holds header tooltips.
   - **Date range:** `rangeSpec()` → `aggregateBox()` sums box lines in range, then `batLine()` / `pitLine()` recompute
@@ -225,7 +227,7 @@ writes `translations.json` and registers it in the manifest (bumping `version`).
    player-season and compares counting stats with `CareerBatting` / `CareerPitching` (n random hitters and
    pitchers, plus Matt). `update.py` runs it after every online refresh and stops on a mismatch.
    Oct 31, 2026: 42 players, 163 player-seasons, 0 mismatches (the Oct 27 audit of 625 seasons was also exact).
-2. **Box scores vs. season totals:** rebuild a full season from `box_YYYY.csv` and compare with the season lines.
+2. **Box scores vs. season totals:** rebuild a full season from its `box_YYYY_MM.csv` files and compare with the season lines.
    Expect about 95%+ exact; the remainder is missing games.
 3. **Spot check:** Matt 2026 Beavers (Adams) should read .292/.390/.333, 82 wRC+.
 

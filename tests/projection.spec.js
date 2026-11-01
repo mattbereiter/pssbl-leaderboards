@@ -72,7 +72,8 @@ test.describe('Projected in Adams / Sierra', () => {
     expect(Object.keys(bat)).toEqual(['Sierra']);
     expect(bat.Sierra).toMatchObject({ AVG: '.344', OBP: '.426', SLG: '.402', wOBA: '.370', 'wRC+': '105' });
 
-    await page.goto('/#players/1052'); // Paul Fisher, Sierra 2024-26
+    await page.goto('/#players/1052'); // Paul Fisher, Sierra 2024-26 (his own file loads first)
+    await expect(page.locator('#p-name')).toHaveText('Paul Fisher');
     await expect(page.locator('#p-proj-bat tbody tr')).toHaveCount(1);
     bat = await projTable(page, '#p-proj-bat');
     expect(Object.keys(bat)).toEqual(['Adams']);

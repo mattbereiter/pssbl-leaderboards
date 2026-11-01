@@ -37,7 +37,7 @@ test.describe('Players', () => {
   test('search typed before the player list loads fills in once it arrives', async ({ page }) => {
     let release = () => {};
     const gate = new Promise((r) => { release = r; });
-    await page.route('**/data/*_career.csv*', async (route) => { await gate; await route.continue(); });
+    await page.route('**/data/players.csv*', async (route) => { await gate; await route.continue(); });
     await page.goto('/#players');
     await page.locator('#p-q').fill('hansen');
     await expect(page.locator('#p-sugg')).toHaveText('Loading players…');
