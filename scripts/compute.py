@@ -16,15 +16,16 @@ W = dict(BB=.69, HBP=.72, S=.89, D=1.27, T=1.62, HR=2.10)
 WOBA_SCALE = 1.20
 QUAL_PA_PER_G = 2.0
 QUAL_IP_PER_G = 0.5
-MATT = '8048'
 
 def i(x):
     try: return int(x or 0)
     except: return 0
 
 def r(x, n):
+    """Round halves up, like the page's Math.round (Python's round() sends 16.25 to 16.2, the page to 16.3)."""
     if x is None or (isinstance(x, float) and (math.isnan(x) or math.isinf(x))): return None
-    return int(round(x)) if n == 0 else round(x, n)
+    v = math.floor(x * 10**n + 0.5)
+    return int(v) if n == 0 else v / 10**n
 
 def div0(a, b): return a / b if b else None
 
@@ -178,7 +179,7 @@ for y in seasons:
                 'Qual': pa >= QUAL_PA_PER_G * tg,
                 '_lgRPA': lgRPA,
                 # unrounded, so careers and team totals don't add up rounding error
-                '_wRAA': wraa, '_wSB': wsb, '_oWAR': (wraa + wsb + repPA*pa)/RPW,
+                '_wRAA': wraa, '_wSB': wsb, '_oWAR': (wraa + wsb + repPA*pa)/RPW, '_wnum': wnum(s),
             })
 
         # ---- pitching rows
@@ -295,7 +296,7 @@ def career_bat():
             for k in ('G','PA','AB','H','1B','2B','3B','HR','R','RBI','BB','IBB','SO','HBP','SF','SH','GDP','SB','CS'): S[k] += b[k]
             S['wRAA'] += b['_wRAA'] or 0; S['wSB'] += b['_wSB'] or 0; S['oWAR'] += b['_oWAR'] or 0; S['TG'] += b['TG']
             S['lgR'] += b['_lgRPA'] * b['PA']
-            S['wnum'] += (b['wOBA'] or 0) * (b['AB'] + b['BB'] - b['IBB'] + b['SF'] + b['HBP'])
+            S['wnum'] += b['_wnum']
             S['wden'] += b['AB'] + b['BB'] - b['IBB'] + b['SF'] + b['HBP']
         pa, ab = S['PA'], S['AB']
         last = max(L, key=lambda b: (b['Season'], b['PA']))
@@ -371,7 +372,8 @@ def dump(name, rows):
             for z in rows:
                 w.writerow(['' if z.get(c) is None else ('true' if z[c] is True else 'false' if z[c] is False else z[c]) for c in cols])
     else:
-        json.dump(rows, open(p, 'w', encoding='utf-8'), separators=(',', ':'))
+        with open(p, 'w', encoding='utf-8') as f:
+            json.dump(rows, f, separators=(',', ':'))
     print(name, len(rows), f'{os.path.getsize(p)/1e6:.2f} MB')
 
 dump('pssbl_batting.csv', bat_rows)

@@ -14,7 +14,7 @@ Reads only public/data, so update.py runs it after publishing the CSVs; it regis
 import csv, datetime, glob, json, math, os, statistics, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA = os.path.join(ROOT, 'public', 'data')
+DATA = os.environ.get('PSSBL_DATA') or os.path.join(ROOT, 'public', 'data')  # update.py points it at its staging folder
 REF, TARGETS = 'Adams', ('Adams', 'Sierra')
 BAT_COLS, PIT_COLS = ['AVG', 'OBP', 'SLG', 'wOBA', 'BB%', 'K%'], ['FIP-', 'K%', 'BB%', 'ERA-']
 BAT_FAC, PIT_FAC, PIT_OFF = ['AVG', 'ISO', 'xOB', 'wOBA', 'BB%', 'K%'], ['K%', 'BB%'], ['FIP-', 'ERA-']
@@ -176,7 +176,8 @@ def woba_parts(t):
 def main():
     bat = read('batting_history.csv') + read('batting_current.csv')
     pit = read('pitching_history.csv') + read('pitching_current.csv')
-    guts = json.load(open(os.path.join(DATA, 'guts.json'), encoding='utf-8'))
+    with open(os.path.join(DATA, 'guts.json'), encoding='utf-8') as f:
+        guts = json.load(f)
     box = [r for f in sorted(glob.glob(os.path.join(DATA, 'box_*.csv'))) for r in read(os.path.basename(f))]
     latest = max(g['Season'] for g in guts)
     seasons = [latest, latest - 1, latest - 2]
@@ -212,10 +213,12 @@ def main():
 
     mpath = os.path.join(DATA, 'manifest.json')
     if os.path.exists(mpath):  # register the file and bump the version so browsers refetch
-        m = json.load(open(mpath, encoding='utf-8'))
+        with open(mpath, encoding='utf-8') as f:
+            m = json.load(f)
         m['datasets']['translations'] = 'translations.json'
         m['version'] = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-        json.dump(m, open(mpath, 'w', encoding='utf-8'), indent=1)
+        with open(mpath, 'w', encoding='utf-8') as f:
+            json.dump(m, f, indent=1)
     print(f"translations: hitters r={rb:.2f} at {hb:.0f} PA/half -> k={out['bat']['k']:.0f} PA | "
           f"pitchers r={rp:.2f} at {hp:.0f} IP/half -> k={out['pit']['k']:.0f} IP")
     for d in sorted(fac_b):  # x in d is worth x / factor[d] in Adams
