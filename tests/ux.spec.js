@@ -23,7 +23,7 @@ test.describe('UX review fixes', () => {
   });
 
   test('leader cards follow the player search', async ({ page }) => {
-    await openSite(page);
+    await openSite(page, 'leaders?season=2026');
     await page.locator('#lb-q').fill('zzqxx');
     await expect(leaderRows(page)).toHaveCount(0);
     await expect(page.locator('#lb-cards li .n')).toHaveCount(0);

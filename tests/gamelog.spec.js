@@ -7,9 +7,9 @@ const rows = (page) => page.locator('#p-log-table tbody tr');
 const showAll = (page) => page.locator('#p-log-more').click();
 
 test.describe('Players: game log', () => {
-  test('lists every game of the latest season, newest first, with opponent and score', async ({ page }) => {
+  test('lists every game of a season, newest first, with opponent and score', async ({ page }) => {
     const errors = trackErrors(page);
-    await page.goto(`/#players/${MATT}`);
+    await page.goto(`/#players/${MATT}?log=2026`); // pinned: the default is his latest season, which moves on
     await expect(page.locator('#p-log-season')).toHaveValue('2026');
     await expect(rows(page)).toHaveCount(10);
     await expect(page.locator('#p-log-more')).toHaveText('Show all 35 games');
@@ -29,7 +29,7 @@ test.describe('Players: game log', () => {
   });
 
   test('switches to pitching and to an older season, and the link keeps it', async ({ page }) => {
-    await page.goto(`/#players/${MATT}`);
+    await page.goto(`/#players/${MATT}?log=2026`);
     await showAll(page);
     await expect(rows(page)).toHaveCount(35);
     await page.locator('#p-log-type button[data-v="pit"]').click();

@@ -89,7 +89,7 @@ test.describe('Shareable links and Back', () => {
   });
 
   test('the West Coast Pilots view is shareable too', async ({ page }) => {
-    await openSite(page);
+    await openSite(page, 'leaders?season=2026');
     await pickDivs(page, 'Adams');
     await pickTeams(page, 'wcp');
     await expect.poll(() => hash(page)).toContain('team=wcp');

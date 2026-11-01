@@ -2,29 +2,30 @@
 // Players page P0 fixes from the Oct 2026 review: rank line, every latest team, career rows that
 // match their seasons, tappable chart dots with fixed division colours, and a search that acts on what's typed.
 const { test, expect } = require('@playwright/test');
-const { MATT, trackErrors } = require('./helpers');
+const { MATT, trackErrors, currentTeams } = require('./helpers');
 
-const ONE_SEASON = '5902'; // Austin Beaver: 14 PA in 2026, nothing else
+const ONE_SEASON = '7149'; // Tyler Rogers: 6 PA in Adams in 2023, nothing else (a finished season, so it never changes)
 const GLEASON = '843';     // twelve seasons across several divisions, bats and pitches
 const GIBSON = '561';      // pitches a lot
 
 test.describe('Players page fixes', () => {
   test('the rank uses wRC+ among real hitters, and a cameo says it is too small to rank', async ({ page }) => {
     await page.goto('/#players/' + MATT);
-    await expect(page.locator('#p-rank')).toContainText(/(T-)?\d+(st|nd|rd|th) of \d+ Adams hitters in wRC\+ \(2026, 30\+ PA\)/);
-    await expect(page.locator('#p-rank')).toContainText(/pitchers in FIP- \(2026, 15\+ IP\)/);
+    await expect(page.locator('#p-rank')).toContainText(/(T-)?\d+(st|nd|rd|th) of \d+ Adams hitters in wRC\+ \(\d{4}, 30\+ PA\)/);
+    await expect(page.locator('#p-rank')).toContainText(/pitchers in FIP- \(\d{4}, 15\+ IP\)/);
     await page.goto('/#players/' + ONE_SEASON);
-    await expect(page.locator('#p-rank')).toContainText('14 PA in Adams (2026): too few to rank (30+ PA)');
+    await expect(page.locator('#p-rank')).toContainText('6 PA in Adams (2023): too few to rank (30+ PA)');
   });
 
-  test('the header names every team from the latest season', async ({ page }) => {
+  test('the header names every team from the latest season', async ({ page, request }) => {
     await page.goto('/#players/' + MATT);
     const chips = page.locator('#p-sub a.pg-chip');
-    await expect(chips).toHaveCount(2);
-    await expect(chips.nth(0)).toHaveText('Brewers'); // more of his 2026 games, batting and pitching
-    await expect(chips.nth(1)).toHaveText('Beavers');
+    const teams = await currentTeams(request, MATT); // Matt's teams in the newest season file
+    expect(teams.length).toBeGreaterThan(0);
+    await expect(chips).toHaveCount(teams.length);
+    expect([...(await chips.allTextContents())].sort()).toEqual(teams);
     await page.goto('/#players/' + ONE_SEASON);
-    await expect(page.locator('#p-sub')).toContainText('on file 2026 only');
+    await expect(page.locator('#p-sub')).toContainText('on file 2023 only');
   });
 
   test('a one-season career row matches its season row', async ({ page }) => {
@@ -62,7 +63,7 @@ test.describe('Players page fixes', () => {
     await page.goto('/#players/' + GIBSON);
     await expect(page.locator('#p-pit-tables tbody tr').first()).toBeVisible();
     await page.evaluate((pid) => { location.hash = '#players/' + pid; }, ONE_SEASON);
-    await expect(page.locator('#p-name')).toHaveText('Austin Beaver');
+    await expect(page.locator('#p-name')).toHaveText('Tyler Rogers');
     await expect(page.locator('#p-pit')).toBeHidden();
     await expect(page.locator('#p-pit-tables tr')).toHaveCount(0);
     await expect(page.locator('#p-pit-chart circle')).toHaveCount(0);

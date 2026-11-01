@@ -13,7 +13,7 @@ const rowDivs = (page) => page.locator('#lb-table tbody td.col-div').evaluateAll
 
 /** @param {import('@playwright/test').Page} page */
 async function openPilots(page) {
-  await openSite(page);
+  await openSite(page, 'leaders?season=2026'); // the roster is a 2026 one
   await pickDivs(page, 'Adams');
   await pickTeams(page, 'wcp');
   await page.locator('#lb-min').selectOption('0');
@@ -21,7 +21,7 @@ async function openPilots(page) {
 
 test.describe('West Coast Pilots team option', () => {
   test('is offered in every division; picking it shows every division, and a division narrows it', async ({ page }) => {
-    await openSite(page);
+    await openSite(page, 'leaders?season=2026');
     await expect(page.locator('#lb-team-list label', { hasText: 'West Coast Pilots' })).toHaveCount(1);
     await pickDivs(page, 'Rocky');
     await expect(page.locator('#lb-team-list label', { hasText: 'West Coast Pilots' })).toHaveCount(1);

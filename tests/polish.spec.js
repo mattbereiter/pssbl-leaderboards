@@ -5,7 +5,7 @@ const { MATT, trackErrors, openSite, leaderRows, leaderTable, goTab, pickDivs, p
 
 test.describe('Journey polish: filters', () => {
   test('changing season keeps the team by name, and says so when it can\'t', async ({ page }) => {
-    await openSite(page);
+    await openSite(page, 'leaders?season=2026');
     await pickDivs(page, 'Adams');
     await pickTeams(page, '1450'); // 2026 Mets
     await expect(page.locator('#lb-chips')).toContainText('Mets');
@@ -21,7 +21,7 @@ test.describe('Journey polish: filters', () => {
   });
 
   test('a team view shows everyone, drops the Div column, and the chip clears it', async ({ page }) => {
-    await openSite(page);
+    await openSite(page, 'leaders?season=2026');
     await pickDivs(page, 'Adams');
     await pickTeams(page, '1450');
     await expect(page.locator('#lb-min')).toHaveValue('0');
@@ -92,13 +92,13 @@ test.describe('Journey polish: filters', () => {
 
 test.describe('Journey polish: search and sorting', () => {
   test('a searched player keeps their real rank and the count reads right', async ({ page }) => {
-    await page.goto('/#leaders?min=0&q=bereiter');
+    await page.goto('/#leaders?season=2026&min=0&q=bereiter');
     await expect(leaderRows(page)).toHaveCount(2);
     await expect(page.locator('#lb-count')).toHaveText('2 players');
     const rank = Number(await page.locator('#lb-table tbody td.rk').first().textContent());
     expect(rank).toBeGreaterThan(1);
     // the same row sits at that rank on the unsearched board
-    await page.goto(`/?r#leaders?min=0&size=25&page=${Math.ceil(rank / 25)}`);
+    await page.goto(`/?r#leaders?season=2026&min=0&size=25&page=${Math.ceil(rank / 25)}`);
     await expect(page.locator(`#lb-table tbody tr:has(td.rk:text-is("${rank}")) a[data-pid]`)).toHaveAttribute('data-pid', MATT);
     await page.locator('#lb-q').fill('bereiter matt'); // any word order
     await expect(leaderRows(page)).toHaveCount(2);

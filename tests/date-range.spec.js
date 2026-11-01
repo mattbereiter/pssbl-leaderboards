@@ -7,7 +7,7 @@ const sum = (rows, c) => rows.reduce((a, r) => a + Number(r[c] || 0), 0);
 test.describe('Date range (rebuilt from box scores)', () => {
   test('regular season and playoffs split the full season', async ({ page }) => {
     const errors = trackErrors(page);
-    await openSite(page);
+    await openSite(page, 'leaders?season=2026'); // a new season has no playoffs yet
     await page.locator('#lb-min').selectOption('0');
     await page.locator('#lb-size').selectOption('250');
 
