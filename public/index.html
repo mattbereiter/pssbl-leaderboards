@@ -1083,7 +1083,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     $('#lb-title').textContent = `${L.type === 'bat' ? 'Batting' : 'Pitching'} leaders · ${career ? 'career' : allS ? 'every season' : proj ? 'projected in ' + proj : L.season}${sp ? ' · ' + rangeLabel(sp) : ''}`;
     $('#lb-div-label').textContent = proj ? 'From division' : 'Division';
     $('#lb-group').classList.toggle('proj', !!proj);
-    if (bad(id) || (sp && bad('guts')) || ((proj || allS) && (bad(DS[L.type].cur) || bad('translations')))) { failed(wrap); wrap.prepend(table); table.replaceChildren(); return null; }
+    if (bad(id) || (sp && bad('guts')) || ((proj || allS) && (bad(DS[L.type].cur) || bad('translations')))) { failed(wrap); wrap.prepend(table); table.replaceChildren(); table._draw = null; return null; }
     let inSeason, rangeGames = null, optRows;
     if (sp) {
       // ages come from the season lines (box scores carry none)
@@ -1095,7 +1095,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       optRows = seasonRows(sourceFor(L.type, L.season, seasons[0]), L.season);
     } else inSeason = proj ? projRows(L.type, proj) : allS ? allRows(L.type) : career ? rowsOf(id) : seasonRows(id, L.season);
     if (!sp) optRows = inSeason;
-    if (!inSeason || !optRows) { wrap.classList.add('dash-skeleton'); cards.classList.add('dash-skeleton'); $('#lb-count').textContent = ''; return null; }
+    if (!inSeason || !optRows) { wrap.classList.add('dash-skeleton'); cards.classList.add('dash-skeleton'); $('#lb-count').textContent = ''; table._draw = null; return null; }
     wrap.classList.remove('dash-skeleton'); cards.classList.remove('dash-skeleton');
     wrap.querySelector('.pg-failed')?.remove();
     // each value in the season tables cites its row; date-range lines are added up from box scores here, so the table and cards cite the box scores as a whole
@@ -1217,12 +1217,12 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       body += '</tr>';
       return body;
     };
-    // a highlighted row past the first batch draws everything at once, so it can be scrolled to
-    const split = slice.length > FIRST_ROWS && !(hlPid && slice.slice(FIRST_ROWS).some((r) => r.pid === hlPid));
+    // a page with a highlighted row draws everything at once, so the row can be scrolled to the middle
+    const split = slice.length > FIRST_ROWS && !(hlPid && slice.some((r) => r.pid === hlPid));
     const head = split ? slice.slice(0, FIRST_ROWS) : slice;
     table.innerHTML = thead + `<tbody>${head.map(rowHTML).join('')}</tbody>` + (shown.length ? '' : `<caption class="pg-empty" style="caption-side:bottom">${noGames ? 'No games were played in this range.' : L.q && !inQ.length ? `No player named “${esc(L.q)}” here.` : 'No players match these filters.'}</caption>`);
     const draw = table._draw = {};
-    if (split) afterPaint(() => { if (table._draw === draw) table.tBodies[0].insertAdjacentHTML('beforeend', slice.slice(FIRST_ROWS).map(rowHTML).join('')); });
+    if (split) afterPaint(() => { if (table._draw === draw && table.tBodies[0]) table.tBodies[0].insertAdjacentHTML('beforeend', slice.slice(FIRST_ROWS).map(rowHTML).join('')); });
   }
   function renderLeaders() {
     const c = leaderControls();
