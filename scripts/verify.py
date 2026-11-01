@@ -9,9 +9,8 @@ pssbl.com's per-year totals. Exits 1 on any mismatch, so update.py stops before 
 """
 import csv, json, os, random, sys, urllib.request, concurrent.futures as cf
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA = os.path.join(ROOT, 'public', 'data')
-API = 'https://pssbl.com/PHP/fetchData.php?'
+from common import DATA
+from fetch import API
 MATT = '8048'
 WORKERS = 4  # be gentle with the league's server
 
@@ -26,10 +25,11 @@ def ours(kind, cols):
     """{pid: {season: {col: total}}} summed over every team line."""
     out = {}
     for suffix in ('current', 'history'):
-        for r in csv.DictReader(open(os.path.join(DATA, f'{kind}_{suffix}.csv'), encoding='utf-8')):
-            s = out.setdefault(r['pid'], {}).setdefault(int(r['Season']), dict.fromkeys(cols, 0))
-            for c in cols:
-                s[c] += int(float(r[c] or 0))
+        with open(os.path.join(DATA, f'{kind}_{suffix}.csv'), encoding='utf-8', newline='') as f:
+            for r in csv.DictReader(f):
+                s = out.setdefault(r['pid'], {}).setdefault(int(r['Season']), dict.fromkeys(cols, 0))
+                for c in cols:
+                    s[c] += int(float(r[c] or 0))
     return out
 
 

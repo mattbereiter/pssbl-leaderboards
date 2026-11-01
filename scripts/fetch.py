@@ -4,12 +4,13 @@ For each season: team list, then per division the cumulative batting, pitching a
 then every finished game's box score and every team's roster (birth dates, for ages).
 Seasons named in `refresh` are re-downloaded even if cached, since the league keeps correcting box scores and team assignments after games are played.
 """
-import json, os, ssl, sys, time, urllib.request, concurrent.futures as cf
+import json, os, sys, time, urllib.request, concurrent.futures as cf
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW = os.path.join(ROOT, 'raw')
 API = 'https://pssbl.com/PHP/fetchData.php?'
 WORKERS = 6  # be gentle with the league's server
+FAILED = []  # queries that never gave a usable answer this run; update.py stops if there are any
 
 def fix_text(s):
     """Undo pssbl.com's double-encoded UTF-8 (it sends 'JosÃ©' for 'José'). Correct text passes through."""
@@ -30,20 +31,35 @@ def load(path):
         return _fix(json.load(f))
 
 def get(query, path, force=False):
-    if not force and os.path.exists(path) and os.path.getsize(path) > 2:
-        return load(path)
+    """One API answer (a JSON list), from the cache unless `force`. A cached `[]` counts: it's a real empty answer.
+
+    Only a list is cached, and it's written to a temp file first, so a junk answer (`null`, an error object) or an
+    interrupted run never leaves a file that every later run would trust. A cache file that won't parse is fetched
+    again. If every try fails, the query goes on FAILED and the old cache (if any) is left as it was.
+    """
+    if not force and os.path.exists(path):
+        try:
+            data = load(path)
+            if isinstance(data, list):
+                return data
+        except ValueError:
+            pass  # cut off mid-write by an older run: download it again
     for attempt in range(4):
         try:
             with urllib.request.urlopen(API + query, timeout=60) as r:
                 body = r.read()
             data = json.loads(body or b'[]')
+            if not isinstance(data, list):
+                raise ValueError(f'unexpected answer {body[:80]!r}')
             os.makedirs(os.path.dirname(path), exist_ok=True)
-            with open(path, 'wb') as f:
+            with open(path + '.tmp', 'wb') as f:
                 f.write(body)
+            os.replace(path + '.tmp', path)
             return _fix(data)
-        except Exception as e:  # network blip or empty answer: retry, then give up on this file
+        except Exception as e:  # network blip or junk answer: retry, then give up on this file
             if attempt == 3:
                 print(f'  ! {query}: {e}', file=sys.stderr)
+                FAILED.append(query)
                 return []
             time.sleep(2 * (attempt + 1))
 
