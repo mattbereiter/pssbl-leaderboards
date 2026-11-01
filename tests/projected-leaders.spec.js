@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { trackErrors, leaderRows, leaderTable, pickDivs } = require('./helpers');
+const { trackErrors, openSite, leaderRows, leaderTable, pickDivs } = require('./helpers');
 
 // Same numbers as the Players card (tests/projection.spec.js) and analysis/project_to_adams.py.
 test.describe('Leaders: Projected → Adams / Sierra', () => {
@@ -97,10 +97,10 @@ test.describe('Leaders: Projected → Adams / Sierra', () => {
     expect((await leaderTable(page))[0]).toMatchObject({ 'wRC+': '79' });
   });
 
-  test('every projected line holds together: SLG and OBP at least AVG, nothing near zero', async ({ page }) => {
-    for (const T of ['Adams', 'Sierra']) {
-      await page.goto(`/?${T}#leaders?season=Proj${T}&min=0&size=250`);
-      await expect(leaderRows(page).first()).toBeVisible();
+  for (const T of ['Adams', 'Sierra']) {
+    test(`every line projected to ${T} holds together: SLG and OBP at least AVG, nothing near zero`, async ({ page }) => {
+      test.slow(); // pages through the whole 500+ row board
+      await openSite(page, `leaders?season=Proj${T}&min=0&size=250`, { fresh: true });
       const rows = [];
       for (;;) { // every page of the board
         const info = await page.locator('#lb-pageinfo').textContent();
@@ -111,14 +111,16 @@ test.describe('Leaders: Projected → Adams / Sierra', () => {
         await expect(page.locator('#lb-pageinfo')).not.toHaveText(info);
       }
       expect(rows.length).toBeGreaterThan(500);
+      const bad = [];
       for (const r of rows) {
         const [avg, obp, slg] = [r.AVG, r.OBP, r.SLG].map(Number);
-        expect(slg, `${r.Name} SLG vs AVG`).toBeGreaterThanOrEqual(avg);
-        expect(obp, `${r.Name} OBP vs AVG`).toBeGreaterThanOrEqual(avg - 0.005);
-        expect(avg, `${r.Name} AVG`).toBeGreaterThan(0.1);
+        if (!(slg >= avg)) bad.push(`${r.Name}: SLG ${r.SLG} < AVG ${r.AVG}`);
+        if (!(obp >= avg - 0.005)) bad.push(`${r.Name}: OBP ${r.OBP} < AVG ${r.AVG}`);
+        if (!(avg > 0.1)) bad.push(`${r.Name}: AVG ${r.AVG}`);
       }
-    }
-  });
+      expect(bad).toEqual([]);
+    });
+  }
 
   test('Carl Gleason (Adirondack/Rainier/Teton) projects to a sane line', async ({ page }) => {
     await page.goto('/#players/843');

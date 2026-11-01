@@ -1,8 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { trackErrors, openSite, leaderRows, goTab, pickDivs, pickTeams } = require('./helpers');
-
-const hash = (page) => page.evaluate(() => decodeURIComponent(location.hash));
+const { trackErrors, openSite, hash, settled, leaderRows, goTab, pickDivs, pickTeams } = require('./helpers');
 
 test.describe('Shareable links and Back', () => {
   test('opening a player puts them in the URL, and a reload keeps them', async ({ page }) => {
@@ -106,7 +104,7 @@ test.describe('Shareable links and Back', () => {
     for (const h of ['#leaders', '#standings', '#guts']) {
       await page.goto('/' + h);
       await expect(page.locator(`.pg-nav button[data-tab="${h.slice(1)}"]`)).toHaveAttribute('aria-selected', 'true');
-      await page.waitForTimeout(500);
+      await settled(page);
       expect(await page.evaluate(() => scrollY), h).toBe(0);
     }
   });

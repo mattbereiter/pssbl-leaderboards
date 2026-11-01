@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { openSite, leaderRows } = require('./helpers');
+const { openSite, settled, leaderRows } = require('./helpers');
 
 test.describe('UX review fixes', () => {
   test('the header line is league news, not addressed to the visitor', async ({ page }) => {
@@ -46,7 +46,7 @@ test.describe('UX review fixes', () => {
       }).observe({ type: 'layout-shift', buffered: true });
     });
     await openSite(page);
-    await page.waitForTimeout(500);
+    await settled(page);
     // @ts-ignore
     const cls = await page.evaluate(() => window.__cls);
     expect(cls).toBeLessThan(0.1); // Google's "good" threshold

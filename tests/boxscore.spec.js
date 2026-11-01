@@ -1,14 +1,9 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { trackErrors, MATT } = require('./helpers');
+const { trackErrors, tableRows, MATT } = require('./helpers');
 
 const team = (page, i) => page.locator('#gm-teams > .pg-card').nth(i);
-const totals = (card, kind) => card.locator(`table[data-kind="${kind}"]`).evaluate((t) => {
-  const heads = [...t.querySelectorAll('thead th')].map((th) => th.textContent.trim());
-  const o = {};
-  [...t.querySelectorAll('tfoot td')].forEach((td, i) => { o[heads[i]] = td.textContent.trim(); });
-  return o;
-});
+const totals = async (card, kind) => (await tableRows(card.locator(`table[data-kind="${kind}"]`), 'tfoot tr'))[0];
 
 test.describe('Box scores', () => {
   test('a game-log row opens that game, and Back returns to the player', async ({ page }) => {

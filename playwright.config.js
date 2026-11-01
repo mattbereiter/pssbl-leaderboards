@@ -10,6 +10,8 @@ module.exports = defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: [['list']],
+  timeout: 45_000,
+  expect: { timeout: 10_000 },  // a first paint pulls several CSVs; 5s isn't enough with every worker loading at once
   use: {
     baseURL: `http://127.0.0.1:${PORT}/`,
     trace: 'retain-on-failure',
@@ -17,7 +19,7 @@ module.exports = defineConfig({
   webServer: {
     command: `python tests/serve.py ${PORT}`,
     url: `http://127.0.0.1:${PORT}/`,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,  // a server already on PORT may be another checkout's public/: fail loudly instead
     timeout: 20_000,
   },
   projects: [
