@@ -1,6 +1,6 @@
 """Per-game player lines (box scores) for the date-range filter, one CSV per season, plus the game list."""
 import collections, csv, json, os
-from common import BUILD as OUT, i, game_time, team_divs, finished_games, box_lines
+from common import BUILD as OUT, BROKEN, i, game_time, team_divs, finished_games, box_lines
 
 BC = ['kind','Date','Season','gameId','PO','pid','Name','tid','ptid','Team','Division','GS','AB','R','H','2B','3B','HR','RBI','SB','CS','BB','SO','GDP','HBP','SH','SF','CI','Outs','W','L','SV','CG','ER','IBB','WP','Ord']
 
@@ -24,7 +24,7 @@ def main():
     box = box_lines()
     for gid, (y, d, po) in meta.items():
         total[y] += 1
-        if box[gid] is None: missing[y] += 1; continue
+        if box[gid] is None or gid in BROKEN: missing[y] += 1; continue  # a half-saved game counts as missing
         for (kind, pid, tid), r in box[gid].items():
             ptid = ''
             if (y, pid, tid) not in CUM[kind]:

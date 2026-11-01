@@ -35,6 +35,8 @@ print('computing stats...')
 runpy.run_path(os.path.join(ROOT, 'scripts', 'compute.py'), run_name='__main__')
 print('building box-score files...')
 runpy.run_path(os.path.join(ROOT, 'scripts', 'build_box.py'), run_name='__main__')
+import common  # noqa: E402
+common.box_lines.cache_clear()  # about 180 MB of box lines; nothing after this needs them
 
 # publish into public/data: the latest season and the history are separate files so the
 # default view loads fast; older seasons, careers and box scores load only when asked for.
