@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { MATT, trackErrors } = require('./helpers');
+const { MATT, trackErrors, tableRows } = require('./helpers');
 
 /**
  * Read one projection table (#p-proj-bat / #p-proj-pit) as { Adams: {...}, Sierra: {...} } keyed by header.
@@ -8,15 +8,7 @@ const { MATT, trackErrors } = require('./helpers');
  * @param {string} sel
  */
 async function projTable(page, sel) {
-  return page.locator(sel).evaluate((t) => {
-    const heads = [...t.querySelectorAll('thead th')].map((th) => th.textContent.trim());
-    const o = {};
-    for (const tr of t.querySelectorAll('tbody tr')) {
-      const r = {}; [...tr.cells].forEach((td, i) => { r[heads[i]] = td.textContent.trim(); });
-      o[r['In']] = r;
-    }
-    return o;
-  });
+  return Object.fromEntries((await tableRows(page.locator(sel))).map((r) => [r.In, r]));
 }
 
 test.describe('Projected in Adams / Sierra', () => {

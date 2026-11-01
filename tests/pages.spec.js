@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { MATT, trackErrors, openSite, goTab } = require('./helpers');
+const { MATT, trackErrors, openSite, tableRows, goTab } = require('./helpers');
 
 test.describe('Players', () => {
   test('My page opens Matt with his 2026 Beavers line', async ({ page }) => {
@@ -13,11 +13,7 @@ test.describe('Players', () => {
     await expect(page.locator('#p-bat-chart svg circle').first()).toBeVisible();
 
     // PROJECT.md spot check: Matt 2026 Beavers (Adams) .292/.390/.333, 82 wRC+
-    const line = await page.locator('#p-bat-tables tr', { hasText: 'Beavers' }).filter({ hasText: '2026' }).evaluate((tr) => {
-      const t = tr.closest('table');
-      const heads = [...t.querySelectorAll('thead th')].map((th) => th.textContent.trim());
-      const o = {}; [...tr.cells].forEach((td, i) => { o[heads[i]] = td.textContent.trim(); }); return o;
-    });
+    const line = (await tableRows(page.locator('#p-bat-tables table').first())).find((r) => r.Season === '2026' && r.Team === 'Beavers');
     expect(line).toMatchObject({ Season: '2026', Team: 'Beavers', Div: 'Adams', AVG: '.292', OBP: '.390', SLG: '.333', 'wRC+': '82' });
 
     await expect(page.locator('#p-bat-tables tr.career')).toHaveCount(1);

@@ -14,14 +14,44 @@ function trackErrors(page) {
   return errors;
 }
 
+let loads = 0;
+
 /**
- * Open the site (optionally at a #tab) and wait until the leaderboard has rows.
+ * Open the site (optionally at a #hash) and, on a Leaders view, wait until the leaderboard has rows.
+ * `fresh` forces a real page load (a new ?n), since a goto that only changes the hash keeps the old page.
  * @param {import('@playwright/test').Page} page
  * @param {string} [hash]
+ * @param {{ fresh?: boolean }} [opts]
  */
-async function openSite(page, hash = '') {
-  await page.goto('/' + (hash ? '#' + hash : ''));
-  if (!hash || hash === 'leaders') await expect(leaderRows(page).first()).toBeVisible();
+async function openSite(page, hash = '', { fresh = false } = {}) {
+  await page.goto('/' + (fresh ? `?${++loads}` : '') + (hash ? '#' + hash : ''));
+  // the first paint fetches d3, the manifest and several CSVs, so give it longer than the 10s default under load
+  if (!hash || /^leaders(\?|$)/.test(hash)) await expect(leaderRows(page).first()).toBeVisible({ timeout: 15_000 });
+}
+
+/** The URL hash, decoded. @param {import('@playwright/test').Page} page */
+const hash = (page) => page.evaluate(() => decodeURIComponent(location.hash));
+
+/** Wait until every data file has arrived and no skeleton is left. @param {import('@playwright/test').Page} page */
+async function settled(page) {
+  await page.waitForLoadState('networkidle');
+  await expect(page.locator('.dash-skeleton:visible')).toHaveCount(0);
+}
+
+/**
+ * Read table rows as objects keyed by column header.
+ * @param {import('@playwright/test').Locator} table
+ * @param {string} [rows] row selector inside the table
+ */
+async function tableRows(table, rows = 'tbody tr') {
+  return table.evaluate((t, sel) => {
+    const heads = [...t.querySelectorAll('thead th')].map((th) => th.textContent.trim());
+    return [...t.querySelectorAll(sel)].map((tr) => {
+      const o = {};
+      [...tr.cells].forEach((td, i) => { o[heads[i]] = td.textContent.trim(); });
+      return o;
+    });
+  }, rows);
 }
 
 /** @param {import('@playwright/test').Page} page */
@@ -31,16 +61,7 @@ const leaderRows = (page) => page.locator('#lb-table tbody tr');
  * Read the leaderboard as objects keyed by column header (Name, Team, PA, …).
  * @param {import('@playwright/test').Page} page
  */
-async function leaderTable(page) {
-  return page.locator('#lb-table').evaluate((t) => {
-    const heads = [...t.querySelectorAll('thead th')].map((th) => th.textContent.trim());
-    return [...t.querySelectorAll('tbody tr')].map((tr) => {
-      const o = {};
-      [...tr.cells].forEach((td, i) => { o[heads[i]] = td.textContent.trim(); });
-      return o;
-    });
-  });
-}
+const leaderTable = (page) => tableRows(page.locator('#lb-table'));
 
 /**
  * Click a nav tab by its data-tab value.
@@ -73,4 +94,4 @@ async function pickTeams(page, ...tids) {
   await expect(page.locator('#lb-team-list')).toBeHidden();
 }
 
-module.exports = { MATT, trackErrors, openSite, leaderRows, leaderTable, goTab, pickDivs, pickTeams };
+module.exports = { MATT, trackErrors, openSite, hash, settled, tableRows, leaderRows, leaderTable, goTab, pickDivs, pickTeams };

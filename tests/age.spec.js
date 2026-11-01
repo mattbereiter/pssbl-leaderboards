@@ -71,8 +71,7 @@ test.describe('Age', () => {
   test('Age shows in career, date-range and projected boards', async ({ page }) => {
     const errors = trackErrors(page);
     for (const hash of ['leaders?season=Career', 'leaders?range=reg', 'leaders?season=ProjAdams']) {
-      await openSite(page, hash);
-      await expect(page.locator('#lb-table tbody tr').first()).toBeVisible();
+      await openSite(page, hash, { fresh: true }); // a hash-only goto could read the previous board
       const rows = await leaderTable(page);
       expect(rows.filter((r) => /^\d+$/.test(r.Age)).length, hash).toBeGreaterThan(40);
       expect(rows.map((r) => r.Age).join(' '), hash).not.toMatch(/NaN|null|undefined/);
