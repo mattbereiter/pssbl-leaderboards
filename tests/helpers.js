@@ -61,7 +61,14 @@ const leaderRows = (page) => page.locator('#lb-table tbody tr');
  * Read the leaderboard as objects keyed by column header (Name, Team, PA, …).
  * @param {import('@playwright/test').Page} page
  */
-const leaderTable = (page) => tableRows(page.locator('#lb-table'));
+async function leaderTable(page) {
+  // a big page draws its first 50 rows, then the rest a moment later: wait for every row the pager counts
+  await expect.poll(async () => {
+    const m = ((await page.locator('#lb-pageinfo').textContent()) || '').replace(/,/g, '').match(/^(\d+)–(\d+)/);
+    return !m || (await page.locator('#lb-table tbody tr').count()) === Number(m[2]) - Number(m[1]) + 1;
+  }).toBe(true);
+  return tableRows(page.locator('#lb-table'));
+}
 
 /**
  * Click a nav tab by its data-tab value.
