@@ -1981,6 +1981,9 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   PROJ.bat.board = ['PA', 'Eff PA', 'Own%', 'AVG', 'OBP', 'SLG', 'wOBA', 'wRC+', 'BB%', 'K%'];
   PROJ.pit.board = ['IP', 'Eff IP', 'Own%', 'FIP-', 'FIP', 'K%', 'BB%'];
   const PROJ_TARGETS = ['Adams', 'Sierra', 'Cascade'];
+  // Sierra is an older division: nobody under league age 29 now is projected there (players with no birth date stay in)
+  const PROJ_MIN_AGE = { Sierra: 29 };
+  const projAgeOK = (target, age) => !(target in PROJ_MIN_AGE) || age == null || age >= PROJ_MIN_AGE[target];
   // Leaders "Projected → Adams/Sierra/Cascade": the same projection for everyone with a recent line outside the target division
   function isProj(v) { return typeof v === 'string' && v.startsWith('Proj') && PROJ_TARGETS.includes(v.slice(4)); }
   function projSort(type) { return type === 'bat' ? 'wRC+' : 'FIP-'; }
@@ -2008,8 +2011,9 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
         const divs = d3.rollups(ls, (v) => d3.sum(v, (l) => l.w), (l) => l.Division).sort((a, b) => b[1] - a[1]).map(([d]) => d);
         const tot = d3.sum(ls, (l) => l.w);
         // age in the latest season: a projection describes the player now
-        const now = Math.max(...Object.keys(tr.seasons).map(Number));
-        const row = { key: `proj-${target}-${pid}`, pid, Name: last.Name, Age: last.Age == null ? null : last.Age + now - last.Season, Team: last.Team, tid: last.tid, TeamDiv: last.Division, Division: divs.join(', '), Divs: divs,
+        const now = Math.max(...Object.keys(tr.seasons).map(Number)), age = last.Age == null ? null : last.Age + now - last.Season;
+        if (!projAgeOK(target, age)) continue;
+        const row = { key: `proj-${target}-${pid}`, pid, Name: last.Name, Age: age, Team: last.Team, tid: last.tid, TeamDiv: last.Division, Division: divs.join(', '), Divs: divs,
           'Own%': Math.round(100 * p.shrink), Qual: p.eff >= tr[type].k, 'K%': p['K%'], 'BB%': p['BB%'] };
         if (type === 'bat') Object.assign(row, { PA: Math.round(tot), 'Eff PA': Math.round(p.eff), AVG: p.AVG, OBP: p.OBP, SLG: p.SLG, wOBA: p.wOBA, 'wRC+': Math.round(p['wRC+']) });
         else { const outs = Math.round(tot * 3); Object.assign(row, { Outs: outs, IP: ipNum(outs), 'Eff IP': Math.round(p.eff), 'FIP-': Math.round(p['FIP-']), FIP: p.FIP }); }
@@ -2022,7 +2026,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     const tr = projData();
     if (!tr) return '';
     const yrs = Object.keys(tr.seasons).map(Number).sort((a, b) => a - b), k = Math.round(tr[type].k), u = PROJ[type].unit;
-    return `A guess at next season in ${target} for everyone whose ${yrs[0]}–${String(yrs[yrs.length - 1]).slice(2)} seasons include a division other than ${target}${target === 'Cascade' ? '' : ' (Adams and Sierra are about the same level, so Adams players show up under Sierra and vice versa)'}. Use Division → All except to leave out a division's players. `
+    return `A guess at next season in ${target} for everyone whose ${yrs[0]}–${String(yrs[yrs.length - 1]).slice(2)} seasons include a division other than ${target}${target === 'Cascade' ? '' : ' (Adams and Sierra are about the same level, so Adams players show up under Sierra and vice versa)'}. Use Division → All except to leave out a division's players.${target in PROJ_MIN_AGE ? ` ${target} leaves out anyone under league age ${PROJ_MIN_AGE[target]} this season.` : ''} `
       + `Seasons are weighted 5/4/3, translated with same-season two-division ratios, then pulled toward the ${target} average; Own% is how much is the player's own numbers. `
       + `Qualified = at least half their own (${k} effective ${u}). A rough guide: two-division players are self-selected, and there's no aging adjustment.`;
   }
@@ -2070,7 +2074,10 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     const lines = { bat: projLines('bat', raw[0], tr.seasons), pit: projLines('pit', raw[1], tr.seasons) };
     // a target only for players with a recent line outside it (an Adams-only player gets Sierra and Cascade, and so on)
     const all = [...lines.bat, ...lines.pit];
-    const targets = PROJ_TARGETS.filter((T) => all.some((l) => l.Division !== T));
+    const now = Math.max(...Object.keys(tr.seasons).map(Number));
+    const aged = [...raw[0], ...raw[1]].filter((r) => r.Age != null).sort((a, b) => b.Season - a.Season)[0];
+    const age = aged ? aged.Age + now - aged.Season : null;
+    const targets = PROJ_TARGETS.filter((T) => all.some((l) => l.Division !== T) && projAgeOK(T, age));
     if (!targets.length) { card.hidden = true; return; }
     const yrs = Object.keys(tr.seasons).map(Number).sort((a, b) => b - a);
     const span = `${yrs[yrs.length - 1]}–${String(yrs[0]).slice(2)}`;

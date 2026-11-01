@@ -138,6 +138,25 @@ test.describe('Leaders: Projected → Adams / Sierra', () => {
     expect(errors).toEqual([]);
   });
 
+  test('Projected → Sierra leaves out anyone under league age 29', async ({ page }) => {
+    const errors = trackErrors(page);
+    await openSite(page, 'leaders?season=ProjSierra&min=0&size=250&sort=Age&dir=1', { fresh: true });
+    const rows = await leaderTable(page);
+    const ages = rows.map((r) => r.Age).filter((a) => a !== '' && a !== '—').map(Number);
+    expect(ages.length).toBeGreaterThan(50);
+    expect(Math.min(...ages)).toBeGreaterThanOrEqual(29);
+    await expect(page.locator('#lb-note')).toContainText('29');
+    // the same young (Adams-only) player still projects to Cascade, and his card skips Sierra
+    await page.goto('/?y#leaders?season=ProjCascade&min=0&q=lewis%20fromberg');
+    await expect(leaderRows(page)).toHaveCount(1);
+    await page.goto('/?y#leaders?season=ProjSierra&min=0&q=lewis%20fromberg');
+    await expect(page.locator('#lb-table caption')).toContainText('No player');
+    await page.goto('/#players/5683'); // Lewis Fromberg, 27, Adams
+    await expect(page.locator('#p-proj')).toBeVisible();
+    await expect(page.locator('#p-proj-bat tbody tr')).toHaveText([/^Cascade/]);
+    expect(errors).toEqual([]);
+  });
+
   test('Division → All except leaves out players from those divisions', async ({ page }) => {
     const errors = trackErrors(page);
     await page.goto('/#leaders?season=ProjAdams&min=0&size=250');

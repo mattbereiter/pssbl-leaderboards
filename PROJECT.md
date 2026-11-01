@@ -184,7 +184,9 @@ writes `translations.json` and registers it in the manifest (bumping `version`).
 - **Leaders board** (`season=ProjAdams` / `ProjSierra` / `ProjCascade`; targets are `TARGETS` in `scripts/translate.py` and `PROJ_TARGETS` in the page): `projRows()` runs `project()` for every such player;
   columns are recent PA/IP, effective PA/IP, Own% (shrink) and the projected line. Default sort wRC+ / FIP- (low first).
 - **Targets shown:** a target appears only if the player has a recent line outside it (Adams-only → Sierra and Cascade,
-  Sierra-only → Adams and Cascade, Matt's Adams + Sierra → all three). The card states the
+  Sierra-only → Adams and Cascade, Matt's Adams + Sierra → all three).
+  Sierra is an older division, so nobody under league age 29 this season is projected there (`PROJ_MIN_AGE` in the
+  page; players with no birth date stay in), on the board and on the Players card. The card states the
   PA/IP it rests on, the own-numbers vs average split, and the caveats (self-selected two-division players, environment
   mixed with competition, no aging adjustment even though ages are now on file).
 
