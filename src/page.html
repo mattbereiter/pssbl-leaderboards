@@ -467,24 +467,34 @@
   const memo = new Map();
   const statusOf = (id) => { touched.add(id); return dash.data(id).status; };
   const bad = (id) => { const s = statusOf(id); return s === 'error' || s === 'declined'; };
+  const typed = (k, v) => {
+    if (STR.has(k)) return v == null ? '' : String(v);
+    if (v === '' || v == null) return null;
+    if (v === true || v === 'true') return true;
+    if (v === false || v === 'false') return false;
+    const n = Number(v); return Number.isNaN(n) ? v : n;
+  };
+  const makers = new Map();
+  const maker = (cols) => {
+    const key = cols.join('\u0001');
+    let f = makers.get(key);
+    if (!f) {
+      const body = cols.map((c) => `${JSON.stringify(c)}:t(${JSON.stringify(c)},r[${JSON.stringify(c)}])`).join(',');
+      f = new Function('t', `return (r) => ({${body}});`)(typed); // eslint-disable-line no-new-func
+      makers.set(key, f);
+    }
+    return f;
+  };
   const rowsOf = (id) => {
     touched.add(id);
     const d = dash.data(id);
     if (d.status !== 'ok' || !Array.isArray(d.data)) return null;
     if (cache[id] && cache[id].src === d.data) return cache[id].rows;
-    const rows = new Array(d.data.length);
-    for (let i = 0; i < d.data.length; i++) {
-      const r = d.data[i], o = {};
-      for (const k in r) {
-        const v = r[k];
-        if (STR.has(k)) o[k] = v == null ? '' : String(v);
-        else if (v === '' || v == null) o[k] = null;
-        else if (v === true || v === 'true') o[k] = true;
-        else if (v === false || v === 'false') o[k] = false;
-        else { const n = Number(v); o[k] = Number.isNaN(n) ? v : n; }
-      }
-      rows[i] = o;
-    }
+    const rows = new Array(d.data.length), cols = d.data.columns;
+    // CSV rows all share one column list, so each typed row is built as one object literal (adding 40+ keys one at a
+    // time leaves objects in V8's slow dictionary mode: about 3x the memory, and slower filters and sorts)
+    const make = cols ? maker(cols) : (r) => { const o = {}; for (const k in r) o[k] = typed(k, r[k]); return o; };
+    for (let i = 0; i < d.data.length; i++) rows[i] = make(d.data[i]);
     cache[id] = { src: d.data, rows };
     return rows;
   };
@@ -499,6 +509,8 @@
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const enc = (s) => encodeURIComponent(String(s));
   const $ = (s) => document.querySelector(s);
+  // rewrite an element only when its HTML changed (keeps focus, scroll and open menus between redraws)
+  const setHTML = (el, html) => { if (el._html !== html) { el.innerHTML = html; el._html = html; } };
 
   // ---------- formats ----------
   const R3 = new Set(['AVG', 'OBP', 'SLG', 'OPS', 'ISO', 'BABIP', 'wOBA', 'Pct']);
@@ -546,7 +558,8 @@
     WP: 'Wild pitches', 'BB%p': 'Walks per batter faced', Seasons: 'Seasons played', 'Eff PA': 'Effective PA after season weights', 'Eff IP': 'Effective IP after season weights', 'Own%': "How much of the projection is the player's own numbers",
   };
   // pssbl.com records 0 HR allowed for every pitcher from 2017 on, so those cells say so instead of showing a fake 0
-  const noPitHR = (r) => !(r.Season <= 2016);
+  const pitHRUnknown = (season) => !(season <= 2016);
+  const noPitHR = (r) => pitHRUnknown(r.Season);
   const cell = (type, c, r) => (type === 'pit' && (c === 'HR' || c === 'HR/9') && noPitHR(r) ? '—' : fmt(c, r[c]));
   // search: accents and apostrophes folded ("obrien" finds O'Brien), words in any order
   const fold = (x) => String(x).normalize('NFD').replace(/[\u0300-\u036f'\u2019]/g, '').toLowerCase();
@@ -566,6 +579,10 @@
     return d + (a.length - i) + (b.length - j) <= 1;
   };
   const fuzzyMatch = (q) => { const toks = fold(q).split(/\s+/).filter(Boolean); return (name) => { const ws = folded(name).split(/[\s.'-]+/); return toks.every((t) => ws.some((w) => w.startsWith(t) || (t.length >= 4 && (near(t, w) || near(t, w.slice(0, t.length)))))); }; };
+  // innings as baseball writes them: 12.1 is 12⅓ (ipNum for sorting and formats, ipOuts/ipStr for text)
+  const ipNum = (outs) => Math.floor(outs / 3) + (outs % 3) / 10;
+  const ipOuts = (outs) => `${Math.floor(outs / 3)}.${outs % 3}`;
+  const ipStr = (ip) => ipOuts(Math.round(ip * 3));
   const nth = (n) => n + (['th', 'st', 'nd', 'rd'][(n % 100 - 20) % 10] || ['th', 'st', 'nd', 'rd'][n % 100] || 'th');
 
   // ---------- state ----------
@@ -738,7 +755,7 @@
     const box = ([val, label]) => `<label><input type="checkbox" value="${esc(val)}"${picked.includes(val) ? ' checked' : ''}>${esc(label)}</label>`;
     const html = `<button type="button" data-all>${esc(all)}</button>` + opts.map(box).join('') + (extra.length ? '<hr>' + extra.map(box).join('') : '');
     const list = $(`#lb-${k}-list`);
-    if (list._html !== html) { list.innerHTML = html; list._html = html; }
+    setHTML(list, html);
   }
   const renderDivMenu = (divs, picked) => renderMulti('div', divs.map((d) => [d, d]), picked, { all: 'All divisions', noun: 'divisions' });
   const fillSelect = (el, opts, value) => {
@@ -754,7 +771,7 @@
     if (typeof x === 'string') return dir * x.localeCompare(y);
     return dir * (x - y);
   };
-  const failed = (el) => { el.classList.remove('dash-skeleton'); el.innerHTML = '<div class="pg-failed">Failed to load</div>'; };
+  const failed = (el) => { el.classList.remove('dash-skeleton'); el.innerHTML = '<div class="pg-failed">Failed to load</div>'; el._html = null; };
   const sourceFor = (type, season, latest) => season === 'Career' ? DS[type].career : (season === latest ? DS[type].cur : DS[type].hist);
 
 
@@ -804,7 +821,7 @@
     }
     const lob = H + BB + HBP - 1.4 * HR, bip = H - HR + outs - SO, ab = tbf - BB - HBP;
     return { key: a.key, Season: a.Season, pid: a.pid, Name: a.Name, Team: a.Team, tid: a.tid, Division: a.Division, TG: tg, W: s.W, L: s.L, SV: s.SV, HLD: null, G, GS: s.GS, CG: s.CG, SHO: null,
-      IP: Math.floor(outs / 3) + (outs % 3) / 10, Outs: outs, TBF: tbf, H, R: s.R, ER: s.ER, HR, BB, IBB: s.IBB, SO, HBP, WP: s.WP,
+      IP: ipNum(outs), Outs: outs, TBF: tbf, H, R: s.R, ER: s.ER, HR, BB, IBB: s.IBB, SO, HBP, WP: s.WP,
       'K/9': ip ? rd(9 * SO / ip, 2) : null, 'BB/9': ip ? rd(9 * BB / ip, 2) : null, 'HR/9': ip ? rd(9 * HR / ip, 2) : null,
       'K%': tbf ? rd(100 * SO / tbf, 1) : null, 'BB%': tbf ? rd(100 * BB / tbf, 1) : null, 'K-BB%': tbf ? rd(100 * (SO - BB) / tbf, 1) : null,
       AVG: ab > 0 ? rd(H / ab, 3) : null, WHIP: ip ? rd((H + BB) / ip, 2) : null, BABIP: bip > 0 ? rd((H - HR) / bip, 3) : null, 'LOB%': lob > 0 ? rd(100 * (H + BB + HBP - s.R) / lob, 1) : null,
@@ -860,6 +877,7 @@
     fillSelect($('#lb-min'), [['q', 'Qualified'], ...mins.map((m) => [m, `${m}+`])], L.min);
     const wrap = $('#lb-wrap'), table = $('#lb-table');
     const seasons = seasonsAvail();
+    if (L.season == null) statusOf(DS[L.type].cur); // the default view is the latest season: fetch it beside guts, not after
     if (!seasons) { if (bad('guts')) failed(wrap); return; }
     if (L.season == null || (L.season !== 'Career' && L.season !== 'All' && !isProj(L.season) && !seasons.includes(L.season))) {
       if (L.season != null) notice = `There's no ${L.season} season on file, so this shows ${seasons[0]}.`;
@@ -960,7 +978,7 @@
     for (const t of team) chips.push(chip('team:' + t, tName(t)));
     if (L.q) chips.push(chip('q', `“${L.q}”`));
     const chEl = $('#lb-chips'), chHtml = chips.join('');
-    if (chEl._html !== chHtml) { chEl.innerHTML = chHtml; chEl._html = chHtml; }
+    setHTML(chEl, chHtml);
     const cols = proj ? PROJ[L.type].board : (L.type === 'bat' ? BAT : PIT)[L.group];
     const fixed = ['Name', 'Team', 'Division', 'Age', ...(career ? ['Seasons'] : []), ...(allS ? ['Season'] : [])];
     if (proj && !cols.includes(L.sort) && !fixed.includes(L.sort)) { L.sort = projSort(L.type); L.dir = L.type === 'pit' ? 1 : -1; }
@@ -1013,7 +1031,7 @@
     pager.querySelector('[data-p=next]').disabled = pager.querySelector('[data-p=last]').disabled = L.page >= nPages - 1;
     if ($('#lb-size').value !== String(L.size)) $('#lb-size').value = String(L.size);
     // cards follow the name search too, so they never contradict the table
-    if (noGames) { const h = '<div class="pg-empty pg-cards-empty">No games were played in this range.</div>'; if (cards._html !== h) { cards.innerHTML = h; cards._html = h; } }
+    if (noGames) { const h = '<div class="pg-empty pg-cards-empty">No games were played in this range.</div>'; setHTML(cards, h); }
     else renderLeaderCards(inQ, cite ? id : null, !!proj);
     // after the draw: start Pitching at the left edge, keep a just-sorted column clear of the sticky names, and show the row you came from
     if (resetX) { wrap.scrollLeft = 0; resetX = false; }
@@ -1031,7 +1049,11 @@
   const allRows = (type) => { const h = rowsOf(DS[type].hist), c = rowsOf(DS[type].cur); return h && c && memoize('all' + type, [h, c], () => [...c, ...h]); };
   // "What the columns mean": the definitions for the columns on screen, plus what counts as good in this view
   const GOOD_SKIP = new Set(['G', 'GS', 'W', 'L', 'SV', 'HLD', 'CG', 'SHO', 'TBF', 'Eff PA', 'Eff IP', 'Own%']);
+  let defsArgs = null;
+  $('#lb-defs').addEventListener('toggle', () => { if (defsArgs) renderDefs(...defsArgs); });
   function renderDefs(cols, pool) {
+    defsArgs = [cols, pool];
+    if (!$('#lb-defs').open) return; // the cut-offs sort every column of the pool, so only while it's open
     const el = $('#lb-defs-list');
     const html = memoize('defs', [cols, pool, L.type], () => {
       const q = pool.filter((r) => r.Qual === true);
@@ -1039,13 +1061,14 @@
         let good = '';
         const vals = q.map((r) => r[c]).filter((v) => typeof v === 'number').sort((a, b) => a - b);
         if (!GOOD_SKIP.has(c) && vals.length >= 12 && !(L.type === 'pit' && (c === 'HR' || c === 'HR/9'))) {
-          const lo = LOW[L.type].has(c), p = (x) => d3.quantile(vals, lo ? 1 - x : x);
+          const lo = LOW[L.type].has(c), plain = !R3.has(c) && !PCT.has(c) && !F2.has(c) && !F1.has(c);
+          const p = (x) => { const v = d3.quantile(vals, lo ? 1 - x : x); return plain ? Math.round(v * 10) / 10 : v; };
           good = `<span class="good">Qualified here: middle ${fmt(c, p(0.5))} · top quarter ${lo ? '≤' : '≥'} ${fmt(c, p(0.75))} · top 10% ${lo ? '≤' : '≥'} ${fmt(c, p(0.9))}</span>`;
         }
         return `<div><dt>${esc(c)}</dt><dd>${esc(DEF[c] || '')}${good}</dd></div>`;
       }).join('') + `<div><dt>More</dt><dd>Formulas and league constants are on the <a class="pg-link" href="#guts">Guts!</a> tab.</dd></div>`;
     });
-    if (el._html !== html) { el.innerHTML = html; el._html = html; }
+    setHTML(el, html);
   }
 
   function renderLeaderCards(pool, id, proj) {
@@ -1070,7 +1093,7 @@
         return `<div class="pg-lcard"><h4>${esc(f)}<span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--color-fg-muted)">${qual}</span></h4><ol>${items || `<li class="t">${!pool.length ? 'No players match' : set === q ? 'No qualifiers yet' : 'None on file'}</li>`}</ol></div>`;
       }).join('');
     });
-    if (box._html !== html) { box.innerHTML = html; box._html = html; }
+    setHTML(box, html);
   }
 
   // ---------- LEDE ----------
@@ -1079,7 +1102,8 @@
     const seasons = seasonsAvail();
     // league news for the latest season, only on the unfiltered front page; once you drill in it's in the way (on a phone, literally)
     el.hidden = tab !== 'leaders' || (L.season != null && (!seasons || L.season !== seasons[0])) || L.div !== 'All' || L.team !== 'All' || !!L.q || L.range !== 'full';
-    if (!seasons || el.hidden) return;
+    if (el.hidden) return;
+    if (!seasons) { statusOf('batting'); statusOf('pitching'); return; }
     const b = rowsOf('batting'), p = rowsOf('pitching');
     if (!b || !p) { if (bad('batting')) el.textContent = ''; return; }
     const html = memoize('lede', [b, p], () => {
@@ -1090,7 +1114,7 @@
       const k = (r) => `key=${enc(r.key)}`;
       return `<b>${y}:</b> <span data-source="batting" data-field="Name" data-where="${k(tb)}">${esc(tb.Name)}</span> (${esc(tb.Team)}, ${esc(tb.Division)}) led every PSSBL hitter at <b data-source="batting" data-field="oWAR" data-where="${k(tb)}">${fmt('oWAR', tb.oWAR)}</b> oWAR; <span data-source="pitching" data-field="Name" data-where="${k(tp)}">${esc(tp.Name)}</span> (${esc(tp.Team)}, ${esc(tp.Division)}) led pitchers at <b data-source="pitching" data-field="WAR" data-where="${k(tp)}">${fmt('WAR', tp.WAR)}</b> WAR.`;
     });
-    if (el._html !== html) { el.innerHTML = html; el._html = html; }
+    setHTML(el, html);
   }
 
   // ---------- PLAYERS ----------
@@ -1103,7 +1127,7 @@
       for (const r of bc) m.set(r.pid, r);
       for (const r of pc) { const cur = m.get(r.pid); if (!cur || r.To > cur.To) m.set(r.pid, r); }
       const from = new Map(); for (const r of [...bc, ...pc]) from.set(r.pid, Math.min(from.get(r.pid) || 9999, r.From));
-      return [...m.values()].map((r) => ({ pid: r.pid, Name: r.Name, n: r.Name.toLowerCase(), Team: r.Team, Division: r.Division, From: from.get(r.pid), To: r.To }));
+      return [...m.values()].map((r) => ({ pid: r.pid, Name: r.Name, Team: r.Team, Division: r.Division, From: from.get(r.pid), To: r.To }));
     });
   };
   let sT, sWaiting = false;
@@ -1166,7 +1190,7 @@
       o['wRC+'] = lgR > 0 ? Math.round(100 * o.wRC / lgR) : null;
     } else {
       const ip = o.Outs / 3, ab = o.TBF - o.BB - o.HBP, bip = o.H - o.HR + o.Outs - o.SO, lob = o.H + o.BB + o.HBP - 1.4 * o.HR;
-      Object.assign(o, { IP: Math.floor(o.Outs / 3) + (o.Outs % 3) / 10, 'K/9': ip ? 9 * o.SO / ip : null, 'BB/9': ip ? 9 * o.BB / ip : null, 'HR/9': ip ? 9 * o.HR / ip : null,
+      Object.assign(o, { IP: ipNum(o.Outs), 'K/9': ip ? 9 * o.SO / ip : null, 'BB/9': ip ? 9 * o.BB / ip : null, 'HR/9': ip ? 9 * o.HR / ip : null,
         'K%': o.TBF ? 100 * o.SO / o.TBF : null, 'BB%': o.TBF ? 100 * o.BB / o.TBF : null, 'K-BB%': o.TBF ? 100 * (o.SO - o.BB) / o.TBF : null,
         AVG: per(o.H, ab), WHIP: ip ? (o.H + o.BB) / ip : null, BABIP: per(o.H - o.HR, bip), 'LOB%': lob > 0 ? 100 * (o.H + o.BB + o.HBP - o.R) / lob : null,
         ERA: ip ? 9 * o.ER / ip : null, FIP: wavg('FIP', 'Outs'), 'WAR/200': ip ? o.WAR * 200 / ip : null });
@@ -1191,13 +1215,13 @@
   function seasonTable(type, groups, careerRow, cols) {
     const ds = DS[type], [sc, sd] = P.sort[type];
     const val = (g) => (sc === 'Season' ? g.season : g.tot[sc]);
-    const gs = [...groups].sort((a, b) => { const x = val(a), y = val(b); return x == null ? 1 : y == null ? -1 : (x - y) * sd || a.season - b.season; });
+    const gs = [...groups].sort((a, b) => { const x = val(a), y = val(b); return (x == null || y == null ? (x == null) - (y == null) : (x - y) * sd) || a.season - b.season; });
     const th = (c, cls, label = c) => `<th data-field="${esc(c)}" class="${cls}"${DEF[c] ? ` title="${esc(DEF[c])}"` : ''}${sc === c ? ` aria-sort="${sd > 0 ? 'ascending' : 'descending'}"` : ''}><button type="button" data-sort="${esc(c)}">${esc(label)}</button></th>`;
     const thead = `<thead><tr>${th('Season', 'l sticky1')}<th class="l" data-field="Age" title="${esc(DEF.Age)}">Age</th><th class="l" data-field="Team">Team</th><th class="l col-div" data-field="Division">Div</th>${cols.map((c) => th(c, '')).join('')}</tr></thead>`;
     const teamA = (r) => `<a href="${teamHref(type, r.Season, r.Division, r.tid)}" data-type="${type}" data-tid="${esc(r.tid)}" data-season="${r.Season}" data-div="${esc(r.Division)}">${esc(r.Team)}</a>`;
     const line = (r, cls, team, div) => `<tr data-key="${esc(r.key)}"${cls ? ` class="${cls}"` : ''}><td class="l sticky1">${r.Season}</td><td class="l age">${r.Age == null ? '' : r.Age}</td><td class="l team">${team}</td><td class="l dim col-div">${div}</td>${cols.map((c) => `<td>${esc(cell(type, c, r))}</td>`).join('')}</tr>`;
     const body = gs.map((g) => {
-      if (g.rows.length === 1) { const r = g.rows[0]; return line(r, r.pid === MATT ? 'me-row' : '', teamA(r), esc(r.Division)); }
+      if (g.rows.length === 1) { const r = g.rows[0]; return line(r, '', teamA(r), esc(r.Division)); }
       return line({ ...g.tot, key: `${g.season}-total` }, 'tot', `${g.rows.length} teams`, esc(g.tot.Divs.length === 1 ? g.tot.Divs[0] : `${g.tot.Divs.length} divs`))
         + g.rows.map((r) => line(r, 'sub', teamA(r), esc(r.Division))).join('');
     }).join('');
@@ -1245,7 +1269,7 @@
       out.push(`<b>${tie}${nth(n)}</b> of ${div.length} ${esc(best.Division)} ${noun} in ${f} <span class="dim">(${y}, ${floor})</span>`);
     }
     const html = out.join(' · ');
-    if (el._html !== html) { el.innerHTML = html; el._html = html; }
+    setHTML(el, html);
   }
   // percentile bars: where the latest line sits among the division's hitters or pitchers that season (50 = middle)
   const PCTL = { bat: [['wRC+', 1], ['OBP', 1], ['ISO', 1], ['BB%', 1], ['K%', 0], ['oWAR', 1]], pit: [['FIP-', 0], ['ERA-', 0], ['K%', 1], ['BB%', 0], ['WAR', 1]] };
@@ -1426,7 +1450,7 @@
     if (sWaiting && playerIndex()) suggest(); // typed before the player list arrived
     if (P.viewFor !== P.pid) { P.viewFor = P.pid; P.type = null; P.logAll = false; P.sort = { bat: ['Season', 1], pit: ['Season', 1] }; }
     const nm = $('#p-name'), cards = ['#p-pct', '#p-stats', '#p-log', '#p-proj'];
-    const set = (el, html) => { if (el._html !== html) { el.innerHTML = html; el._html = html; } };
+    const set = (el, html) => { setHTML(el, html); };
     if (!P.pid) return renderFinder(nm, cards, set);
     $('#p-find').hidden = true;
     if (bad('bat_career') || bad('batting_hist')) { nm.textContent = ''; failed($('#p-strip')); return; }
@@ -1566,7 +1590,7 @@
       const pa = s.AB + s.BB + s.HBP + s.SF + s.SH + s.CI, tb = s.H + s['2B'] + 2 * s['3B'] + 3 * s.HR, od = s.AB + s.BB + s.HBP + s.SF;
       return { PA: pa, AVG: s.AB ? s.H / s.AB : null, OBP: od ? (s.H + s.BB + s.HBP) / od : null, SLG: s.AB ? tb / s.AB : null };
     }
-    return { IP: Math.floor(s.Outs / 3) + (s.Outs % 3) / 10, ERA: s.Outs ? 27 * s.ER / s.Outs : null, Dec: s.W ? 'W' : s.L ? 'L' : s.SV ? 'SV' : '' };
+    return { IP: ipNum(s.Outs), ERA: s.Outs ? 27 * s.ER / s.Outs : null, Dec: s.W ? 'W' : s.L ? 'L' : s.SV ? 'SV' : '' };
   }
   function renderGameLog() {
     const card = $('#p-log'), wrap = $('#p-log-wrap'), tbl = $('#p-log-table'), note = $('#p-log-note'), more = $('#p-log-more');
@@ -1617,7 +1641,7 @@
     const tot = { ...run, ...logStats(type, run) };
     const pre = ['Date', 'Team', 'Opp', 'Result'];
     const thead = `<thead><tr>${pre.map((c) => `<th class="l">${c}</th>`).join('')}${cols.map((c) => `<th data-field="${esc(c)}" title="${esc(LOG_TIP[c] || DEF[c] || c)}">${esc(c)}</th>`).join('')}</tr></thead>`;
-    const hrDash = (c, v) => (type === 'pit' && c === 'HR' && season > 2016 ? '—' : fmt(c, v));
+    const hrDash = (c, v) => (type === 'pit' && c === 'HR' && pitHRUnknown(season) ? '—' : fmt(c, v));
     // the last ten games; the rest are a tap away instead of a scroll box inside the page
     const shown = P.logAll || lines.length <= 12 ? lines : lines.slice(0, 10);
     const body = shown.map(({ r, o, opp, res, rc, team, fill }) => `<tr data-key="${esc(r.gameId)}"${type === 'bat' && !o.PA ? ' class="zero" title="No plate appearance: in the game as a runner or in the field"' : ''}><td class="l"><a href="#game/${esc(r.gameId)}" data-game="${esc(r.gameId)}" data-hl="${esc(P.pid)}">${esc(fmtDay(r.Date))}</a>${r.PO ? '<span class="po" title="Playoffs">PO</span>' : ''}</td>`
@@ -1626,7 +1650,7 @@
     const foot = `<tfoot><tr><td class="l">Total</td><td class="l dim" colspan="3">${lines.length} game${lines.length === 1 ? '' : 's'}</td>${cols.map((c) => `<td>${c === 'Dec' ? esc(`${run.W}–${run.L}${run.SV ? `, ${run.SV} SV` : ''}`) : esc(hrDash(c, tot[c]))}</td>`).join('')}</tr></tfoot>`;
     const html = `${thead}<tbody>${body}</tbody>${foot}`;
     tbl.setAttribute('data-source', id);
-    if (tbl._html !== html) { tbl.innerHTML = html; tbl._html = html; }
+    setHTML(tbl, html);
     more.hidden = lines.length <= 12;
     more.textContent = P.logAll ? 'Show the last 10 games' : `Show all ${lines.length} games`;
     const fills = lines.some((l) => l.fill);
@@ -1640,10 +1664,9 @@
     pit: ['IP', 'H', 'R', 'ER', 'BB', 'SO', 'HR', 'HBP', 'WP'],
   };
   const fmtLong = (d) => d3.utcFormat('%A, %B %-d, %Y')(new Date(d + 'T00:00:00Z'));
-  const ipOuts = (outs) => `${Math.floor(outs / 3)}.${outs % 3}`;
   function renderGame() {
     const meta = $('#gm-meta'), score = $('#gm-score'), note = $('#gm-note'), teams = $('#gm-teams');
-    const set = (el, html) => { if (el._html !== html) { el.innerHTML = html; el._html = html; } };
+    const set = (el, html) => { setHTML(el, html); };
     if (bad('games')) { failed(score); return; }
     const games = rowsOf('games');
     if (!games) return;
@@ -1683,7 +1706,7 @@
         const cols = BOX[kind], tot = {}, seen = new Set();
         for (const c of cols) tot[c] = 0;
         const val = (r, c) => (c === 'IP' ? r.Outs || 0 : r[c] || 0);
-        const cell = (c, v) => (c === 'IP' ? ipOuts(v) : v);
+        const cell = (c, v) => (c === 'IP' ? ipOuts(v) : kind === 'pit' && c === 'HR' && pitHRUnknown(g.Season) ? '—' : v);
         const body = rs.map((r) => {
           for (const c of cols) tot[c] += val(r, c);
           const sub = kind === 'bat' && r.Ord != null && seen.has(r.Ord);
@@ -1744,7 +1767,7 @@
         const row = { key: `proj-${target}-${pid}`, pid, Name: last.Name, Age: last.Age == null ? null : last.Age + now - last.Season, Team: last.Team, tid: last.tid, TeamDiv: last.Division, Division: divs.join(', '), Divs: divs,
           'Own%': Math.round(100 * p.shrink), Qual: p.eff >= tr[type].k, 'K%': p['K%'], 'BB%': p['BB%'] };
         if (type === 'bat') Object.assign(row, { PA: Math.round(tot), 'Eff PA': Math.round(p.eff), AVG: p.AVG, OBP: p.OBP, SLG: p.SLG, wOBA: p.wOBA, 'wRC+': Math.round(p['wRC+']) });
-        else { const outs = Math.round(tot * 3); Object.assign(row, { Outs: outs, IP: Math.floor(outs / 3) + (outs % 3) / 10, 'Eff IP': Math.round(p.eff), 'FIP-': Math.round(p['FIP-']), FIP: p.FIP }); }
+        else { const outs = Math.round(tot * 3); Object.assign(row, { Outs: outs, IP: ipNum(outs), 'Eff IP': Math.round(p.eff), 'FIP-': Math.round(p['FIP-']), FIP: p.FIP }); }
         out.push(row);
       }
       return out;
@@ -1758,7 +1781,6 @@
       + `Seasons are weighted 5/4/3, translated with same-season two-division ratios, then pulled toward the ${target} average; Own% is how much is the player's own numbers. `
       + `Qualified = at least half their own (${k} effective ${u}). A rough guide: two-division players are self-selected, and there's no aging adjustment.`;
   }
-  const ipStr = (ip) => { const outs = Math.round(ip * 3); return `${Math.floor(outs / 3)}.${outs % 3}`; };
   // one line per season-division in the weighted seasons: summed PA (or IP), PA/IP-weighted rates
   function projLines(type, rows, seasons) {
     const { w, cols } = PROJ[type], acc = new Map();
@@ -1798,7 +1820,7 @@
   function renderProj() {
     const card = $('#p-proj');
     const tr = projData();
-    const raw = ['bat', 'pit'].map((type) => { const h = pidRows(DS[type].hist, P.pid), c = pidRows(DS[type].cur, P.pid); return h && c ? [...h, ...c] : null; });
+    const raw = ['bat', 'pit'].map(ownRows);
     if (!tr || raw.includes(null)) { card.hidden = true; return; }
     const lines = { bat: projLines('bat', raw[0], tr.seasons), pit: projLines('pit', raw[1], tr.seasons) };
     // a target only for players with a recent line outside it (an Adams-only player gets Sierra, and vice versa)
@@ -1827,7 +1849,7 @@
     $('#p-proj-sum').textContent = sum;
     $('#p-proj-title').textContent = `Projected in ${targets.join(' / ')}`;
     $('#p-proj-lede').textContent = `How this player's last three seasons (${span}, weighted 5/4/3) might translate to ${targets.join(' or ')}. Lines from other divisions are adjusted by how the same players hit and pitched in two divisions in the same season, then pulled toward the division average: hard when the sample is small.`;
-    const body = $('#p-proj-body'); if (body._html !== html) { body.innerHTML = html; body._html = html; }
+    const body = $('#p-proj-body'); setHTML(body, html);
     card.hidden = !html;
   }
 
@@ -1848,7 +1870,7 @@
       const body = rs.map((r) => `<tr data-key="${esc(r.key)}"${r.Champion ? ' class="champ"' : ''}><td class="l name sticky1"><a href="${teamHref('bat', r.Season, r.Division, r.tid)}" data-tid="${esc(r.tid)}" data-season="${r.Season}" data-div="${esc(r.Division)}">${esc(r.Team)}</a>${r.Champion ? '<span class="champ-i" role="img" aria-label="Champion" title="Won the division\'s last playoff game">🏆</span>' : ''}</td>${ST_COLS.map((c) => `<td>${esc(fmt(c, r[c]))}</td>`).join('')}</tr>`).join('');
       return `<div class="pg-card" id="div-${esc(d)}"><h3>${esc(d)}</h3><div class="pg-tblwrap short" style="border-top:1px solid var(--color-border-line);border-radius:var(--cds-radius)"><table class="pg-tbl" data-source="standings" data-row-key="key">${head}<tbody>${body}</tbody></table></div></div>`;
     }).join(''));
-    if (grid._html !== html) { grid.innerHTML = html; grid._html = html; }
+    setHTML(grid, html);
   }
 
   // ---------- GUTS ----------
@@ -1865,7 +1887,7 @@
       const sel = (G.season === 'All' ? rows : rows.filter((r) => r.Season === G.season)).slice().sort((a, b) => b.Season - a.Season || a.Division.localeCompare(b.Division));
       return `<thead><tr><th data-field="Season" class="l">Season</th><th data-field="Division" class="l">Division</th>${GU_COLS.map((c) => `<th data-field="${esc(c)}">${esc(c === 'wOBAScale' ? 'wOBA scale' : c)}</th>`).join('')}</tr></thead><tbody>${sel.map((r) => `<tr data-key="${esc(r.key)}"><td class="l">${r.Season}</td><td class="l">${esc(r.Division)}</td>${GU_COLS.map((c) => `<td>${esc(fmt(c, r[c]))}</td>`).join('')}</tr>`).join('')}</tbody>`;
     });
-    if (t._html !== html) { t.innerHTML = html; t._html = html; }
+    setHTML(t, html);
   }
 
   // ---------- URL: tab, player and filters live in the hash, so links can be shared and Back works ----------
@@ -1936,7 +1958,7 @@
     L.q = (p.get('q') || '').trim().toLowerCase();
     if (GROUPS.includes(p.get('group'))) L.group = p.get('group');
     if (p.get('dir') === '1') L.dir = 1;
-    L.page = Math.max(0, (num(p.get('page')) || 1) - 1);
+    L.page = Math.max(0, Math.floor(num(p.get('page')) || 1) - 1);
     if ([25, 50, 100, 250].includes(num(p.get('size')))) L.size = num(p.get('size'));
     showTab('leaders');
   }
