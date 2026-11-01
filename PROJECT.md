@@ -18,7 +18,7 @@ There are four tabs plus a shortcut. All are rendered by `src/page.html` (one sc
 
 - **Leaders.** Batting or pitching leaderboards in FanGraphs' Dashboard / Standard / Advanced column groups.
   - **Filters:** season (2015–2026, no 2020), "All seasons" (every single-season line, with a Year column) or Career,
-    division (a multi-select: any mix of divisions), team, min PA/IP (default "Qualified"; a team view defaults to 0+ and drops the Div column), name search
+    division (a multi-select: any mix of divisions, or "All except" to leave some out), team, min PA/IP (default "Qualified"; a team view defaults to 0+ and drops the Div column), name search
     (accents folded, any word order; ranks are counted before the search), and a **date range** (full season, regular
     season, playoffs, first or second half, a month, or custom From/To, which only show once a range is picked).
     Halves are per team: each team's regular-season games in date order, split at its own midpoint (odd counts give
@@ -30,8 +30,9 @@ There are four tabs plus a shortcut. All are rendered by `src/page.html` (one sc
     (median / top quarter / top 10% of qualified rows), so definitions work on phones where `title` tooltips don't.
   - **Table:** sortable columns (Age included), 50 rows per page, and top-5 leader cards above it (the cards follow every filter,
     including the name search).
-  - **Projected → Adams / Sierra** (Season menu): the projection below for everyone with a line in the last three
-    seasons outside the target (so Adams players appear under Sierra and vice versa). Division becomes "From division"; Qualified = at least half their own numbers (eff PA ≥ k).
+  - **Projected → Adams / Sierra / Cascade** (Season menu): the projection below for everyone with a line in the last three
+    seasons outside the target (so Adams players appear under Sierra and vice versa). Division becomes "From division",
+    and its "All except" mode drops anyone with time in the picked divisions (e.g. Projected → Adams, all but Adams and Sierra); Qualified = at least half their own numbers (eff PA ≥ k).
   - **Header line:** the top hitter and pitcher of the latest season. It's league news, not addressed to Matt, and it
     only shows on the unfiltered latest-season Leaders view.
 - **Players.** Current age in the header, season-by-season tables (with each season's age) and a career row, a wRC+ dot chart (hitters) and ERA-/FIP- chart (pitchers),
@@ -180,10 +181,10 @@ writes `translations.json` and registers it in the manifest (bumping `version`).
 - **Checks:** `tests/projection.spec.js` pins AJ Hansen (Adams .329/.456/.450, 123 wRC+; Sierra .342/.445/.463, 120)
   and Cameron Lobb (Adams FIP- 81, 4.14 FIP; Sierra 86, 4.77), which match the pandas script exactly.
   `tests/projected-leaders.spec.js` walks every row of both boards for SLG ≥ AVG, OBP ≥ AVG, AVG > .100.
-- **Leaders board** (`season=ProjAdams` / `ProjSierra`): `projRows()` runs `project()` for every such player;
+- **Leaders board** (`season=ProjAdams` / `ProjSierra` / `ProjCascade`; targets are `TARGETS` in `scripts/translate.py` and `PROJ_TARGETS` in the page): `projRows()` runs `project()` for every such player;
   columns are recent PA/IP, effective PA/IP, Own% (shrink) and the projected line. Default sort wRC+ / FIP- (low first).
-- **Targets shown:** a target appears only if the player has a recent line outside it (Adams-only → Sierra row only,
-  Sierra-only → Adams only, Matt's Adams + Sierra → both). The card states the
+- **Targets shown:** a target appears only if the player has a recent line outside it (Adams-only → Sierra and Cascade,
+  Sierra-only → Adams and Cascade, Matt's Adams + Sierra → all three). The card states the
   PA/IP it rests on, the own-numbers vs average split, and the caveats (self-selected two-division players, environment
   mixed with competition, no aging adjustment even though ages are now on file).
 
@@ -213,7 +214,9 @@ writes `translations.json` and registers it in the manifest (bumping `version`).
   - **State objects:** `L` (leaders), `P` (players), `S` (standings), `G` (guts).
   - **Pagination:** `L.page` / `L.size`.
   - **Division filter:** a checkbox dropdown (`#lb-div` button + `#lb-div-list`), not a `<select>`. `L.div` is `'All'` or a
-    comma list (`div=Adams,Sierra` in the hash); a row matches if any of its divisions is picked. Tests use `pickDivs()`.
+    comma list (`div=Adams,Sierra` in the hash); a row matches if any of its divisions is picked. A leading `!` excludes
+    instead (`div=!Adams,Sierra`: a row matches if none of its divisions is picked), set by the menu's Only / All except
+    switch. Tests use `pickDivs()`.
   - **URL hash:** `hashFor()` writes the view into the hash after every render (`#leaders?type=pit&season=2023&div=Cascade`,
     `#players/8013`, `#standings?season=2024`), leaving out defaults. `applyHash()` reads it on load and on
     Back/Forward/hash changes; bad values fall back to defaults. A new tab or player is a Back step (`dash.setLink(h, true)`
@@ -257,7 +260,7 @@ These come from same-player, same-season pairs across divisions.
 - **Aging:** ages exist now (see "Ages"); an aging curve for the projection, or age splits in analysis/, is still open.
 
 - **Translations:** done as the Players-page "Projected in Adams / Sierra" card (Oct 31, 2026). The Leaders tab also has
-  "Projected → Adams / Sierra" boards. Still open: other target divisions.
+  "Projected → Adams / Sierra / Cascade" boards (Cascade added Nov 1, 2026). Adding a target = add it to both lists.
 - **UX review (Oct 31, 2026), still open:** Players should open on search, not Matt; Standings tables clip at desktop
   width; arrow keys in player search; 44px tap targets and 16px inputs on phones; a Retry on failed loads.
 - **Journey review (Oct 31, 2026):** all 20 items handled (`tests/polish.spec.js`), except the "Powered by Netlify"

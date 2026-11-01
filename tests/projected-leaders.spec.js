@@ -97,7 +97,7 @@ test.describe('Leaders: Projected → Adams / Sierra', () => {
     expect((await leaderTable(page))[0]).toMatchObject({ 'wRC+': '79' });
   });
 
-  for (const T of ['Adams', 'Sierra']) {
+  for (const T of ['Adams', 'Sierra', 'Cascade']) {
     test(`every line projected to ${T} holds together: SLG and OBP at least AVG, nothing near zero`, async ({ page }) => {
       test.slow(); // pages through the whole 500+ row board
       await openSite(page, `leaders?season=Proj${T}&min=0&size=250`, { fresh: true });
@@ -121,6 +121,51 @@ test.describe('Leaders: Projected → Adams / Sierra', () => {
       expect(bad).toEqual([]);
     });
   }
+
+  test('Projected → Cascade is in the season menu and leaves out Cascade-only players', async ({ page }) => {
+    const errors = trackErrors(page);
+    await openSite(page);
+    await page.locator('#lb-season').selectOption('ProjCascade');
+    await expect(page.locator('#lb-title')).toContainText('projected in Cascade');
+    await expect(leaderRows(page).first()).toBeVisible();
+    const rows = await leaderTable(page);
+    expect(rows.length).toBeGreaterThan(20);
+    for (const r of rows) expect(r.From).not.toBe('Cascade');
+    // Cascade is the strongest division, so the same hitters project lower there than in Adams
+    await page.goto('/?c#leaders?season=ProjCascade&q=aj%20hansen');
+    await expect(leaderRows(page)).toHaveCount(1);
+    expect(Number((await leaderTable(page))[0]['wRC+'])).toBeLessThan(123);
+    expect(errors).toEqual([]);
+  });
+
+  test('Division → All except leaves out players from those divisions', async ({ page }) => {
+    const errors = trackErrors(page);
+    await page.goto('/#leaders?season=ProjAdams&min=0&size=250');
+    await expect(leaderRows(page).first()).toBeVisible();
+    await page.locator('#lb-div').click();
+    await page.locator('#lb-div-list button[data-mode="except"]').click();
+    await page.locator('#lb-div-list input[value="Sierra"]').check();
+    await page.locator('#lb-div-list input[value="Cascade"]').check();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#lb-div')).toHaveAttribute('data-value', '!Cascade,Sierra');
+    await expect(page.locator('#lb-div')).toHaveText('All but Cascade, Sierra');
+    await expect(page.locator('#lb-chips')).toContainText('All but Cascade, Sierra');
+    const rows = await leaderTable(page);
+    expect(rows.length).toBeGreaterThan(20);
+    for (const r of rows) expect(r.From).not.toMatch(/Sierra|Cascade/);
+    await expect(page.locator('#lb-table tbody tr.me')).toHaveCount(0); // Matt has Sierra time
+    await expect.poll(() => page.evaluate(() => location.hash)).toContain('div=!Cascade,Sierra');
+
+    // the link survives a reload, and "Only" flips the same picks back to an include
+    await page.reload();
+    await expect(page.locator('#lb-div')).toHaveText('All but Cascade, Sierra');
+    await page.locator('#lb-div').click();
+    await page.locator('#lb-div-list button[data-mode="only"]').click();
+    await expect(page.locator('#lb-div')).toHaveAttribute('data-value', 'Cascade,Sierra');
+    await page.keyboard.press('Escape');
+    for (const r of await leaderTable(page)) expect(r.From).toMatch(/Sierra|Cascade/);
+    expect(errors).toEqual([]);
+  });
 
   test('Carl Gleason (Adirondack/Rainier/Teton) projects to a sane line', async ({ page }) => {
     await page.goto('/#players/843');

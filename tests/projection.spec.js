@@ -65,18 +65,18 @@ test.describe('Projected in Adams / Sierra', () => {
     expect(errors).toEqual([]);
   });
 
-  test('an Adams-only player is projected to Sierra only, and vice versa', async ({ page }) => {
+  test('an Adams-only player is projected to Sierra and Cascade, a Sierra-only one to Adams and Cascade', async ({ page }) => {
     await page.goto('/#players/4305'); // Noah Zwiren, Adams 2024-26
     await expect(page.locator('#p-proj')).toBeVisible();
     let bat = await projTable(page, '#p-proj-bat');
-    expect(Object.keys(bat)).toEqual(['Sierra']);
+    expect(Object.keys(bat)).toEqual(['Sierra', 'Cascade']);
     expect(bat.Sierra).toMatchObject({ AVG: '.344', OBP: '.426', SLG: '.402', wOBA: '.370', 'wRC+': '105' });
 
     await page.goto('/#players/1052'); // Paul Fisher, Sierra 2024-26 (his own file loads first)
     await expect(page.locator('#p-name')).toHaveText('Paul Fisher');
-    await expect(page.locator('#p-proj-bat tbody tr')).toHaveCount(1);
+    await expect(page.locator('#p-proj-bat tbody tr')).toHaveCount(2);
     bat = await projTable(page, '#p-proj-bat');
-    expect(Object.keys(bat)).toEqual(['Adams']);
+    expect(Object.keys(bat)).toEqual(['Adams', 'Cascade']);
     expect(bat.Adams).toMatchObject({ AVG: '.349', OBP: '.456', SLG: '.491', 'wRC+': '132' });
   });
 });

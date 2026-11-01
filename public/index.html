@@ -400,6 +400,9 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
 .pg-multi-pop label { display: flex; gap: 8px; align-items: center; padding: 5px 12px; white-space: nowrap; cursor: pointer; }
 .pg-multi-pop button { all: unset; display: block; box-sizing: border-box; width: 100%; padding: 5px 12px; cursor: pointer; color: var(--fg-green-ink); font-weight: 700; border-bottom: 1px solid var(--color-border-line); margin-bottom: 2px; }
 .pg-multi-pop label:hover, .pg-multi-pop button:hover { background: var(--fg-hover); }
+.pg-multi-pop .pg-mode { display: flex; gap: 4px; padding: 4px 12px 6px; border-bottom: 1px solid var(--color-border-line); margin-bottom: 2px; }
+.pg-multi-pop .pg-mode button { all: unset; flex: 1; text-align: center; padding: 3px 8px; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); cursor: pointer; font-size: .85em; color: var(--color-fg); white-space: nowrap; }
+.pg-multi-pop .pg-mode button[aria-pressed="true"] { background: var(--fg-green-ink); border-color: var(--fg-green-ink); color: var(--color-bg); font-weight: 700; }
 .pg-multi-pop hr { border: 0; border-top: 1px solid var(--color-border-line); margin: 2px 0; }
 .pg-ctrl .pg-multi-pop input { accent-color: var(--fg-green-ink); margin: 0; width: 16px; height: 16px; min-height: 0; padding: 0; flex: none; }
 @container (max-width: 760px) {
@@ -854,6 +857,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   };
   onDate($('#lb-from'), 'from'); onDate($('#lb-to'), 'to');
   // Division and Team: checkbox dropdowns; L.div and L.team are 'All' or a comma list ('Adams,Sierra', '1450,1452,wcp').
+  // L.div can also exclude: '!Adams,Sierra' is every division but those (the menu's "All except" mode).
   // The Pilots survive a division change (it narrows them); other teams stay if they're still in the picked divisions.
   const teamList = () => (L.team === 'All' ? [] : L.team.split(','));
   const menus = ['div', 'team'];
@@ -868,7 +872,14 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     $(`#lb-${k}`).addEventListener('click', () => { const open = $(`#lb-${k}-list`).hidden; menus.forEach((m) => menu(m, m === k && open)); });
     $(`#lb-${k}-list`).addEventListener('click', (e) => { if (e.target.closest('button[data-all]')) upd(() => { if (k === 'div') { L.div = 'All'; divReset(); } else setTeams([]); }); });
   }
-  $('#lb-div-list').addEventListener('change', () => upd(() => { const on = checked('div'); L.div = on.length ? on.join(',') : 'All'; divReset(); }));
+  let divExcept = false; // the menu's mode, kept while nothing is checked
+  $('#lb-div-list').addEventListener('change', () => upd(() => { const on = checked('div'); L.div = on.length ? (divExcept ? '!' : '') + on.join(',') : 'All'; divReset(); }));
+  $('#lb-div-list').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-mode]');
+    if (!b) return;
+    divExcept = b.dataset.mode === 'except';
+    upd(() => { if (L.div !== 'All') L.div = (divExcept ? '!' : '') + L.div.replace(/^!/, ''); divReset(); });
+  });
   $('#lb-team-list').addEventListener('change', () => upd(() => setTeams(checked('team'))));
   document.addEventListener('click', (e) => { if (e.target.isConnected && !e.target.closest('.pg-multi')) menus.forEach((m) => menu(m, false)); }); // "All" re-renders the list under the click
   document.addEventListener('keydown', (e) => { const k = e.key === 'Escape' && menus.find((m) => !$(`#lb-${m}-list`).hidden); if (k) { menu(k, false); $(`#lb-${k}`).focus(); } });
@@ -936,17 +947,19 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   // ---------- helpers ----------
   const seasonsAvail = () => { const g = rowsOf('guts'); return g && memoize('seasons', [g], () => [...new Set(g.map((r) => r.Season))].sort((a, b) => b - a)); };
   // opts: [[value, label]]; names: the short label for each picked value on the button
-  function renderMulti(k, opts, picked, { all, noun, names = picked, extra = [] }) {
-    const btn = $(`#lb-${k}`), v = picked.length ? picked.join(',') : 'All';
-    btn.textContent = !picked.length ? all : picked.length <= 2 ? names.join(', ') : `${picked.length} ${noun}`;
-    btn.title = names.join(', ');
+  function renderMulti(k, opts, picked, { all, noun, names = picked, extra = [], except = null }) {
+    const btn = $(`#lb-${k}`), v = picked.length ? (except ? '!' : '') + picked.join(',') : 'All';
+    const shown = picked.length <= 2 ? names.join(', ') : `${picked.length} ${noun}`;
+    btn.textContent = !picked.length ? all : except ? `All but ${shown}` : shown;
+    btn.title = (except && picked.length ? 'All but ' : '') + names.join(', ');
     btn.dataset.value = v;
     const box = ([val, label]) => `<label><input type="checkbox" value="${esc(val)}"${picked.includes(val) ? ' checked' : ''}>${esc(label)}</label>`;
-    const html = `<button type="button" data-all>${esc(all)}</button>` + opts.map(box).join('') + (extra.length ? '<hr>' + extra.map(box).join('') : '');
+    const mode = except == null ? '' : `<div class="pg-mode" role="group" aria-label="Show"><button type="button" data-mode="only" aria-pressed="${!except}">Only</button><button type="button" data-mode="except" aria-pressed="${except}">All except</button></div>`;
+    const html = `<button type="button" data-all>${esc(all)}</button>` + mode + opts.map(box).join('') + (extra.length ? '<hr>' + extra.map(box).join('') : '');
     const list = $(`#lb-${k}-list`);
     setHTML(list, html);
   }
-  const renderDivMenu = (divs, picked) => renderMulti('div', divs.map((d) => [d, d]), picked, { all: 'All divisions', noun: 'divisions' });
+  const renderDivMenu = (divs, picked, except) => renderMulti('div', divs.map((d) => [d, d]), picked, { all: 'All divisions', noun: 'divisions', except });
   const fillSelect = (el, opts, value) => {
     const key = JSON.stringify(opts);
     if (el._k !== key) { el.replaceChildren(...opts.map(([v, t]) => new Option(t, v))); el._k = key; }
@@ -1148,17 +1161,19 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   function leaderFilters({ career, allS, proj }, { id, inSeason, optRows }) {
     const table = $('#lb-table');
     const divs = memoize('divs|' + id + L.season, [optRows], () => [...new Set(optRows.flatMap((r) => r.Divs || [r.Division]))].sort());
-    const want = L.div === 'All' ? [] : L.div.split(',');
+    if (L.div !== 'All') divExcept = L.div[0] === '!';
+    const except = divExcept, want = L.div === 'All' ? [] : L.div.replace(/^!/, '').split(',');
     const picked = want.filter((d) => divs.includes(d)), gone = want.filter((d) => !divs.includes(d));
     if (gone.length) notice = `There's no ${gone.join(' or ')} division in ${L.season}, so ${picked.length ? 'it was left out' : 'this shows all divisions'}.`;
-    L.div = picked.length ? picked.join(',') : 'All';
-    renderDivMenu(divs, picked);
-    const divLabel = picked.join(', ');
-    const inDivOf = (rows) => rows.filter((r) => (r.Divs || [r.Division]).some((d) => picked.includes(d)));
+    L.div = picked.length ? (except ? '!' : '') + picked.join(',') : 'All';
+    renderDivMenu(divs, picked, except);
+    const divLabel = (except ? 'all but ' : '') + picked.join(', ');
+    // on projected boards a player's Divs are every division he came from: "except Adams" drops anyone with Adams time
+    const inDivOf = (rows) => rows.filter((r) => (r.Divs || [r.Division]).some((d) => picked.includes(d)) !== except);
     const inDiv = L.div === 'All' ? inSeason : memoize('div|' + id + L.season + L.div, [inSeason], () => inDivOf(inSeason));
     const optDiv = L.div === 'All' ? optRows : memoize('odiv|' + id + L.season + L.div, [optRows], () => inDivOf(optRows));
     // every season has its own team ids, so "All seasons" offers no single-team choice
-    const teams = allS ? [] : memoize('teams|' + id + L.season + L.div, [optDiv], () => [...new Map(optDiv.map((r) => [r.tid, `${r.Team}${L.div === 'All' || picked.length > 1 || proj ? ' (' + (r.TeamDiv || r.Division) + ')' : ''}`])).entries()].sort((a, b) => a[1].localeCompare(b[1])));
+    const teams = allS ? [] : memoize('teams|' + id + L.season + L.div, [optDiv], () => [...new Map(optDiv.map((r) => [r.tid, `${r.Team}${L.div === 'All' || picked.length > 1 || except || proj ? ' (' + (r.TeamDiv || r.Division) + ')' : ''}`])).entries()].sort((a, b) => a[1].localeCompare(b[1])));
     for (const r of optDiv) { teamNames.set(r.tid, r.Team); teamDivs.set(r.tid, r.TeamDiv || r.Division); }
     // the Pilots are offered everywhere: picking them shows every division, and a division then narrows them
     const wantT = teamList(), tids = new Set(teams.map(([t]) => t));
@@ -1184,13 +1199,13 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     const inTeam = L.team === 'All' ? inDiv : memoize('team|' + id + L.season + L.div + L.team, [inDiv], () => inDiv.filter((r) => tset.has(r.tid) || (pilots && WCP.pids.has(r.pid))));
     // one division's teams need no Div column; the Pilots or teams from several divisions do
     const tDivs = new Set(team.map((t) => teamDivs.get(t)));
-    table.classList.toggle('show-div', pilots || !!proj || picked.length > 1 || tDivs.size > 1);
+    table.classList.toggle('show-div', pilots || !!proj || picked.length > 1 || except || tDivs.size > 1);
     table.classList.toggle('no-div', team.length > 0 && !pilots && !proj && tDivs.size <= 1);
     if (only) $('#lb-note').textContent = (L.div === 'All' ? 'Every Pilot, from every division.' : `The Pilots who played in ${divLabel}.`) + ' Divisions differ in strength, so compare by wRC+, FIP-, ERA- and WAR, not raw AVG or ERA. ' + $('#lb-note').textContent;
     // what the view is filtered to, each with a one-tap clear
     const chip = (k, label) => `<button type="button" class="pg-x" data-clear="${k}" aria-label="Clear ${esc(label)}">${esc(label)} <span aria-hidden="true">✕</span></button>`;
     const chips = [];
-    if (L.div !== 'All') chips.push(chip('div', divLabel));
+    if (L.div !== 'All') chips.push(chip('div', except ? 'All but ' + picked.join(', ') : divLabel));
     for (const t of team) chips.push(chip('team:' + t, tName(t)));
     if (L.q) chips.push(chip('q', `“${L.q}”`));
     const chEl = $('#lb-chips'), chHtml = chips.join('');
@@ -1965,8 +1980,8 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   };
   PROJ.bat.board = ['PA', 'Eff PA', 'Own%', 'AVG', 'OBP', 'SLG', 'wOBA', 'wRC+', 'BB%', 'K%'];
   PROJ.pit.board = ['IP', 'Eff IP', 'Own%', 'FIP-', 'FIP', 'K%', 'BB%'];
-  const PROJ_TARGETS = ['Adams', 'Sierra'];
-  // Leaders "Projected → Adams/Sierra": the same projection for everyone with a recent line outside the target division
+  const PROJ_TARGETS = ['Adams', 'Sierra', 'Cascade'];
+  // Leaders "Projected → Adams/Sierra/Cascade": the same projection for everyone with a recent line outside the target division
   function isProj(v) { return typeof v === 'string' && v.startsWith('Proj') && PROJ_TARGETS.includes(v.slice(4)); }
   function projSort(type) { return type === 'bat' ? 'wRC+' : 'FIP-'; }
   function projData() {
@@ -2007,7 +2022,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     const tr = projData();
     if (!tr) return '';
     const yrs = Object.keys(tr.seasons).map(Number).sort((a, b) => a - b), k = Math.round(tr[type].k), u = PROJ[type].unit;
-    return `A guess at next season in ${target} for everyone whose ${yrs[0]}–${String(yrs[yrs.length - 1]).slice(2)} seasons include a division other than ${target} (Adams and Sierra are about the same level, so Adams players show up under Sierra and vice versa). `
+    return `A guess at next season in ${target} for everyone whose ${yrs[0]}–${String(yrs[yrs.length - 1]).slice(2)} seasons include a division other than ${target}${target === 'Cascade' ? '' : ' (Adams and Sierra are about the same level, so Adams players show up under Sierra and vice versa)'}. Use Division → All except to leave out a division's players. `
       + `Seasons are weighted 5/4/3, translated with same-season two-division ratios, then pulled toward the ${target} average; Own% is how much is the player's own numbers. `
       + `Qualified = at least half their own (${k} effective ${u}). A rough guide: two-division players are self-selected, and there's no aging adjustment.`;
   }
@@ -2053,7 +2068,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     const raw = ['bat', 'pit'].map(ownRows);
     if (!tr || raw.includes(null)) { card.hidden = true; return; }
     const lines = { bat: projLines('bat', raw[0], tr.seasons), pit: projLines('pit', raw[1], tr.seasons) };
-    // a target only for players with a recent line outside it (an Adams-only player gets Sierra, and vice versa)
+    // a target only for players with a recent line outside it (an Adams-only player gets Sierra and Cascade, and so on)
     const all = [...lines.bat, ...lines.pit];
     const targets = PROJ_TARGETS.filter((T) => all.some((l) => l.Division !== T));
     if (!targets.length) { card.hidden = true; return; }
@@ -2157,7 +2172,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     put('div', s.div, 'All'); put('team', s.team, 'All'); put('min', s.min, 'q'); put('q', s.q, '');
     put('group', s.group, 'dash'); put('sort', s.sort, defSort(s.type)); put('dir', s.dir, -1);
     put('page', s.page + 1, 1); put('size', s.size, 50);
-    const qs = q.toString().replace(/%2C/g, ',');
+    const qs = q.toString().replace(/%2C/g, ',').replace(/%21/g, '!');
     return qs ? `leaders?${qs}` : 'leaders';
   }
   const href = (t, s) => '#' + esc(hashFor(t, s));

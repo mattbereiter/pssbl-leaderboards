@@ -7,7 +7,7 @@ A stdlib port of analysis/project_to_adams.py (keep the two in step):
    non-hit PAs that still reach base, so SLG >= AVG and AVG <= OBP < 1 always hold.
    FIP- and ERA- (indexes around 100) use additive offsets (weighted least squares within player-season).
 2) Regression constants from split-half reliability (odd vs even games in the box scores, Spearman-Brown).
-3) Targets: Adams and Sierra baselines over the last three seasons (league constants from guts, BB%/K% from player lines).
+3) Targets: Adams, Sierra and Cascade baselines over the last three seasons (league constants from guts, BB%/K% from player lines).
 The page weights a player's last three seasons 5/4/3 x PA (or IP), translates them and regresses toward the target.
 Reads only public/data, so update.py runs it after publishing the CSVs; it registers itself in manifest.json.
 """
@@ -16,7 +16,7 @@ import csv, datetime, glob, json, math, os, statistics, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common  # noqa: E402
 DATA = os.environ.get('PSSBL_DATA') or common.DATA  # update.py points it at its staging folder
-REF, TARGETS = 'Adams', ('Adams', 'Sierra')
+REF, TARGETS = 'Adams', ('Adams', 'Sierra', 'Cascade')
 BAT_COLS, PIT_COLS = ['AVG', 'OBP', 'SLG', 'wOBA', 'BB%', 'K%'], ['FIP-', 'K%', 'BB%', 'ERA-']
 BAT_FAC, PIT_FAC, PIT_OFF = ['AVG', 'ISO', 'xOB', 'wOBA', 'BB%', 'K%'], ['K%', 'BB%'], ['FIP-', 'ERA-']
 

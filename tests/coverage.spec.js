@@ -113,9 +113,12 @@ test.describe('Keyboard menus', () => {
       await expect(list(page)).toBeVisible();
       await expect(btn(page)).toHaveAttribute('aria-expanded', 'true');
 
-      // the list follows the button in tab order: the first stop is the "All" reset, then the checkboxes
+      // the list follows the button in tab order: the "All" reset, the Only / All except switch, then the checkboxes
       await page.keyboard.press('Tab');
       expect(await page.evaluate(() => !!document.activeElement && !!document.activeElement.closest('#lb-div-list'))).toBe(true);
+      await page.keyboard.press('Tab');
+      await expect(list(page).locator('button[data-mode="only"]')).toBeFocused();
+      await page.keyboard.press('Tab');
       await page.keyboard.press('Tab');
       await expect(list(page).locator('input').first()).toBeFocused();
 
@@ -131,8 +134,7 @@ test.describe('Keyboard menus', () => {
     await openSite(page);
     await btn(page).focus();
     await page.keyboard.press('Enter');
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Tab');
+    for (let i = 0; i < 4; i++) await page.keyboard.press('Tab'); // All, Only, All except, first checkbox
     const value = await list(page).locator('input').first().getAttribute('value');
     await page.keyboard.press('Space');
     await expect(btn(page)).toHaveAttribute('data-value', String(value));
