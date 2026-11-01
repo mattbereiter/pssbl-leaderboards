@@ -28,9 +28,13 @@ There are four tabs plus a shortcut. All are rendered by `src/page.html` (one sc
     bad season in a link) a one-line notice says so. The browser tab title names the view.
   - **"What the columns mean"** (under the heading) lists the columns on screen with what counts as good *in this view*
     (median / top quarter / top 10% of qualified rows), so definitions work on phones where `title` tooltips don't.
+  - **Last 14 / 30 days** (Dates menu) count back from each team's own last game, since divisions finish on different
+    dates. Every date-range view adds a **Δ wRC+** (batting) or **Δ FIP-** (pitching) column: the range minus the full
+    season, so sorting it shows who's hot or cold.
   - **Table:** sortable columns (Age included), 50 rows per page, and top-5 leader cards above it (the cards follow every filter,
     including the name search).
-  - **Projected → Adams / Sierra / Cascade** (Season menu): the projection below for everyone with a line in the last three
+  - **Projected → Adams / Sierra / Cascade** (Season menu): the projection below (with a "2026 team" column, blank
+    for anyone who sat the latest season out, and Last / Last wRC+ (or FIP-) for the most recent season played) for everyone with a line in the last three
     seasons outside the target (so Adams players appear under Sierra and vice versa). Division becomes "From division",
     and its "All except" mode drops anyone with time in the picked divisions (e.g. Projected → Adams, all but Adams and Sierra); Qualified = at least half their own numbers (eff PA ≥ k).
   - **Header line:** the top hitter and pitcher of the latest season. It's league news, not addressed to Matt, and it
@@ -45,6 +49,8 @@ There are four tabs plus a shortcut. All are rendered by `src/page.html` (one sc
     (whichever they haven't been playing only in). See "Projection to Adams / Sierra" below.
 - **Standings.** Per-division W-L-T, Pct, GB, RS/RA/Diff, Pythagenpat xW and Luck, team wRC+/FIP/oWAR/pWAR,
   and 🏆 for the winner of the division's last playoff game. Clicking a team filters Leaders to that team.
+  Headers sort every division at once (`S.sort` / `S.dir`, in the hash), a chip bar jumps to any division, and Matt's
+  teams that season are gold (from his own player file). A team with no player lines shows — for oWAR/pWAR.
 - **Guts!** League constants for every division-season (lgwOBA, R/PA, cFIP, R/W, wOBA weights, …) and a glossary.
 
 ## Repo layout
@@ -111,7 +117,9 @@ Base URL: `https://pssbl.com/PHP/fetchData.php?type=…` (public and CORS-enable
 6. **No home runs allowed since 2017.** pssbl.com sends `"hr": "0"` for every pitcher from 2017 on (2015–16 are real).
    - **Fix:** the page shows — for pitcher HR and HR/9 in those seasons (and career), HR/9 is out of the Dashboard
      group, and the Guts! glossary says so. FIP for those seasons simply has no HR term.
-7. **Text encoding.** pssbl.com sends UTF-8, but some names arrive double-encoded (`JosÃ©` for José).
+7. **Teams with no player lines.** pssbl.com has no batting or pitching lines at all for the 2026 Rocky Nuts (their box
+   scores hold only the opponent's lines). Standings shows — for their team WAR rather than 0.0.
+8. **Text encoding.** pssbl.com sends UTF-8, but some names arrive double-encoded (`JosÃ©` for José).
    - **Fix:** every pipeline read goes through `fetch.load()` (UTF-8, then `fix_text()` repairs the double encoding),
      and every write says `encoding='utf-8'`. Python on Windows defaults to cp1252, which can't even read the
      raw files (`“Skip” Williams` crashes it), so never use a bare `open()`. `tests/data.spec.js` fails on garbled text.
@@ -198,6 +206,8 @@ writes `translations.json` and registers it in the manifest (bumping `version`).
     CSV is parsed with `d3.csvParse`, so cells arrive as text.
   - `dash.onData(fn)` re-runs `fn` whenever a file arrives or the width changes.
   - `dash.colors` and `dash.setLink` (writes the URL hash) are also provided.
+  - `dash.retry()` forgets every failed file (and a failed manifest) so the next draw asks again; the page's
+    "Failed to load" boxes carry a Retry button, and the shell retries on its own when the browser comes back online.
   - The rest are no-ops.
 - **`page.html`** script, key pieces:
   - **Data access:** `rowsOf(id)` types CSV text once per load (string columns: key, pid, Name, Team, tid, ptid,

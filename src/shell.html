@@ -79,12 +79,16 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
 (() => {
   const withD3 = (fn) => (window.d3 ? Promise.resolve().then(fn) : new Promise((ok) => addEventListener('DOMContentLoaded', () => ok(fn()))));
   const listeners = [], store = {};
-  let manifest = null;
-  const manifestP = fetch('data/manifest.json', { cache: 'no-cache' }).then((r) => r.json()).then((m) => {
-    manifest = m;
+  // a failed manifest is forgotten, so the next load (Retry, or the phone coming back online) asks for it again
+  let manifestP = null;
+  const getManifest = () => manifestP || (manifestP = fetch('data/manifest.json', { cache: 'no-cache' }).then((r) => {
+    if (!r.ok) throw new Error('manifest.json: HTTP ' + r.status);
+    return r.json();
+  }).then((m) => {
     if (m.updated) withD3(() => { const f = document.getElementById('site-updated'); if (f) f.textContent = 'Data updated ' + d3.utcFormat('%b %-d, %Y')(new Date(m.updated + 'T00:00:00Z')); });
     return m;
-  });
+  }).catch((e) => { manifestP = null; throw e; }));
+  getManifest().catch(() => {});
   let queued = false;
   const notify = () => {
     if (queued) return; queued = true;
@@ -96,7 +100,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   };
   function load(id) {
     store[id] = { status: 'loading', data: [], message: '', refreshing: false };
-    manifestP.then((m) => {
+    getManifest().then((m) => {
       const file = m.datasets[id];
       if (!file) throw new Error('No data file for ' + id);
       // the version stamp changes on every data update, so a browser never pairs a new page with stale cached data
@@ -121,7 +125,10 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     // push = a new Back step (tab or player change); otherwise the current entry is updated in place
     setLink: (name, push) => { try { history[push ? 'pushState' : 'replaceState'](null, '', '#' + name); } catch (e) {} },
     params: () => ({}), setParams() {}, resetParams() {}, refresh() {}, calc() {}, loader() {},
+    // forget every failed file; the redraw that follows asks for each one again
+    retry: () => { let any = false; for (const id in store) if (store[id].status === 'error') { delete store[id]; any = true; } if (any) notify(); return any; },
   };
+  addEventListener('online', () => window.dash.retry());
   let w = 0;
   addEventListener('resize', () => {
     const el = document.getElementById('dash-root');
