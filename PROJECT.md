@@ -42,13 +42,29 @@ There are four tabs plus a shortcut. All are rendered by `src/page.html` (one sc
 - **Players.** Current age in the header, season-by-season tables (with each season's age) and a career row, a wRC+ dot chart (hitters) and ERA-/FIP- chart (pitchers),
   career stat strip, name search (accents folded, one typo forgiven), and a link to the player's pssbl.com page.
   The header ranks the latest season in its own division ("98th of 190 Adams hitters in oWAR") and the team is a
-  chip linking to that team's leaderboard (arriving there highlights the player). Chart dots are coloured by division;
+  chip linking to that team's page (arriving there highlights the player). Chart dots are coloured by division;
   tiny samples (under 10 PA / 3 IP) are pinned to the chart edge instead of setting the axis.
   The "★ Matt" tab opens Matt (pid 8048) and shows as selected on his page.
   - **Projected in Adams / Sierra** card (under the header): a guess at the player's line in Adams and/or Sierra
     (whichever they haven't been playing only in). See "Projection to Adams / Sierra" below.
+  - **Splits** card (closed until opened, because it needs `games.csv`, which player pages otherwise never load):
+    a season or Career, batting or pitching, by regular season / playoffs, half, month, home/away, lineup slot (box
+    `Ord`, batting) or starting/relief (pitching), opponent and field. Each piece is built per season and division
+    with `batLine()`/`pitLine()` and that league's guts constants, then pieces are merged with `combine()` (the same
+    as multi-team season Totals), so no rate is mixed across divisions. Halves split each team's regular season at
+    its own midpoint, as on Leaders. Grey rows are small samples (under 20 PA / 10 IP).
+- **Scores** (`#scores?season&date&div&team`). One day of games at a time (the latest by default, ‹ › step through
+  days with games), grouped by division in the Standings order, each with its box score; Matt's games are gold.
+  Picking a team shows its whole season instead.
+- **Team pages** (`#team/<tid>?stats=pit&p=<pid>`). A tid is one team in one season. Record (regular season, as
+  Standings), finish, run diff, xW, Luck, one-run record, playoffs, team wRC+/FIP; a result chip per game and a
+  run-margin bar chart; the schedule with the running record; the roster (Leaders' Dashboard columns, Matt gold,
+  "Open in Leaders" for the full filters); head-to-head this season and all-time by name+division; and History,
+  every season of the same name in the same division (tids change every season). Team names everywhere (box
+  scores, Standings, Scores, player pages and finder rosters) link here; the Leaders table's team cells still
+  filter in place.
 - **Standings.** Per-division W-L-T, Pct, GB, RS/RA/Diff, Pythagenpat xW and Luck, team wRC+/FIP/oWAR/pWAR,
-  and 🏆 for the winner of the division's last playoff game. Clicking a team filters Leaders to that team.
+  and 🏆 for the winner of the division's last playoff game. Clicking a team opens its team page.
   Headers sort every division at once (`S.sort` / `S.dir`, in the hash), a chip bar jumps to any division, and Matt's
   teams that season are gold (from his own player file). A team with no player lines shows — for oWAR/pWAR.
 - **Guts!** League constants for every division-season (lgwOBA, R/PA, cFIP, R/W, wOBA weights, …) and a glossary.
@@ -223,7 +239,8 @@ writes `translations.json` and registers it in the manifest (bumping `version`).
   - **Date range:** `rangeSpec()` → `aggregateBox()` sums box lines in range, then `batLine()` / `pitLine()` recompute
     every stat with the season's division constants from guts. This mirrors compute.py, so **keep the formulas in
     sync** if you change one.
-  - **State objects:** `L` (leaders), `P` (players), `S` (standings), `G` (guts).
+  - **State objects:** `L` (leaders), `P` (players), `S` (standings), `G` (guts), `GM` (box score), `SC` (scores),
+    `TM` (team page).
   - **Pagination:** `L.page` / `L.size`.
   - **Division filter:** a checkbox dropdown (`#lb-div` button + `#lb-div-list`), not a `<select>`. `L.div` is `'All'` or a
     comma list (`div=Adams,Sierra` in the hash); a row matches if any of its divisions is picked. A leading `!` excludes

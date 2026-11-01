@@ -102,8 +102,8 @@ manifest['datasets']['guts'] = 'guts.json'
 # players whose id ends in the same two digits: player_07 (every pid ending in 07) has the finished seasons, so it stays
 # the same all season long; playernow_07 has the latest season and the career rows, the part each update changes.
 # Rows: season lines ('bat', 'pit'; history then current, as in those files), career rows ('bc', 'pc') and box-score
-# lines ('log') with the game's teams and score joined on. Empty cells and the columns the game log never shows are
-# left out. players.csv is the slim index the player search reads.
+# lines ('log') with the game's teams and score joined on, plus Ord (the lineup slot, for the splits). Empty cells and
+# the columns the game log never shows are left out. players.csv is the slim index the player search reads.
 def bucket(pid):
     return f"{int(pid) % 100 if pid.isdigit() else 0:02d}"
 def read_csv(path):
@@ -124,7 +124,7 @@ for f in sorted(glob.glob(f'{BUILD}/pssbl_box_*.csv')):
     for r in read_csv(f):
         g = games.get(r['gameId'])
         put('log', r, int(r['Season']) == latest, {k: g[k] for k in ('home', 'hr', 'ar', 'homeName', 'awayName')} if g else None,
-            skip=('Name', 'Division', 'Ord', 'sW', 'sL', 'sSV'))
+            skip=('Name', 'Division', 'sW', 'sL', 'sSV'))
 for name, rows in buckets.items():
     with open(f'{STAGE}/{name}.json', 'w', encoding='utf-8') as f:
         json.dump(rows, f, separators=(',', ':'), ensure_ascii=False)

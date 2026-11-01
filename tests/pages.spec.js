@@ -60,6 +60,8 @@ test.describe('Standings', () => {
     const link = page.locator('#div-Adams tbody tr a[data-tid]').first();
     const tid = await link.getAttribute('data-tid');
     await link.click();
+    await expect(page.locator('#pg-team')).toBeVisible();
+    await page.locator('#tm-lb').click();
     await expect(page.locator('#pg-leaders')).toBeVisible();
     await expect(page.locator('#lb-div')).toHaveAttribute('data-value', 'Adams');
     await expect(page.locator('#lb-team')).toHaveAttribute('data-value', String(tid));
