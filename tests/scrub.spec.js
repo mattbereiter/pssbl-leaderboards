@@ -27,4 +27,29 @@ test.describe('Deep-scrub fixes', () => {
     await expect(leaderRows(page)).toHaveCount(50);
     expect(errors).toEqual([]);
   });
+
+  test('finder roster names are styled links, not browser blue', async ({ page }) => {
+    await page.goto('/#players');
+    const a = page.locator('#p-find-teams li a').first();
+    await expect(a).toBeVisible();
+    expect(await a.evaluate((el) => getComputedStyle(el).textDecorationLine)).toBe('none');
+    expect(await a.evaluate((el) => getComputedStyle(el).color)).not.toBe('rgb(0, 0, 238)');
+  });
+
+  test('every column-set button fits on the Players stats card', async ({ page }) => {
+    await page.goto('/#players/8048');
+    const grp = page.locator('#p-group');
+    await expect(grp.locator('button').last()).toBeVisible();
+    const [box, last] = await Promise.all([grp.boundingBox(), grp.locator('button').last().boundingBox()]);
+    expect(last.x + last.width).toBeLessThanOrEqual(box.x + box.width + 1);
+    expect(await grp.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+  });
+
+  test('standings tables are not cut off on a desktop screen', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'phones scroll each table sideways');
+    await page.goto('/#standings');
+    await expect(page.locator('#st-grid .pg-card table').first()).toBeVisible();
+    const clipped = await page.locator('#st-grid .pg-tblwrap').evaluateAll((ws) => ws.filter((w) => w.scrollWidth > w.clientWidth + 1).length);
+    expect(clipped).toBe(0);
+  });
 });

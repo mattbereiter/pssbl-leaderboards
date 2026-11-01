@@ -1,16 +1,17 @@
 <style>
 #dash-root { --dash-gutter: clamp(0.75rem, 2.5vw, 2rem); }
-.pg { --fg-green: #378029; --fg-green-ink: color-mix(in srgb, #4caf32 55%, var(--color-fg)); --fg-gold: color-mix(in srgb, #c69331 24%, var(--color-panel)); --fg-sort: color-mix(in srgb, #4caf32 9%, var(--color-panel)); --fg-hover: color-mix(in srgb, var(--color-fg) 5%, var(--color-panel));
-  font-family: var(--font-anthropic-sans); color: var(--color-fg); max-width: 1500px; margin-inline: auto; font-size: var(--cds-font-size-body); }
+.pg { --fg-green: #378029; --fg-green-base: #4caf32; --fg-star: #c69331; --fg-on-green: #fff;
+  --fg-green-ink: color-mix(in srgb, var(--fg-green-base) 55%, var(--color-fg)); --fg-gold: color-mix(in srgb, var(--fg-star) 24%, var(--color-panel)); --fg-sort: color-mix(in srgb, var(--fg-green-base) 9%, var(--color-panel)); --fg-hover: color-mix(in srgb, var(--color-fg) 5%, var(--color-panel));
+  font-family: var(--font-anthropic-sans); color: var(--color-fg); max-width: 1500px; margin-inline: auto; font-size: var(--cds-font-size-body); container-type: inline-size; }
 .pg *, .pg *::before, .pg *::after { box-sizing: border-box; }
-.pg-top { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; background: var(--fg-green); color: #fff; border-radius: var(--cds-radius); overflow: hidden; overflow: clip; min-width: 0; }
+.pg-top { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; background: var(--fg-green); color: var(--fg-on-green); border-radius: var(--cds-radius); overflow: hidden; overflow: clip; min-width: 0; }
 .pg-brand { display: flex; align-items: baseline; gap: .4rem; padding: var(--cds-pad-sm) var(--cds-pad-md); font-weight: 700; letter-spacing: -.01em; font-size: var(--cds-font-size-heading); white-space: nowrap; }
 .pg-brand small { font-weight: 400; opacity: .85; font-size: var(--cds-font-size-caption); }
 .pg-nav { display: flex; flex-wrap: wrap; margin-left: auto; }
-.pg-nav button { all: unset; cursor: pointer; padding: var(--cds-pad-sm) var(--cds-pad-md); font-weight: 600; font-size: var(--cds-font-size-caption); text-transform: uppercase; letter-spacing: .04em; color: #fff; opacity: .88; }
+.pg-nav button { all: unset; cursor: pointer; padding: var(--cds-pad-sm) var(--cds-pad-md); font-weight: 600; font-size: var(--cds-font-size-caption); text-transform: uppercase; letter-spacing: .04em; color: var(--fg-on-green); opacity: .88; }
 .pg-nav button:hover { opacity: 1; background: rgba(0,0,0,.12); }
-.pg-nav button[aria-selected="true"] { opacity: 1; background: rgba(0,0,0,.25); box-shadow: inset 0 -3px 0 #fff; }
-.pg-nav button:focus-visible { outline: 2px solid #fff; outline-offset: -4px; }
+.pg-nav button[aria-selected="true"] { opacity: 1; background: rgba(0,0,0,.25); box-shadow: inset 0 -3px 0 var(--fg-on-green); }
+.pg-nav button:focus-visible { outline: 2px solid var(--fg-on-green); outline-offset: -4px; }
 .pg-lede { margin: var(--cds-gap-md) 0 var(--cds-gap-md); color: var(--color-fg-muted); line-height: 1.5; min-height: 1.5em; }
 .pg-lede b { color: var(--color-fg); font-weight: 600; }
 .pg-lede[hidden] ~ .pg-page { margin-top: var(--cds-gap-md); }
@@ -24,12 +25,13 @@
 .pg-seg { display: inline-flex; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); overflow: hidden; }
 .pg-seg button { all: unset; cursor: pointer; padding: 5px 12px; font-size: var(--cds-font-size-caption); font-weight: 600; color: var(--color-fg); min-height: 2rem; box-sizing: border-box; display: inline-flex; align-items: center; }
 .pg-seg button + button { border-left: 1px solid var(--color-border-line); }
-.pg-seg button[aria-pressed="true"] { background: var(--fg-green); color: #fff; }
+.pg-seg button[aria-pressed="true"] { background: var(--fg-green); color: var(--fg-on-green); }
 .pg-seg button:focus-visible { outline: 2px solid var(--fg-green-ink); outline-offset: -2px; }
 .pg-grouptabs { display: flex; gap: 0; border-bottom: 2px solid var(--fg-green); margin-bottom: 0; flex-wrap: wrap; }
 .pg-grouptabs[hidden] { display: none; }
 .pg-grouptabs button { all: unset; cursor: pointer; padding: 6px 14px; font-size: var(--cds-font-size-caption); font-weight: 600; color: var(--color-fg-muted); border-radius: var(--cds-radius) var(--cds-radius) 0 0; }
-.pg-grouptabs button[aria-pressed="true"] { background: var(--fg-green); color: #fff; }
+.pg-grouptabs button[aria-pressed="true"] { background: var(--fg-green); color: var(--fg-on-green); }
+.pg-grouptabs button:focus-visible { outline: 2px solid var(--fg-green-ink); outline-offset: -2px; }
 .pg-grouptabs .pg-count { margin-left: auto; align-self: center; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); padding: 0 4px; }
 .pg-tblwrap { max-height: 72vh; overflow: auto; border: 1px solid var(--color-border-line); border-top: 0; border-radius: 0 0 var(--cds-radius) var(--cds-radius); min-height: 8rem; position: relative; }
 .pg-tblwrap.short { max-height: none; min-height: 0; }
@@ -49,16 +51,17 @@
 .pg-tbl td.srt { background: var(--fg-sort); font-weight: 600; }
 .pg-tbl tbody tr:hover td { background: var(--fg-hover); }
 .pg-tbl tr.me td { background: var(--fg-gold); }
-.pg-tbl tr.me td.name a::after { content: " ★"; color: #c69331; }
+.pg-tbl tr.me td.name a::after { content: " ★"; color: var(--fg-star); }
 .pg-tbl .champ-i { margin-left: 4px; cursor: help; }
 .pg-tbl tr.hl td { background: var(--fg-sort); }
 .pg-tbl tr.hl td.name { box-shadow: inset 3px 0 0 var(--fg-green); }
 .pg-tbl.no-div .col-div { display: none; }
 .pg-tbl tr.career td { font-weight: 700; border-top: 2px solid var(--color-fg-muted); }
-.pg-tbl a, .pg-link, .pg-chip { color: var(--fg-green-ink); text-decoration: none; font-weight: 600; cursor: pointer; background: none; border: 0; padding: 0; font: inherit; }
+.pg-tbl a, .pg-link, .pg-chip { color: var(--fg-green-ink); text-decoration: none; cursor: pointer; background: none; border: 0; padding: 0; font: inherit; }
 .pg-tbl a:hover, .pg-link:hover { text-decoration: underline; }
 .pg-tbl .dim { color: var(--color-fg-muted); }
-#p-log-wrap { border-top: 1px solid var(--color-border-line); border-radius: var(--cds-radius); max-height: none; }
+.pg-tblwrap.solo { border-top: 1px solid var(--color-border-line); border-radius: var(--cds-radius); }
+#p-log-wrap { max-height: none; }
 .pg-tbl tfoot td { position: sticky; bottom: 0; font-weight: 700; border-top: 2px solid var(--color-fg-muted); border-bottom: 0; }
 .pg-tbl td.res-W { color: var(--color-ok); } .pg-tbl td.res-L { color: var(--color-bad); }
 .pg-tbl .po { font-size: .6875rem; font-weight: 700; color: var(--fg-green-ink); margin-left: 4px; }
@@ -74,6 +77,7 @@
 .pg-lcard li .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pg-lcard li .t { color: var(--color-fg-muted); }
 .pg-lcard li .v { font-variant-numeric: tabular-nums; font-weight: 700; }
+.pg-lcard li:first-child .v { color: var(--fg-green-ink); }
 .pg-lcard li.me { background: var(--fg-gold); }
 .pg-lcard li:focus-within { outline: 2px solid var(--fg-green-ink); outline-offset: -2px; }
 .pg-lcard li a:focus-visible { outline: none; }
@@ -87,7 +91,7 @@
 .pg-notice { margin: 0 0 var(--cds-gap-sm); padding: 6px 10px; border-left: 3px solid var(--color-warn); background: color-mix(in srgb, var(--color-warn) 10%, var(--color-panel)); border-radius: 4px; font-size: var(--cds-font-size-caption); }
 .pg-notice[hidden] { display: none; }
 .pg-skip { position: absolute; left: -9999px; }
-.pg-skip:focus { position: static; display: inline-block; margin-bottom: var(--cds-gap-sm); padding: 4px 10px; border-radius: var(--cds-radius); background: var(--fg-green); color: #fff; font: inherit; font-size: var(--cds-font-size-caption); border: 0; }
+.pg-skip:focus { position: static; display: inline-block; margin-bottom: var(--cds-gap-sm); padding: 4px 10px; border-radius: var(--cds-radius); background: var(--fg-green); color: var(--fg-on-green); font: inherit; font-size: var(--cds-font-size-caption); border: 0; }
 .pg-defs { margin: 0 0 var(--cds-gap-sm); font-size: var(--cds-font-size-caption); }
 .pg-defs summary { cursor: pointer; color: var(--fg-green-ink); font-weight: 600; width: fit-content; padding: 4px 0; }
 .pg-defs .pg-gloss { margin-top: 4px; }
@@ -96,10 +100,9 @@
 .pg-prank b { font-weight: 700; }
 .pg-prank .dim { color: var(--color-fg-muted); }
 .pg-chip { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--fg-sort); font-weight: 600; }
-.pg-lcard li:first-child .v { color: var(--fg-green-ink); }
-.pg-phead { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); align-items: end; justify-content: space-between; }
+.pg-phead { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); align-items: start; justify-content: space-between; }
 .pg-pname { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; line-height: 1.1; }
-.pg-pname.me::after { content: " ★"; color: #c69331; }
+.pg-pname.me::after { content: " ★"; color: var(--fg-star); }
 .pg-psub { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); margin-top: 4px; }
 .pg-search { position: relative; min-width: min(100%, 18rem); }
 .pg-search input { width: 100%; }
@@ -117,7 +120,7 @@
 .pg-tip .h { color: var(--cds-text-secondary); }
 .pg-legend { display: flex; gap: var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin-bottom: 4px; flex-wrap: wrap; }
 .pg-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
-.pg-divgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 36rem), 1fr)); gap: var(--cds-gap-md); }
+.pg-divgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 44rem), 1fr)); gap: var(--cds-gap-md); }
 .pg-divgrid .pg-card { margin: 0; }
 .pg-gloss { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 2px var(--cds-gap-lg); font-size: var(--cds-font-size-caption); line-height: 1.45; margin: 0; }
 .pg-gloss div { padding: 5px 0; border-bottom: 1px dotted var(--color-border-line); }
@@ -128,7 +131,6 @@
 [data-dash-source-state=empty] { color: transparent; }
 
 /* players: header with Quick Look */
-.pg-phead { align-items: start; }
 .pg-who { min-width: 0; flex: 1 1 22rem; }
 .pg-roles { display: flex; gap: 6px; margin-top: 6px; }
 .pg-roles:empty { display: none; }
@@ -163,7 +165,6 @@
 #p-type { margin-bottom: var(--cds-gap-sm); }
 #p-type[hidden] { display: none; }
 .pg-colsets { margin-bottom: var(--cds-gap-sm); }
-.pg-grouptabs button:focus-visible { outline: 2px solid var(--fg-green-ink); outline-offset: -2px; }
 .pg-seasons { width: fit-content; max-width: 100%; }
 .pg-seasons.tall { max-height: 70vh; }
 .pg-seasons .sticky1 { box-shadow: 1px 0 0 var(--color-border-line); }
@@ -191,7 +192,6 @@
 .pg-rosters li .t { font-variant-numeric: tabular-nums; }
 .pg-recent { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
 
-.pg { container-type: inline-size; }
 /* reserve the space data will fill, so the page doesn't jump while it loads */
 #lb-season { min-width: 167px; } #lb-range { min-width: 138px; } #lb-div { min-width: 116px; } #lb-team { min-width: 204px; } #lb-min { min-width: 98px; }
 #lb-cards { min-height: 9.5rem; }
@@ -204,7 +204,6 @@
 .pg-pager button:not(:disabled):hover { background: var(--fg-hover); }
 .pg-pager button:focus-visible { outline: 2px solid var(--fg-green-ink); }
 .pg-pager .pi { font-variant-numeric: tabular-nums; padding: 0 4px; color: var(--color-fg); }
-.pg-tbl .ghost th { height: 0; padding-top: 0; padding-bottom: 0; line-height: 0; font-size: 0; border: 0; visibility: hidden; }
 .pg-stack { overflow: auto; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); }
 .pg-stack .pg-tbl { width: auto; }
 .pg-stack .pg-tbl + .pg-tbl tbody tr:first-child td { border-top: 0; }
@@ -242,11 +241,10 @@
 .pg-multi { position: relative; }
 .pg-multi > button { font: inherit; font-size: var(--cds-font-size-body); color: var(--color-fg); background: var(--color-bg); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: 4px 26px 4px 8px; min-height: 2rem; max-width: 100%; width: 100%; text-align: left; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: relative; }
 .pg-multi > button::after { content: ''; position: absolute; right: 9px; top: 50%; width: 6px; height: 6px; border: solid var(--color-fg-muted); border-width: 0 1.5px 1.5px 0; transform: translateY(-70%) rotate(45deg); }
-.pg-multi-pop { position: absolute; z-index: 20; top: calc(100% + 2px); left: 0; min-width: 100%; background: var(--color-bg); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); box-shadow: 0 4px 14px rgb(0 0 0 / .15); padding: 4px 0; font-size: var(--cds-font-size-body); color: var(--color-fg); }
-.pg-multi-pop label, .pg-multi-pop button { display: flex; gap: 8px; align-items: center; padding: 5px 12px; white-space: nowrap; cursor: pointer; }
+.pg-multi-pop { position: absolute; z-index: 20; top: calc(100% + 2px); left: 0; min-width: 100%; max-height: min(60vh, 420px); overflow-y: auto; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: 4px 0; font-size: var(--cds-font-size-body); color: var(--color-fg); }
+.pg-multi-pop label { display: flex; gap: 8px; align-items: center; padding: 5px 12px; white-space: nowrap; cursor: pointer; }
 .pg-multi-pop button { all: unset; display: block; box-sizing: border-box; width: 100%; padding: 5px 12px; cursor: pointer; color: var(--fg-green-ink); font-weight: 700; border-bottom: 1px solid var(--color-border-line); margin-bottom: 2px; }
 .pg-multi-pop label:hover, .pg-multi-pop button:hover { background: var(--fg-hover); }
-.pg-multi-pop { max-height: min(60vh, 420px); overflow-y: auto; }
 .pg-multi-pop hr { border: 0; border-top: 1px solid var(--color-border-line); margin: 2px 0; }
 .pg-ctrl .pg-multi-pop input { accent-color: var(--fg-green-ink); margin: 0; width: 16px; height: 16px; min-height: 0; padding: 0; flex: none; }
 @container (max-width: 760px) {
@@ -261,7 +259,6 @@
   #lb-wrap.dash-skeleton { min-height: 64vh; }
   .pg-ctrls { display: grid; grid-template-columns: 1fr 1fr; gap: var(--cds-gap-sm); }
   .pg-ctrl.wide { grid-column: 1 / -1; }
-  #lb-from-ctrl, #lb-to-ctrl { grid-column: auto; }
   .pg-ctrl select, .pg-ctrl input { width: 100%; }
   .pg-seg { display: flex; }
   .pg-seg button { flex: 1; justify-content: center; }
@@ -284,7 +281,9 @@
   .pg-ql { font-size: var(--cds-font-size-caption); }
   .pg-ql th, .pg-ql td { padding: 3px 5px; }
   .pg-pbar { grid-template-columns: 3rem minmax(0, 1fr) 1.8rem 3rem; gap: 8px; }
+  .pg-colsets { grid-template-columns: 1fr; }
   .pg-colsets .pg-seg { width: 100%; }
+  .gm-teams .pg-tbl td.name { max-width: none; }
   .pg-pager label { flex-basis: 100%; }
 }
 </style>
@@ -376,7 +375,7 @@
         <div class="pg-ctrl" id="p-log-type-ctrl">Stats<div class="pg-seg" id="p-log-type"><button data-v="bat" aria-pressed="true">Batting</button><button data-v="pit" aria-pressed="false">Pitching</button></div></div>
       </div>
       <p class="pg-note" id="p-log-note"></p>
-      <div class="pg-tblwrap" id="p-log-wrap" tabindex="0" role="region" aria-label="Game log"><table class="pg-tbl" id="p-log-table" data-row-key="key"></table></div>
+      <div class="pg-tblwrap solo" id="p-log-wrap" tabindex="0" role="region" aria-label="Game log"><table class="pg-tbl" id="p-log-table" data-row-key="key"></table></div>
       <button type="button" class="pg-more" id="p-log-more" hidden></button>
     </div>
     <details class="pg-card" id="p-proj" hidden>
@@ -444,7 +443,7 @@
       <h2>Guts! — league constants</h2>
       <p class="pg-note">Every division-season is its own run environment (like the AL and NL), so wRC+, FIP, ERA- and WAR are always measured against the player's own division that year.</p>
       <div class="pg-ctrls"><label class="pg-ctrl">Season<select id="gu-season" aria-label="Season" data-source="guts"></select></label></div>
-      <div class="pg-tblwrap" id="gu-wrap" style="border-top:1px solid var(--color-border-line); border-radius: var(--cds-radius)"><table class="pg-tbl" id="gu-table" data-row-key="key"></table></div>
+      <div class="pg-tblwrap solo" id="gu-wrap"><table class="pg-tbl" id="gu-table" data-row-key="key"></table></div>
     </div>
   </section>
   </main>
@@ -1407,7 +1406,7 @@
     svg.append('text').attr('x', m.l - 6).attr('y', y(100) + 4).attr('text-anchor', 'end').attr('class', 'cap').text('100');
     svg.append('text').attr('x', W - m.r + 6).attr('y', y(100) + 4).text('avg');
     if (cv != null) {
-      const col = me ? '#c69331' : 'var(--fg-green-ink)';
+      const col = me ? 'var(--fg-star)' : 'var(--fg-green-ink)';
       svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(clamp(cv))).attr('y2', y(clamp(cv))).attr('stroke', col).attr('stroke-dasharray', '2 4');
       svg.append('text').attr('x', W - m.r + 6).attr('y', y(clamp(cv)) + (Math.abs(y(cv) - y(100)) < 12 ? (y(cv) < y(100) ? -4 : 13) : 4)).style('fill', col).attr('class', 'cap').text(`${me ? '★ ' : ''}career ${cv}`);
     }
@@ -1433,7 +1432,7 @@
       tip.style('left', Math.max(0, Math.min(W - tw, left)) + 'px').style('top', Math.max(0, y(clamp(p.v)) - 50) + 'px');
     };
     svg.on('click', (ev) => { if (!ev.target.closest('circle')) hide(); });
-    const col = me ? '#c69331' : 'var(--fg-green)';
+    const col = me ? 'var(--fg-star)' : 'var(--fg-green)';
     svg.append('g').selectAll('circle').data(pts).join('circle').attr('class', 'dot')
       .attr('cx', (p) => x(p.s)).attr('cy', (p) => y(clamp(p.v))).attr('r', (p) => (p.small ? 3.5 : 5))
       .attr('fill', (p) => (p.small || out(p.v) ? 'var(--color-panel)' : col)).attr('stroke', col).attr('stroke-width', 2)
@@ -1557,7 +1556,7 @@
       };
       bat.forEach((r) => add(r, 'PA')); pit.forEach((r) => add(r, 'Outs'));
       return [...by.values()].sort((a, b) => a.name.localeCompare(b.name)).map((t) => `<div class="pg-lcard" data-tid="${esc(t.tid)}"><h4><a class="pg-link" href="${teamHref('bat', seasons[0], P.findDiv, t.tid)}" data-type="bat" data-tid="${esc(t.tid)}" data-season="${seasons[0]}" data-div="${esc(P.findDiv)}">${esc(t.name)}</a></h4><ol>`
-        + [...t.ps.values()].sort((a, b) => b.PA + b.Outs - a.PA - a.Outs).map((p) => `<li${p.pid === MATT ? ' class="me"' : ''}><span class="n"><a href="#players/${esc(p.pid)}" data-pid="${esc(p.pid)}">${esc(p.name)}</a></span><span class="t">${[p.PA ? `${p.PA} PA` : '', p.Outs ? `${ipStr(p.Outs / 3)} IP` : ''].filter(Boolean).join(' · ')}</span></li>`).join('') + '</ol></div>').join('');
+        + [...t.ps.values()].sort((a, b) => b.PA + b.Outs - a.PA - a.Outs).map((p) => `<li${p.pid === MATT ? ' class="me"' : ''}><span class="n"><a class="pg-link" href="#players/${esc(p.pid)}" data-pid="${esc(p.pid)}">${esc(p.name)}</a></span><span class="t">${[p.PA ? `${p.PA} PA` : '', p.Outs ? `${ipStr(p.Outs / 3)} IP` : ''].filter(Boolean).join(' · ')}</span></li>`).join('') + '</ol></div>').join('');
     });
     set(teams, html);
   }
@@ -1868,7 +1867,7 @@
       rs.sort((a, b) => a.Rank - b.Rank);
       const head = `<thead><tr><th data-field="Team" class="l sticky1">Team</th>${ST_COLS.map((c) => `<th data-field="${c}" title="${esc(DEF[c] || '')}">${ST_LABEL[c] || c}</th>`).join('')}</tr></thead>`;
       const body = rs.map((r) => `<tr data-key="${esc(r.key)}"${r.Champion ? ' class="champ"' : ''}><td class="l name sticky1"><a href="${teamHref('bat', r.Season, r.Division, r.tid)}" data-tid="${esc(r.tid)}" data-season="${r.Season}" data-div="${esc(r.Division)}">${esc(r.Team)}</a>${r.Champion ? '<span class="champ-i" role="img" aria-label="Champion" title="Won the division\'s last playoff game">🏆</span>' : ''}</td>${ST_COLS.map((c) => `<td>${esc(fmt(c, r[c]))}</td>`).join('')}</tr>`).join('');
-      return `<div class="pg-card" id="div-${esc(d)}"><h3>${esc(d)}</h3><div class="pg-tblwrap short" style="border-top:1px solid var(--color-border-line);border-radius:var(--cds-radius)"><table class="pg-tbl" data-source="standings" data-row-key="key">${head}<tbody>${body}</tbody></table></div></div>`;
+      return `<div class="pg-card" id="div-${esc(d)}"><h3>${esc(d)}</h3><div class="pg-tblwrap short solo"><table class="pg-tbl" data-source="standings" data-row-key="key">${head}<tbody>${body}</tbody></table></div></div>`;
     }).join(''));
     setHTML(grid, html);
   }
