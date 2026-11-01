@@ -13,6 +13,11 @@
 .pg-nav button:hover { opacity: 1; background: rgba(0,0,0,.12); }
 .pg-nav button[aria-selected="true"] { opacity: 1; background: rgba(0,0,0,.25); box-shadow: inset 0 -3px 0 var(--fg-on-green); }
 .pg-nav button:focus-visible { outline: 2px solid var(--fg-on-green); outline-offset: -4px; }
+.pg-top { position: relative; }
+.pg-theme { all: unset; cursor: pointer; display: grid; place-items: center; width: 2.5rem; color: var(--fg-on-green); opacity: .88; font-size: 1.05rem; line-height: 1; }
+.pg-theme[hidden] { display: none; }
+.pg-theme:hover { opacity: 1; background: rgba(0,0,0,.12); }
+.pg-theme:focus-visible { outline: 2px solid var(--fg-on-green); outline-offset: -4px; }
 .pg-lede { margin: var(--cds-gap-md) 0 var(--cds-gap-md); color: var(--color-fg-muted); line-height: 1.5; min-height: 1.5em; }
 .pg-lede b { color: var(--color-fg); font-weight: 600; }
 .pg-lede[hidden] ~ .pg-page { margin-top: var(--cds-gap-md); }
@@ -265,6 +270,7 @@
   .pg-top { flex-direction: column; }
   .pg-brand { padding-bottom: 0; }
   .pg-brand small { display: none; }
+  .pg-theme { position: absolute; top: 0; right: 0; height: 2.5rem; }
   .pg-nav { margin-left: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; width: 100%; min-width: 0; max-width: 100%; }
   .pg-nav::-webkit-scrollbar { display: none; }
   .pg-nav button { flex: 1 0 auto; padding: 10px 6px; letter-spacing: .02em; text-align: center; }
@@ -312,6 +318,7 @@
       <button role="tab" id="tab-guts" data-tab="guts" aria-selected="false" title="Glossary and league constants">Guts!</button>
       <button role="tab" id="tab-me" data-tab="me" aria-selected="false" title="Matt Bereiter, who runs this site">★ Matt</button>
     </nav>
+    <button type="button" class="pg-theme" id="theme-btn" hidden></button>
   </header>
 
   <main id="main">
@@ -629,6 +636,20 @@
     if (changed || t === 'players') { const top = $('#top'); if (top.getBoundingClientRect().top < 0) top.scrollIntoView({ block: 'start' }); }
   }
   // Players opens the finder; ★ Matt opens his page
+  // light/dark button: only where the site shell offers a theme switch (the dashboard runtime themes itself)
+  const themeBtn = $('#theme-btn');
+  if (window.siteTheme) {
+    const paint = () => {
+      const dark = siteTheme.get() === 'dark';
+      themeBtn.textContent = dark ? '☀' : '☾';
+      themeBtn.setAttribute('aria-label', dark ? 'Switch to light theme' : 'Switch to dark theme');
+      themeBtn.title = themeBtn.getAttribute('aria-label');
+    };
+    themeBtn.hidden = false;
+    paint();
+    themeBtn.addEventListener('click', () => { siteTheme.set(siteTheme.get() === 'dark' ? 'light' : 'dark'); paint(); });
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', paint);
+  }
   document.querySelectorAll('.pg-nav button').forEach((b) => b.addEventListener('click', () => { if (b.dataset.tab === 'players') P.pid = null; showTab(b.dataset.tab); }));
 
   const seg = (sel, onPick) => {
