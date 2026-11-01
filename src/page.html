@@ -908,15 +908,17 @@
     const n = Number(L.min);
     return L.type === 'bat' ? r.PA >= n : (r.Outs || 0) / 3 >= n;
   }
-  function renderLeaders() {
+  // Leaders is drawn in steps: the controls, the rows for the chosen season or range, the division and team filters,
+  // the ranked page of rows, then the table itself. Each step returns null while its data is still loading.
+  function leaderControls() {
     setType(L.type); setGroup(L.group);
     $('#lb-min-label').textContent = L.type === 'bat' ? 'Min PA' : 'Min IP';
     const mins = L.type === 'bat' ? [0, 10, 25, 50, 100, 200, ...(L.season === 'Career' ? [500, 1000] : [])] : [0, 5, 10, 20, 40, 80, ...(L.season === 'Career' ? [150, 300] : [])];
     fillSelect($('#lb-min'), [['q', 'Qualified'], ...mins.map((m) => [m, `${m}+`])], L.min);
-    const wrap = $('#lb-wrap'), table = $('#lb-table');
+    const wrap = $('#lb-wrap');
     const seasons = seasonsAvail();
     if (L.season == null) statusOf(DS[L.type].cur); // the default view is the latest season: fetch it beside guts, not after
-    if (!seasons) { if (bad('guts')) failed(wrap); return; }
+    if (!seasons) { if (bad('guts')) failed(wrap); return null; }
     if (L.season == null || (L.season !== 'Career' && L.season !== 'All' && !isProj(L.season) && !seasons.includes(L.season))) {
       if (L.season != null) notice = `There's no ${L.season} season on file, so this shows ${seasons[0]}.`;
       L.season = seasons[0];
@@ -937,12 +939,15 @@
       if (fe !== document.activeElement) fe.value = (sp && sp.from) || '';
       if (te !== document.activeElement) te.value = (sp && sp.to) || '';
     }
-    const cards = $('#lb-cards');
+    return { seasons, career, allS, proj, sp };
+  }
+  function leaderPool({ seasons, career, allS, proj, sp }) {
+    const wrap = $('#lb-wrap'), table = $('#lb-table'), cards = $('#lb-cards');
     const id = sp ? 'box_' + L.season : proj || allS ? DS[L.type].hist : sourceFor(L.type, L.season, seasons[0]);
     $('#lb-title').textContent = `${L.type === 'bat' ? 'Batting' : 'Pitching'} leaders · ${career ? 'career' : allS ? 'every season' : proj ? 'projected in ' + proj : L.season}${sp ? ' · ' + rangeLabel(sp) : ''}`;
     $('#lb-div-label').textContent = proj ? 'From division' : 'Division';
     $('#lb-group').classList.toggle('proj', !!proj);
-    if (bad(id) || (sp && bad('guts')) || ((proj || allS) && (bad(DS[L.type].cur) || bad('translations')))) { failed(wrap); wrap.prepend(table); table.replaceChildren(); return; }
+    if (bad(id) || (sp && bad('guts')) || ((proj || allS) && (bad(DS[L.type].cur) || bad('translations')))) { failed(wrap); wrap.prepend(table); table.replaceChildren(); table._draw = null; return null; }
     let inSeason, rangeGames = null, optRows;
     if (sp) {
       // ages come from the season lines (box scores carry none)
@@ -954,7 +959,7 @@
       optRows = seasonRows(sourceFor(L.type, L.season, seasons[0]), L.season);
     } else inSeason = proj ? projRows(L.type, proj) : allS ? allRows(L.type) : career ? rowsOf(id) : seasonRows(id, L.season);
     if (!sp) optRows = inSeason;
-    if (!inSeason || !optRows) { wrap.classList.add('dash-skeleton'); cards.classList.add('dash-skeleton'); $('#lb-count').textContent = ''; return; }
+    if (!inSeason || !optRows) { wrap.classList.add('dash-skeleton'); cards.classList.add('dash-skeleton'); $('#lb-count').textContent = ''; table._draw = null; return null; }
     wrap.classList.remove('dash-skeleton'); cards.classList.remove('dash-skeleton');
     wrap.querySelector('.pg-failed')?.remove();
     // each value in the season tables cites its row; date-range lines are added up from box scores here, so the table and cards cite the box scores as a whole
@@ -968,7 +973,10 @@
       : allS ? 'Every single-season line since ' + seasons[seasons.length - 1] + ', each against its own division that year. Click a column to sort.'
       : 'Click a column to sort, a name for the player page.';
     if (proj) $('#lb-note').textContent = projNote(L.type, proj);
-
+    return { id, inSeason, optRows, rangeGames, cite };
+  }
+  function leaderFilters({ career, allS, proj }, { id, inSeason, optRows }) {
+    const table = $('#lb-table');
     const divs = memoize('divs|' + id + L.season, [optRows], () => [...new Set(optRows.flatMap((r) => r.Divs || [r.Division]))].sort());
     const want = L.div === 'All' ? [] : L.div.split(',');
     const picked = want.filter((d) => divs.includes(d)), gone = want.filter((d) => !divs.includes(d));
@@ -1017,11 +1025,14 @@
     if (L.q) chips.push(chip('q', `“${L.q}”`));
     const chEl = $('#lb-chips'), chHtml = chips.join('');
     setHTML(chEl, chHtml);
+    return { inDiv, inTeam };
+  }
+  // rank first, then search, so a searched player keeps their real place
+  function leaderRows({ career, allS, proj }, { inTeam }) {
     const cols = proj ? PROJ[L.type].board : (L.type === 'bat' ? BAT : PIT)[L.group];
     const fixed = ['Name', 'Team', 'Division', 'Age', ...(career ? ['Seasons'] : []), ...(allS ? ['Season'] : [])];
     if (proj && !cols.includes(L.sort) && !fixed.includes(L.sort)) { L.sort = projSort(L.type); L.dir = L.type === 'pit' ? 1 : -1; }
     if (!cols.includes(L.sort) && !fixed.includes(L.sort)) { L.sort = L.type === 'bat' ? (cols.includes('oWAR') ? 'oWAR' : cols.includes('wRC+') ? 'wRC+' : 'PA') : (cols.includes('WAR') ? 'WAR' : 'IP'); L.dir = -1; }
-    // rank first, then search, so a searched player keeps their real place
     const ranked = memoize('ranked', [inTeam, L.min, L.sort, L.dir, L.type], () =>
       inTeam.filter((r) => passMin(r) || r.pid === MATT).sort(cmp(L.sort, L.dir)));
     const rankOf = memoize('rankOf', [ranked], () => new Map(ranked.map((r, i) => [r, i + 1])));
@@ -1035,7 +1046,13 @@
     const start = L.page * L.size;
     const slice = shown.slice(start, start + L.size);
     $('#lb-count').textContent = `${d3.format(',')(shown.length)} ${allS ? 'season line' : 'player'}${shown.length === 1 ? '' : 's'}${L.min === 'q' && hidden ? ` · ${d3.format(',')(hidden)} ${proj ? 'with under half their own numbers' : 'below the qualifying bar'} hidden` : ''}`;
-
+    return { cols, rankOf, shown, inQ, slice, start, nPages };
+  }
+  // big pages draw in two goes: the first rows now, the rest just after the browser has shown them
+  const FIRST_ROWS = 50;
+  const afterPaint = (fn) => (document.hidden ? setTimeout(fn, 0) : requestAnimationFrame(() => setTimeout(fn, 0)));
+  function leaderTable({ career, allS, proj }, { cite, noGames }, { cols, rankOf, shown, inQ, slice }) {
+    const table = $('#lb-table');
     const sortAttr = (c) => c === L.sort ? ` aria-sort="${L.dir > 0 ? 'ascending' : 'descending'}"` : '';
     const fa = (c) => ` data-col="${esc(c)}"${cite ? ` data-field="${esc(c)}"` : ''}`;
     // on a phone the stat you sorted by comes right after the name (it was ten columns off-screen) and the team folds
@@ -1055,17 +1072,33 @@
       + (allS ? `<th${fa('Season')}${sortAttr('Season')}><button type="button">Year</button></th>` : '')
       + rest.map(statTh).join('')
       + `</tr></thead>`;
-    let body = '';
-    for (let i = 0; i < slice.length; i++) {
-      const r = slice[i];
+    const rowHTML = (r) => {
+      let body = '';
       const cls = [r.pid === MATT ? 'me' : '', r.pid === hlPid ? 'hl' : ''].filter(Boolean).join(' ');
       const teamCell = allS || proj ? esc(r.Team) : `<a href="${href('leaders', { ...L, team: r.tid, page: 0, min: L.min === 'q' ? '0' : L.min })}" data-tid="${esc(r.tid)}">${esc(r.Team)}</a>`;
       body += `<tr data-key="${esc(r.key)}"${cls ? ` class="${cls}"` : ''}><td class="rk sticky1">${rankOf.get(r)}</td><td class="l sticky2 name"${fold ? ` data-team="${esc(r.Team)}"` : ''}><a href="#players/${esc(r.pid)}" data-pid="${esc(r.pid)}">${esc(r.Name)}</a></td>${lead.map((c) => statTd(r, c)).join('')}<td class="l${fx('Team')}">${teamCell}</td><td class="l dim col-div">${esc(r.Division)}</td><td class="age${L.sort === 'Age' ? ' srt' : ''}">${r.Age == null ? '' : r.Age}</td>${career ? `<td>${r.Seasons}</td>` : ''}${allS ? `<td>${r.Season}</td>` : ''}`;
       for (const c of rest) body += statTd(r, c);
       body += '</tr>';
-    }
-    const noGames = sp && rangeGames === 0;
-    table.innerHTML = thead + `<tbody>${body}</tbody>` + (shown.length ? '' : `<caption class="pg-empty" style="caption-side:bottom">${noGames ? 'No games were played in this range.' : L.q && !inQ.length ? `No player named “${esc(L.q)}” here.` : 'No players match these filters.'}</caption>`);
+      return body;
+    };
+    // a page with a highlighted row draws everything at once, so the row can be scrolled to the middle
+    const split = slice.length > FIRST_ROWS && !(hlPid && slice.some((r) => r.pid === hlPid));
+    const head = split ? slice.slice(0, FIRST_ROWS) : slice;
+    table.innerHTML = thead + `<tbody>${head.map(rowHTML).join('')}</tbody>` + (shown.length ? '' : `<caption class="pg-empty" style="caption-side:bottom">${noGames ? 'No games were played in this range.' : L.q && !inQ.length ? `No player named “${esc(L.q)}” here.` : 'No players match these filters.'}</caption>`);
+    const draw = table._draw = {};
+    if (split) afterPaint(() => { if (table._draw === draw && table.tBodies[0]) table.tBodies[0].insertAdjacentHTML('beforeend', slice.slice(FIRST_ROWS).map(rowHTML).join('')); });
+  }
+  function renderLeaders() {
+    const c = leaderControls();
+    if (!c) return;
+    const p = leaderPool(c);
+    if (!p) return;
+    const f = leaderFilters(c, p);
+    const r = leaderRows(c, f);
+    p.noGames = c.sp && p.rangeGames === 0;
+    leaderTable(c, p, r);
+    const { cols, shown, inQ, slice, start, nPages } = r, { inDiv } = f;
+    const wrap = $('#lb-wrap'), table = $('#lb-table'), cards = $('#lb-cards');
     const nEl = $('#lb-notice');
     nEl.hidden = !notice; if (nEl.textContent !== notice) nEl.textContent = notice;
     renderDefs(cols, inDiv);
@@ -1077,8 +1110,8 @@
     pager.querySelector('[data-p=next]').disabled = pager.querySelector('[data-p=last]').disabled = L.page >= nPages - 1;
     if ($('#lb-size').value !== String(L.size)) $('#lb-size').value = String(L.size);
     // cards follow the name search too, so they never contradict the table
-    if (noGames) { cards.classList.add('none'); setHTML(cards, '<div class="pg-nohits">No games were played in this range.</div>'); }
-    else renderLeaderCards(inQ, cite ? id : null, !!proj);
+    if (p.noGames) { cards.classList.add('none'); setHTML(cards, '<div class="pg-nohits">No games were played in this range.</div>'); }
+    else renderLeaderCards(inQ, p.cite ? p.id : null, !!c.proj);
     // after the draw: start Pitching at the left edge, keep a just-sorted column clear of the sticky names, and show the row you came from
     if (resetX) { wrap.scrollLeft = 0; resetX = false; }
     if (revealSort) {
@@ -1342,6 +1375,33 @@
   // one colour per division everywhere, so Teton is the same colour in Batting and Pitching and on every player (no gold: that's Matt's)
   const DIV_COLOR = { Adams: '#d9822b', Sierra: '#3c8a2e', Adirondack: '#2f6fb3', Cascade: '#b0457a', Denali: '#7a5cc2', Everest: '#2a9d8f',
     Olympic: '#8a6d3b', Rainier: '#c0392b', Rocky: '#5d7f99', Smoky: '#7d8a79', Teton: '#e0607e' };
+  // what both player charts share: the grid, y labels that keep clear of the reference line, and horizontal rules
+  function chartGrid(svg, W, m, y, ref) {
+    const yt = y.ticks(5);
+    svg.append('g').selectAll('line').data(yt).join('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y).attr('y2', y).attr('stroke', 'var(--cds-chart-grid)');
+    svg.append('g').selectAll('text').data(yt.filter((d) => Math.abs(y(d) - y(ref)) > 10)).join('text').attr('x', m.l - 6).attr('y', (d) => y(d) + 4).attr('text-anchor', 'end').text((d) => d);
+  }
+  const chartRule = (svg, W, m, at, stroke, dash) => svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', at).attr('y2', at).attr('stroke', stroke).attr('stroke-dasharray', dash || null);
+  // a tooltip that follows the mouse and pins on a tap (touch has no hover); tapping the background or the same point
+  // closes it. tipOf(d) gives [html, x, y] for a point; returns the handlers to put on the point marks.
+  function pinTip(el, svg, W, tipOf) {
+    const tip = d3.select(el).append('div').attr('class', 'pg-tip').style('display', 'none');
+    let pinned = null;
+    const hide = () => { pinned = null; tip.style('display', 'none'); svg.selectAll('circle.dot').attr('stroke-width', 2); };
+    const show = (d, node) => {
+      svg.selectAll('circle.dot').attr('stroke-width', 2); d3.select(node).attr('stroke-width', 3.5);
+      const [html, cx, cy] = tipOf(d);
+      tip.style('display', null).html(html);
+      // open on the side with more room, so it never covers the point
+      const tw = tip.node().offsetWidth, left = cx > W / 2 ? cx - tw - 12 : cx + 12;
+      tip.style('left', Math.max(0, Math.min(W - tw, left)) + 'px').style('top', Math.max(0, cy - 50) + 'px');
+    };
+    svg.on('click', (ev) => { if (!ev.target.closest('circle')) hide(); });
+    return (sel) => sel
+      .on('pointerenter', function (ev, d) { if (ev.pointerType === 'mouse' && !pinned) show(d, this); })
+      .on('pointerleave', function (ev) { if (ev.pointerType === 'mouse' && !pinned) hide(); })
+      .on('click', function (ev, d) { if (pinned === d) { hide(); return; } pinned = d; show(d, this); });
+  }
   function dotChart(el, rows, series, opts) {
     const W = el.clientWidth || 600;
     const k = JSON.stringify([W, rows.map((r) => r.key), series, opts]);
@@ -1366,35 +1426,22 @@
     const pad = Math.max(10, (hi - lo) * 0.12);
     const y = d3.scaleLinear([lo - pad, hi + pad], [H - m.b, m.t]).nice(5);
     const svg = d3.select(el).append('svg').attr('width', '100%').attr('height', H).attr('viewBox', `0 0 ${W} ${H}`);
-    const yt = y.ticks(5);
-    svg.append('g').selectAll('line').data(yt).join('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y).attr('y2', y).attr('stroke', 'var(--cds-chart-grid)');
-    svg.append('g').selectAll('text').data(yt.filter((d) => Math.abs(y(d) - y(opts.ref)) > 10)).join('text').attr('x', m.l - 6).attr('y', (d) => y(d) + 4).attr('text-anchor', 'end').text((d) => d);
-    svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(opts.ref)).attr('y2', y(opts.ref)).attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '4 3');
+    chartGrid(svg, W, m, y, opts.ref);
+    chartRule(svg, W, m, y(opts.ref), 'var(--cds-chart-reference)', '4 3');
     svg.append('text').attr('x', m.l - 6).attr('y', y(opts.ref) + 4).attr('text-anchor', 'end').style('font-weight', 700).text('avg');
     // every season gets a label: full years when they fit, '19 style when they don't
     const room = W - m.l - m.r, short = seasons.length > Math.floor(room / 44);
     const step = Math.ceil(seasons.length / Math.max(1, Math.floor(room / (short ? 28 : 44))));
     svg.append('g').selectAll('text').data(seasons.filter((_, i) => i % step === 0)).join('text').attr('x', x).attr('y', H - 8).attr('text-anchor', 'middle').text((d) => (short ? `'${String(d).slice(2)}` : d));
     const [ylo, yhi] = y.domain();
-    svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', H - m.b).attr('y2', H - m.b).attr('stroke', 'var(--cds-chart-axis)');
-    const tip = d3.select(el).append('div').attr('class', 'pg-tip').style('display', 'none');
+    chartRule(svg, W, m, H - m.b, 'var(--cds-chart-axis)');
     const rmax = d3.max(rows, (r) => r[sz] || 0) || 1;
     const rs = d3.scaleSqrt([0, rmax], [3, 9]);
     const byS = d3.group(rows, (r) => r.Season);
     // several teams in one season fan out, but never past the neighbouring season on a narrow screen
     const most = d3.max([...byS.values()], (v) => v.length);
     const fan = Math.min(12, (seasons.length > 1 ? x.step() : W / 2) / (most + 1));
-    let pinned = null;
-    const hide = () => { pinned = null; tip.style('display', 'none'); svg.selectAll('circle.dot').attr('stroke-width', 2); };
-    const show = (d, node) => {
-      svg.selectAll('circle.dot').attr('stroke-width', 2); d3.select(node).attr('stroke-width', 3.5);
-      tip.style('display', null).html(`<div class="h">${d.r.Season} · ${esc(d.r.Team)} (${esc(d.r.Division)})</div>${series.map((z) => `<div><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${z.hollow ? 'transparent' : dc(d.r.Division)};border:2px solid ${dc(d.r.Division)};margin-right:5px"></i>${esc(z.f)} <b>${esc(fmt(z.f, d.r[z.f]))}</b></div>`).join('')}<div class="h">${esc(opts.size)} ${esc(fmt(opts.size, d.r[opts.size]))}${d.out ? ' · off the chart' : ''}</div>`);
-      // open on the side with more room, so it never covers the dot
-      const tw = tip.node().offsetWidth, left = d.cx > W / 2 ? d.cx - tw - 12 : d.cx + 12;
-      tip.style('left', Math.max(0, Math.min(W - tw, left)) + 'px').style('top', Math.max(0, d.cy - 50) + 'px');
-    };
-    // a tap pins the tooltip (touch has no hover); tapping the chart background or the same dot closes it
-    svg.on('click', (ev) => { if (!ev.target.closest('circle')) hide(); });
+    const pin = pinTip(el, svg, W, (d) => [`<div class="h">${d.r.Season} · ${esc(d.r.Team)} (${esc(d.r.Division)})</div>${series.map((z) => `<div><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${z.hollow ? 'transparent' : dc(d.r.Division)};border:2px solid ${dc(d.r.Division)};margin-right:5px"></i>${esc(z.f)} <b>${esc(fmt(z.f, d.r[z.f]))}</b></div>`).join('')}<div class="h">${esc(opts.size)} ${esc(fmt(opts.size, d.r[opts.size]))}${d.out ? ' · off the chart' : ''}</div>`, d.cx, d.cy]);
     series.forEach((s, si) => {
       const pts = rows.filter((r) => r[s.f] != null).map((r) => {
         const sib = byS.get(r.Season); const kk = sib.indexOf(r); const off = (kk - (sib.length - 1) / 2) * fan;
@@ -1406,9 +1453,7 @@
         .attr('cx', (d) => d.cx).attr('cy', (d) => d.cy).attr('r', (d) => rs(d.r[sz] || 0))
         .attr('fill', (d) => (s.hollow ? 'var(--color-panel)' : dc(d.r.Division))).attr('stroke', (d) => dc(d.r.Division)).attr('stroke-width', 2)
         .attr('fill-opacity', s.hollow ? 1 : 0.85).attr('opacity', (d) => (d.out ? 0.45 : 1)).attr('stroke-dasharray', (d) => (d.out ? '2 2' : null))
-        .on('pointerenter', function (ev, d) { if (ev.pointerType === 'mouse' && !pinned) show(d, this); })
-        .on('pointerleave', function (ev) { if (ev.pointerType === 'mouse' && !pinned) hide(); })
-        .on('click', function (ev, d) { if (pinned === d) { hide(); return; } pinned = d; show(d, this); });
+        .call(pin);
       // a dot pinned to the edge says what it really is
       g.selectAll('text').data(pts.filter((d) => d.out)).join('text').attr('class', 'off')
         .attr('x', (d) => (d.cx > W - 60 ? d.cx - rs(d.r[sz] || 0) - 3 : d.cx + rs(d.r[sz] || 0) + 3)).attr('text-anchor', (d) => (d.cx > W - 60 ? 'end' : 'start'))
@@ -1443,50 +1488,39 @@
     const name = $('#p-name').textContent;
     const svg = d3.select(el).append('svg').attr('width', '100%').attr('height', H).attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img')
       .attr('aria-label', `${name}: ${f} by season, ${pts.map((p) => `${p.s} ${p.v}`).join(', ')}${cv == null ? '' : `; career ${cv}`}. 100 is division average; ${pit ? 'lower' : 'higher'} is better.`);
-    const yt = y.ticks(5);
-    svg.append('g').selectAll('line').data(yt).join('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y).attr('y2', y).attr('stroke', 'var(--cds-chart-grid)');
-    svg.append('g').selectAll('text').data(yt.filter((d) => Math.abs(y(d) - y(100)) > 10)).join('text').attr('x', m.l - 6).attr('y', (d) => y(d) + 4).attr('text-anchor', 'end').text((d) => d);
+    chartGrid(svg, W, m, y, 100);
     if (x0 < 2020 && x1 > 2020) {
       svg.append('rect').attr('class', 'gap').attr('x', x(2019.6)).attr('width', x(2020.4) - x(2019.6)).attr('y', m.t).attr('height', H - m.t - m.b);
       svg.append('text').attr('x', x(2020)).attr('y', m.t + 10).attr('text-anchor', 'middle').style('font-size', '10px').text(W < 500 ? '—' : 'no 2020');
     }
-    svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(100)).attr('y2', y(100)).attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '4 3');
+    chartRule(svg, W, m, y(100), 'var(--cds-chart-reference)', '4 3');
     svg.append('text').attr('x', m.l - 6).attr('y', y(100) + 4).attr('text-anchor', 'end').attr('class', 'cap').text('100');
     svg.append('text').attr('x', W - m.r + 6).attr('y', y(100) + 4).text('avg');
     if (cv != null) {
       const col = me ? 'var(--fg-star)' : 'var(--fg-green-ink)';
-      svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(clamp(cv))).attr('y2', y(clamp(cv))).attr('stroke', col).attr('stroke-dasharray', '2 4');
+      chartRule(svg, W, m, y(clamp(cv)), col, '2 4');
       svg.append('text').attr('x', W - m.r + 6).attr('y', y(clamp(cv)) + (Math.abs(y(cv) - y(100)) < 12 ? (y(cv) < y(100) ? -4 : 13) : 4)).style('fill', me ? 'var(--fg-star-ink)' : col).attr('class', 'cap').text(`${me ? '★ ' : ''}career ${cv}`);
     }
     // years: every one that fits
     const span = x1 - x0 + 1, step = Math.max(1, Math.ceil(span / Math.floor((W - m.l - m.r) / 40)));
     const ticks = d3.range(x0, x1 + 1).filter((s) => s !== 2020 && (s - x0) % step === 0);
     svg.append('g').selectAll('text').data(ticks).join('text').attr('x', x).attr('y', H - 8).attr('text-anchor', 'middle').text((d) => (step > 1 || W < 500 ? `'${String(d).slice(2)}` : d));
-    svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', H - m.b).attr('y2', H - m.b).attr('stroke', 'var(--cds-chart-axis)');
+    chartRule(svg, W, m, H - m.b, 'var(--cds-chart-axis)');
     // the line breaks where a season is missing
     const runs = [];
     for (const p of pts) { const last = runs[runs.length - 1]; if (last && p.s - last[last.length - 1].s === 1) last.push(p); else runs.push([p]); }
     for (const r of runs.filter((r) => r.length > 1)) svg.append('path').attr('class', 'arc').attr('d', d3.line((p) => x(p.s), (p) => y(clamp(p.v)))(r));
     if (pit) svg.append('g').selectAll('line').data(pts.filter((p) => p.v2 != null)).join('line').attr('class', 'link').attr('x1', (p) => x(p.s)).attr('x2', (p) => x(p.s)).attr('y1', (p) => y(clamp(p.v))).attr('y2', (p) => y(clamp(p.v2)));
     if (pit) svg.append('g').selectAll('circle').data(pts.filter((p) => p.v2 != null)).join('circle').attr('cx', (p) => x(p.s)).attr('cy', (p) => y(clamp(p.v2))).attr('r', 3.5).attr('fill', 'var(--color-panel)').attr('stroke', 'var(--color-fg-muted)').attr('stroke-width', 1.5).attr('pointer-events', 'none');
-    const tip = d3.select(el).append('div').attr('class', 'pg-tip').style('display', 'none');
-    let pinned = null;
-    const hide = () => { pinned = null; tip.style('display', 'none'); svg.selectAll('circle.dot').attr('stroke-width', 2); };
-    const show = (p, node) => {
-      svg.selectAll('circle.dot').attr('stroke-width', 2); d3.select(node).attr('stroke-width', 3.5);
+    const pin = pinTip(el, svg, W, (p) => {
       const g = p.g, teams = g.rows.length > 1 ? `${g.rows.length} teams` : `${esc(g.rows[0].Team)} (${esc(g.rows[0].Division)})`;
-      tip.style('display', null).html(`<div class="h">${p.s} · ${teams}</div><div>${esc(f)} <b>${esc(fmt(f, p.v))}</b>${pit && p.v2 != null ? ` · ERA- <b>${esc(fmt('ERA-', p.v2))}</b>` : ''}</div><div class="h">${pit ? `${esc(fmt('IP', g.tot.IP))} IP` : `${g.tot.PA} PA`}${out(p.v) ? ' · off the chart' : ''}</div>`);
-      const tw = tip.node().offsetWidth, cx = x(p.s), left = cx > W / 2 ? cx - tw - 12 : cx + 12;
-      tip.style('left', Math.max(0, Math.min(W - tw, left)) + 'px').style('top', Math.max(0, y(clamp(p.v)) - 50) + 'px');
-    };
-    svg.on('click', (ev) => { if (!ev.target.closest('circle')) hide(); });
+      return [`<div class="h">${p.s} · ${teams}</div><div>${esc(f)} <b>${esc(fmt(f, p.v))}</b>${pit && p.v2 != null ? ` · ERA- <b>${esc(fmt('ERA-', p.v2))}</b>` : ''}</div><div class="h">${pit ? `${esc(fmt('IP', g.tot.IP))} IP` : `${g.tot.PA} PA`}${out(p.v) ? ' · off the chart' : ''}</div>`, x(p.s), y(clamp(p.v))];
+    });
     const col = me ? 'var(--fg-star)' : 'var(--fg-green)';
     svg.append('g').selectAll('circle').data(pts).join('circle').attr('class', 'dot')
       .attr('cx', (p) => x(p.s)).attr('cy', (p) => y(clamp(p.v))).attr('r', (p) => (p.small ? 3.5 : 5))
       .attr('fill', (p) => (p.small || out(p.v) ? 'var(--color-panel)' : col)).attr('stroke', col).attr('stroke-width', 2)
-      .on('pointerenter', function (ev, p) { if (ev.pointerType === 'mouse' && !pinned) show(p, this); })
-      .on('pointerleave', function (ev) { if (ev.pointerType === 'mouse' && !pinned) hide(); })
-      .on('click', function (ev, p) { if (pinned === p) { hide(); return; } pinned = p; show(p, this); });
+      .call(pin);
     svg.append('g').selectAll('text').data(pts.filter((p) => out(p.v))).join('text').attr('class', 'off')
       .attr('x', (p) => (x(p.s) > W - m.r - 50 ? x(p.s) - 8 : x(p.s) + 8)).attr('text-anchor', (p) => (x(p.s) > W - m.r - 50 ? 'end' : 'start'))
       .attr('y', (p) => y(clamp(p.v)) + 4).text((p) => `${(p.v < dlo) !== pit ? '▼' : '▲'} ${fmt(f, p.v)}`);
