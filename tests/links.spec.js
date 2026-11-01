@@ -52,6 +52,8 @@ test.describe('Shareable links and Back', () => {
     const team = page.locator('#div-Adams tbody tr a[data-tid]').first();
     const tid = String(await team.getAttribute('data-tid'));
     await team.click();
+    await expect(page.locator('#pg-team')).toBeVisible();
+    await page.locator('#tm-lb').click();
     await expect(page.locator('#lb-team')).toHaveAttribute('data-value', tid);
     await page.locator('#lb-group button[data-v="std"]').click(); // a tweak: replaces, doesn't push
     await page.locator('#lb-table tbody tr td.name a').first().click();
@@ -61,6 +63,8 @@ test.describe('Shareable links and Back', () => {
     await expect(page.locator('#pg-leaders')).toBeVisible();
     await expect(page.locator('#lb-team')).toHaveAttribute('data-value', tid);
     await expect(page.locator('#lb-group button[data-v="std"]')).toHaveAttribute('aria-pressed', 'true');
+    await page.goBack();
+    await expect(page.locator('#pg-team')).toBeVisible();
     await page.goBack();
     await expect(page.locator('#pg-standings')).toBeVisible();
     await page.goBack();

@@ -57,8 +57,8 @@ test.describe('Box scores', () => {
     await expect(page).toHaveURL(new RegExp(`#players/${MATT}`));
     await page.goBack();
     await team(page, 1).locator('h3 a').click();
-    await expect(page.locator('#pg-leaders')).toBeVisible();
-    await expect(page.locator('#lb-team')).toHaveAttribute('data-value', '1448');
+    await expect(page.locator('#pg-team')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => location.hash)).toMatch(/^#team\/1448/);
     expect(errors).toEqual([]);
   });
 
