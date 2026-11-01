@@ -2,7 +2,24 @@
 import collections, csv, json, os
 from common import BUILD as OUT, i, game_time, team_divs, finished_games, box_lines
 
-BC = ['kind','Date','Season','gameId','PO','pid','Name','tid','ptid','Team','Division','GS','AB','R','H','2B','3B','HR','RBI','SB','CS','BB','SO','GDP','HBP','SH','SF','CI','Outs','W','L','SV','CG','ER','IBB','WP','Ord']
+BC = ['kind','Date','Season','gameId','PO','pid','Name','tid','ptid','Team','Division','GS','AB','R','H','2B','3B','HR','RBI','SB','CS','BB','SO','GDP','HBP','SH','SF','CI','Outs','W','L','SV','CG','ER','IBB','WP','Ord','sW','sL','sSV']
+
+def decisions(rows):
+    """On each pitching line with a W, L or SV: the pitcher's season W, L and SV through that game (all teams), so the
+    box score can tag "W (5–2)" without loading the whole season."""
+    by = collections.defaultdict(list)
+    for r in rows:
+        if r['kind'] == 'pit': by[r['pid']].append(r)
+    for lines in by.values():
+        lines.sort(key=lambda r: (r['Date'], int(r['gameId'])))
+        w = l = sv = start = 0
+        for k, r in enumerate(lines):
+            w += r['W'] or 0; l += r['L'] or 0; sv += r['SV'] or 0
+            # two lines in one game (pitching for both sides) count together
+            if k + 1 < len(lines) and lines[k + 1]['gameId'] == r['gameId']: continue
+            for x in lines[start:k + 1]:
+                if x['W'] or x['L'] or x['SV']: x['sW'], x['sL'], x['sSV'] = w, l, sv
+            start = k + 1
 
 def main():
     tdiv = team_divs()
@@ -40,6 +57,7 @@ def main():
                 for c in ['GS', 'Outs', 'W', 'L', 'SV', 'CG', 'ER', 'IBB', 'WP']: row[c] = ''
             per[y].append(row)
     for y in sorted(per):
+        decisions(per[y])
         rows = sorted(per[y], key=lambda r: (r['Date'], r['gameId']))
         with open(f'{OUT}/pssbl_box_{y}.csv', 'w', newline='', encoding='utf-8') as f:
             w = csv.DictWriter(f, BC); w.writeheader(); w.writerows(rows)

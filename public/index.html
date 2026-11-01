@@ -659,8 +659,21 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     if (m && m.deps.length === deps.length && m.deps.every((d, i) => d === deps[i])) return m.val;
     const val = fn(); memo.set(key, { deps, val }); return val;
   };
+  // box scores come one file per month (box_2026_05); each season's guts rows list its months. boxIds gives the files
+  // that cover from..to (either may be blank), boxOf their lines as one list (null while any is loading)
+  const boxMonths = (season) => { const g = rowsOf('guts'); if (!g) return null; const r = g.find((x) => x.Season === season); return r && Array.isArray(r.BoxMonths) ? r.BoxMonths : []; };
+  const boxIds = (season, from, to) => (boxMonths(season) || []).filter((m) => (!from || m >= Number(from.slice(5, 7))) && (!to || m <= Number(to.slice(5, 7)))).map((m) => `box_${season}_${String(m).padStart(2, '0')}`);
+  const boxOf = (ids) => { const parts = ids.map(rowsOf); return parts.includes(null) ? null : memoize('box|' + ids.join(), parts, () => parts.flat()); };
   const seasonRows = (id, season) => { const rows = rowsOf(id); return rows && memoize(id + '|' + season, [rows], () => rows.filter((r) => r.Season === season)); };
-  const pidRows = (id, pid) => { const rows = rowsOf(id); return rows && memoize(id + '#' + pid, [rows], () => rows.filter((r) => r.pid === pid)); };
+  // the Players page reads one player at a time from two shared files: player_NN (every pid ending in NN; finished
+  // seasons, unchanged all season) and playernow_NN (the latest season and career rows). Rows: season lines (t = bat,
+  // pit), career rows (bc, pc) and box-score lines with the game's score joined on (log)
+  const bucketsOf = (pid) => { const n = String(/^\d+$/.test(pid) ? Number(pid) % 100 : 0).padStart(2, '0'); return [`player_${n}`, `playernow_${n}`]; };
+  const mineOf = (t, pid = P.pid) => {
+    const [h, c] = bucketsOf(pid).map(rowsOf);
+    return h && c && memoize(`mine|${t}|${pid}`, [h, c], () => [...h, ...c].filter((r) => r.t === t && r.pid === pid));
+  };
+  const mineBad = (pid = P.pid) => bucketsOf(pid).some(bad);
 
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const enc = (s) => encodeURIComponent(String(s));
@@ -1079,15 +1092,16 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   }
   function leaderPool({ seasons, career, allS, proj, sp }) {
     const wrap = $('#lb-wrap'), table = $('#lb-table'), cards = $('#lb-cards');
-    const id = sp ? 'box_' + L.season : proj || allS ? DS[L.type].hist : sourceFor(L.type, L.season, seasons[0]);
+    const ids = sp ? boxIds(L.season, sp.from, sp.to) : null;
+    const id = sp ? ids.join(' ') : proj || allS ? DS[L.type].hist : sourceFor(L.type, L.season, seasons[0]);
     $('#lb-title').textContent = `${L.type === 'bat' ? 'Batting' : 'Pitching'} leaders · ${career ? 'career' : allS ? 'every season' : proj ? 'projected in ' + proj : L.season}${sp ? ' · ' + rangeLabel(sp) : ''}`;
     $('#lb-div-label').textContent = proj ? 'From division' : 'Division';
     $('#lb-group').classList.toggle('proj', !!proj);
-    if (bad(id) || (sp && bad('guts')) || ((proj || allS) && (bad(DS[L.type].cur) || bad('translations')))) { failed(wrap); wrap.prepend(table); table.replaceChildren(); return null; }
+    if ((sp ? ids.some(bad) : bad(id)) || (sp && bad('guts')) || ((proj || allS) && (bad(DS[L.type].cur) || bad('translations')))) { failed(wrap); wrap.prepend(table); table.replaceChildren(); return null; }
     let inSeason, rangeGames = null, optRows;
     if (sp) {
       // ages come from the season lines (box scores carry none)
-      const box = rowsOf(id), gr = rowsOf('guts'), sr = rowsOf(sourceFor(L.type, L.season, seasons[0]));
+      const box = boxOf(ids), gr = rowsOf('guts'), sr = rowsOf(sourceFor(L.type, L.season, seasons[0]));
       const res = box && gr && sr && memoize('range', [box, gr, sr, L.type, JSON.stringify(sp)], () => withAge(aggregateBox(box, gr, L.season, L.type, sp), sr, L.season));
       inSeason = res ? res.rows : null;
       if (res) rangeGames = res.games;
@@ -1103,7 +1117,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     if (allS) { table.removeAttribute('data-source'); table.removeAttribute('data-row-key'); wrap.setAttribute('data-source', `${DS[L.type].hist} ${DS[L.type].cur}`); cards.setAttribute('data-source', wrap.getAttribute('data-source')); }
     else if (proj) { table.removeAttribute('data-source'); table.removeAttribute('data-row-key'); wrap.setAttribute('data-source', `${DS[L.type].hist} ${DS[L.type].cur} translations`); cards.setAttribute('data-source', wrap.getAttribute('data-source')); }
     else if (cite) { table.setAttribute('data-source', id); table.setAttribute('data-row-key', 'key'); wrap.removeAttribute('data-source'); cards.removeAttribute('data-source'); }
-    else { table.removeAttribute('data-source'); table.removeAttribute('data-row-key'); wrap.setAttribute('data-source', `${id} guts`); cards.setAttribute('data-source', `${id} guts`); }
+    else { table.removeAttribute('data-source'); table.removeAttribute('data-row-key'); wrap.setAttribute('data-source', `${id} guts`.trim()); cards.setAttribute('data-source', `${id} guts`.trim()); }
     $('#lb-note').textContent = sp
       ? `Added up from ${d3.format(',')(rangeGames)} box scores in this range. wRC+, FIP and WAR compare to full-season division averages; box scores don't record intentional walks, and qualifying is 2 PA or 0.5 IP per team game in the range (at least 10 PA or 5 IP).`
       : allS ? 'Every single-season line since ' + seasons[seasons.length - 1] + ', each against its own division that year. Click a column to sort.'
@@ -1319,33 +1333,21 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     // league news for the latest season, only on the unfiltered front page; once you drill in it's in the way (on a phone, literally)
     el.hidden = tab !== 'leaders' || (L.season != null && (!seasons || L.season !== seasons[0])) || L.div !== 'All' || L.team !== 'All' || !!L.q || L.range !== 'full';
     if (el.hidden) return;
-    if (!seasons) { statusOf('batting'); statusOf('pitching'); return; }
-    const b = rowsOf('batting'), p = rowsOf('pitching');
-    if (!b || !p) { if (bad('batting')) el.textContent = ''; return; }
-    const html = memoize('lede', [b, p], () => {
-      const y = seasons[0];
-      const pick = (rows, f) => rows.reduce((best, r) => (r.Season === y && r[f] != null && (!best || r[f] > best[f])) ? r : best, null);
-      const tb = pick(b, 'oWAR'), tp = pick(p, 'WAR');
-      if (!tb || !tp) return '';
-      const k = (r) => `key=${enc(r.key)}`;
-      return `<b>${y}:</b> <span data-source="batting" data-field="Name" data-where="${k(tb)}">${esc(tb.Name)}</span> (${esc(tb.Team)}, ${esc(tb.Division)}) led every PSSBL hitter at <b data-source="batting" data-field="oWAR" data-where="${k(tb)}">${fmt('oWAR', tb.oWAR)}</b> oWAR; <span data-source="pitching" data-field="Name" data-where="${k(tp)}">${esc(tp.Name)}</span> (${esc(tp.Team)}, ${esc(tp.Division)}) led pitchers at <b data-source="pitching" data-field="WAR" data-where="${k(tp)}">${fmt('WAR', tp.WAR)}</b> WAR.`;
+    // the latest season's top hitter and pitcher, worked out by the pipeline (lede.json), so the front page needn't load every pitching line
+    const lede = rowsOf('lede');
+    if (!seasons || !lede) { if (bad('lede')) el.textContent = ''; return; }
+    const html = memoize('lede', [lede], () => {
+      const y = seasons[0], tb = lede.find((r) => r.key === 'bat'), tp = lede.find((r) => r.key === 'pit');
+      if (!tb || !tp || tb.Season !== y) return '';
+      return `<b>${y}:</b> <span data-source="lede" data-field="Name" data-where="key=bat">${esc(tb.Name)}</span> (${esc(tb.Team)}, ${esc(tb.Division)}) led every PSSBL hitter at <b data-source="lede" data-field="oWAR" data-where="key=bat">${fmt('oWAR', tb.oWAR)}</b> oWAR; <span data-source="lede" data-field="Name" data-where="key=pit">${esc(tp.Name)}</span> (${esc(tp.Team)}, ${esc(tp.Division)}) led pitchers at <b data-source="lede" data-field="WAR" data-where="key=pit">${fmt('WAR', tp.WAR)}</b> WAR.`;
     });
     setHTML(el, html);
   }
 
   // ---------- PLAYERS ----------
   const pq = $('#p-q'), sugg = $('#p-sugg');
-  const playerIndex = () => {
-    const bc = rowsOf('bat_career'), pc = rowsOf('pit_career');
-    if (!bc || !pc) return null;
-    return memoize('pindex', [bc, pc], () => {
-      const m = new Map();
-      for (const r of bc) m.set(r.pid, r);
-      for (const r of pc) { const cur = m.get(r.pid); if (!cur || r.To > cur.To) m.set(r.pid, r); }
-      const from = new Map(); for (const r of [...bc, ...pc]) from.set(r.pid, Math.min(from.get(r.pid) || 9999, r.From));
-      return [...m.values()].map((r) => ({ pid: r.pid, Name: r.Name, Team: r.Team, Division: r.Division, From: from.get(r.pid), To: r.To }));
-    });
-  };
+  // every player once, newest team, first and last season (players.csv, built by the pipeline for the search box)
+  const playerIndex = () => rowsOf('players');
   let sT, sWaiting = false;
   function suggest() {
     const list = playerIndex();
@@ -1425,7 +1427,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     }));
   }
   // where a hidden one-way card used to keep the last player's table: everything a type shows comes from these
-  const ownRows = (type) => { const h = pidRows(DS[type].hist, P.pid), c = pidRows(DS[type].cur, P.pid); return h && c ? memoize(`own|${type}|${P.pid}`, [h, c], () => [...h, ...c]) : null; };
+  const ownRows = (type) => mineOf(type);
 
   // one table per role: a row per team-season, a Total row over seasons with several teams, Career in the footer; headers sort
   function seasonTable(type, groups, careerRow, cols) {
@@ -1670,11 +1672,11 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     const set = (el, html) => { setHTML(el, html); };
     if (!P.pid) return renderFinder(nm, cards, set);
     $('#p-find').hidden = true;
-    if (bad('bat_career') || bad('batting_hist')) { nm.textContent = ''; failed($('#p-strip')); return; }
-    const bc = rowsOf('bat_career'), pc = rowsOf('pit_career');
+    const src = bucketsOf(P.pid).join(' ');
+    if (mineBad()) { nm.textContent = ''; failed($('#p-strip')); return; }
+    const bc = mineOf('bc'), pc = mineOf('pc');
     if (!bc || !pc) { nm.classList.add('dash-skeleton'); set($('#p-strip'), '<div class="dash-skeleton"></div>'); }
-    const bcr = bc && memoize('bcr' + P.pid, [bc], () => bc.find((r) => r.pid === P.pid) || null);
-    const pcr = pc && memoize('pcr' + P.pid, [pc], () => pc.find((r) => r.pid === P.pid) || null);
+    const bcr = bc && (bc[0] || null), pcr = pc && (pc[0] || null);
     const head = bcr && pcr ? (bcr.To >= pcr.To ? bcr : pcr) : (bcr || pcr);
     if (!head) {
       if (bc && pc) {
@@ -1687,15 +1689,13 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     }
     nm.classList.remove('dash-skeleton');
     nm.textContent = head.Name; nm.classList.toggle('me', P.pid === MATT);
-    nm.setAttribute('data-source', head === bcr ? 'bat_career' : 'pit_career'); nm.setAttribute('data-field', 'Name'); nm.setAttribute('data-where', `key=${enc(head.key)}`);
+    nm.setAttribute('data-source', src); nm.setAttribute('data-field', 'Name'); nm.setAttribute('data-where', `key=${enc(head.key)}`);
     if (P.recentFor !== P.pid) { P.recentFor = P.pid; recentAdd(P.pid, head.Name); }
     const from = Math.min(bcr ? bcr.From : 9999, pcr ? pcr.From : 9999), to = Math.max(bcr ? bcr.To : 0, pcr ? pcr.To : 0);
     // Age − Season is the same in every season (league age), so the current age follows from any line
     const ac = [bcr, pcr].find((r) => r && r.Age != null), nowY = (seasonsAvail() || [to])[0];
     const ageNow = ac ? ac.Age - ac.To + nowY : null;
     set($('#p-sub'), `${ageNow == null ? '' : `<span id="p-age" title="League age in ${nowY} (${nowY} − birth year)">Age ${ageNow}</span> · `}${to}: ${lastTeams(head, bcr, to)} · on file ${from === to ? `${to} only` : `${from}–${to}`} · <a class="pg-link" href="https://pssbl.com/#!/player/${enc(P.pid)}" target="_blank" rel="noopener">pssbl.com profile ↗</a>`);
-    // the game log opens on the latest season: ask for its box scores now instead of after the season tables
-    statusOf('box_' + to); statusOf('games');
 
     // pitcher first only for real pitchers: a hitter gets about 4 PA a game and a starter faces about 25 batters, so a
     // two-way regular (Bigelow: 2.3 batters faced per PA) stays a hitter and a staff ace (Gibson: 5) doesn't
@@ -1781,12 +1781,12 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   // every team the player suited up for in his latest season, most playing time first (the career row only knows one)
   function lastTeams(head, bcr, to) {
     const chip = (type, r) => `<a class="pg-chip" href="${teamHref(type, r.Season, r.Division, r.tid)}" data-type="${type}" data-tid="${esc(r.tid)}" data-season="${r.Season}" data-div="${esc(r.Division)}" title="See the team's leaderboard">${esc(r.Team)}</a> (${esc(r.Division)})`;
-    const own = ['bat', 'pit'].map((type) => [pidRows(DS[type].hist, P.pid), pidRows(DS[type].cur, P.pid)]);
-    if (own.flat().includes(null)) { const ht = head === bcr ? 'bat' : 'pit'; return chip(ht, { ...head, Season: head.To }); }
+    const own = ['bat', 'pit'].map((type) => mineOf(type));
+    if (own.includes(null)) { const ht = head === bcr ? 'bat' : 'pit'; return chip(ht, { ...head, Season: head.To }); }
     const seen = new Map();
-    own.forEach(([h, c], i) => {
+    own.forEach((rows, i) => {
       const type = i ? 'pit' : 'bat';
-      for (const r of [...h, ...c]) {
+      for (const r of rows) {
         if (r.Season !== to) continue;
         const t = seen.get(r.tid) || { type, r, n: 0 };
         t.n += type === 'bat' ? r.PA : r.Outs; seen.set(r.tid, t);
@@ -1796,7 +1796,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   }
 
   // ---------- GAME LOG ----------
-  // one row per game from that season's box scores; opponent and score come from games.csv
+  // one row per game from the player's box-score lines (player_NN / playernow_NN), with the game's teams and score joined on
   const LOG = {
     bat: ['PA', 'AB', 'R', 'H', '2B', '3B', 'HR', 'RBI', 'BB', 'SO', 'HBP', 'SB', 'CS', 'AVG', 'OBP', 'SLG'],
     pit: ['Dec', 'GS', 'IP', 'H', 'R', 'ER', 'BB', 'SO', 'HR', 'HBP', 'WP', 'ERA'],
@@ -1813,34 +1813,31 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     const card = $('#p-log'), wrap = $('#p-log-wrap'), tbl = $('#p-log-table'), note = $('#p-log-note'), more = $('#p-log-more');
     more.hidden = true;
     if (P.logFor !== P.pid) { P.logFor = P.pid; P.log = null; P.logType = null; }
-    const own = ['bat', 'pit'].flatMap((type) => [pidRows(DS[type].hist, P.pid), pidRows(DS[type].cur, P.pid)]);
-    if (own.includes(null)) { wrap.classList.add('dash-skeleton'); return; }
+    const own = [mineOf('bat'), mineOf('pit')], log = mineOf('log');
+    if (own.includes(null) || !log) { if (mineBad()) failed(wrap); else wrap.classList.add('dash-skeleton'); return; }
     const seasons = [...new Set(own.flat().map((r) => r.Season))].sort((a, b) => b - a);
     if (!seasons.length) { card.hidden = true; return; }
     card.hidden = false;
     const season = seasons.includes(P.log) ? P.log : seasons[0];
     fillSelect($('#p-log-season'), seasons.map((y) => [y, y]), season);
-    const id = 'box_' + season;
-    if (bad(id) || bad('games')) {
-      wrap.classList.remove('dash-skeleton'); $('#p-log-type-ctrl').hidden = true;
-      note.textContent = bad('games') ? '' : `No box scores on file for ${season}.`;
-      if (bad('games')) failed(wrap); else { tbl.innerHTML = ''; tbl._html = ''; }
+    const id = bucketsOf(P.pid).join(' ');
+    wrap.classList.remove('dash-skeleton');
+    const mine = memoize('log' + P.pid + '|' + season, [log], () => log.filter((r) => r.Season === season));
+    if (!mine.length) {
+      $('#p-log-type-ctrl').hidden = true;
+      note.textContent = `No box scores on file for ${season}.`;
+      tbl.innerHTML = ''; tbl._html = '';
       return;
     }
-    const box = rowsOf(id), games = rowsOf('games');
-    if (!box || !games) { wrap.classList.add('dash-skeleton'); return; }
-    wrap.classList.remove('dash-skeleton');
-    const mine = memoize('log' + P.pid + '|' + season, [box], () => box.filter((r) => r.pid === P.pid));
     const has = { bat: mine.some((r) => r.kind === 'bat'), pit: mine.some((r) => r.kind === 'pit') };
     const type = has[P.logType] ? P.logType : has.bat ? 'bat' : 'pit';
     $('#p-log-type-ctrl').hidden = !(has.bat && has.pit);
     setLogType(type);
-    const byGame = memoize('gamesById', [games], () => new Map(games.map((g) => [g.gameId, g])));
     const cols = LOG[type], sums = SUMS[type], run = {};
     for (const c of sums) run[c] = 0;
     const lines = mine.filter((r) => r.kind === type).map((r) => {
       for (const c of sums) run[c] += r[c] || 0;
-      const g = byGame.get(r.gameId), bt = r.ptid || r.tid, o = {};
+      const g = r.homeName != null ? r : null, bt = r.ptid || r.tid, o = {};
       for (const c of sums) o[c] = r[c] || 0;
       Object.assign(o, logStats(type, o));
       const cum = logStats(type, run);
@@ -1875,7 +1872,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   }
 
   // ---------- BOX SCORE (#game/<gameId>) ----------
-  // both teams' lines come from that season's box_YYYY.csv; fill-ins sit under the team they played for (ptid)
+  // both teams' lines come from that month's box_YYYY_MM.csv; fill-ins sit under the team they played for (ptid)
   const BOX = {
     bat: ['AB', 'R', 'H', '2B', '3B', 'HR', 'RBI', 'BB', 'SO', 'HBP', 'SB', 'CS'],
     pit: ['IP', 'H', 'R', 'ER', 'BB', 'SO', 'HR', 'HBP', 'WP'],
@@ -1895,27 +1892,19 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     const teamLink = (tid, name, d) => `<a href="${teamHref('bat', g.Season, d, tid)}" data-type="bat" data-tid="${esc(tid)}" data-season="${g.Season}" data-div="${esc(d)}">${esc(name)}</a>`;
     const side = (tid, name, d, runs, opp) => { const c = runs < opp ? ' class="lose"' : ''; return `<span${c}>${teamLink(tid, name, d)}</span><span class="r${runs < opp ? ' lose' : ''}">${runs}</span>`; };
     set(score, side(g.away, g.awayName, g.awayDiv, g.ar, g.hr) + side(g.home, g.homeName, g.homeDiv, g.hr, g.ar));
-    const id = 'box_' + g.Season;
+    const months = boxMonths(g.Season), id = `box_${g.Season}_${g.Date.slice(5, 7)}`;
     const none = () => { teams.classList.remove('dash-skeleton'); teams.style.minHeight = ''; set(note, ''); set(teams, '<div class="pg-card pg-empty" id="gm-none">No box score on file for this game.</div>'); };
-    if (bad(id)) return none();
-    const box = rowsOf(id);
+    if (months && !months.includes(Number(g.Date.slice(5, 7)))) return none();
+    if (bad(id) || bad('guts')) return none();
+    const box = months && rowsOf(id);
     if (!box) { teams.classList.add('dash-skeleton'); teams.style.minHeight = '20rem'; return; }
     teams.classList.remove('dash-skeleton'); teams.style.minHeight = '';
     const lines = memoize('game' + g.gameId, [box], () => box.filter((r) => r.gameId === g.gameId));
     const who = GM.hl && lines.find((r) => r.pid === GM.hl);
     set($('#gm-back-wrap'), who ? `<a class="pg-back" id="gm-back" href="#players/${esc(who.pid)}" data-pid="${esc(who.pid)}">← ${esc(who.Name)}’s game log</a>` : '');
     if (!lines.length) return none();
-    // season W-L and saves through this game, for the decision tags
-    const recs = memoize('gamerec' + g.gameId, [box], () => {
-      const pids = new Set(lines.filter((r) => r.kind === 'pit' && (r.W || r.L || r.SV)).map((r) => r.pid)), out = {};
-      for (const r of box) {
-        if (r.kind !== 'pit' || !pids.has(r.pid) || r.Date > g.Date || (r.Date === g.Date && Number(r.gameId) > Number(g.gameId))) continue;
-        const o = out[r.pid] || (out[r.pid] = { W: 0, L: 0, SV: 0 });
-        o.W += r.W || 0; o.L += r.L || 0; o.SV += r.SV || 0;
-      }
-      return out;
-    });
-    const dec = (r) => { const o = recs[r.pid]; return r.W ? `W (${o.W}–${o.L})` : r.L ? `L (${o.W}–${o.L})` : r.SV ? `SV (${o.SV})` : ''; };
+    // season W-L and saves through this game (sW, sL, sSV: worked out by the pipeline, which sees the whole season)
+    const dec = (r) => (r.W ? `W (${r.sW}–${r.sL})` : r.L ? `L (${r.sW}–${r.sL})` : r.SV ? `SV (${r.sSV})` : '');
     let fills = false;
     const card = (tid, name, d) => {
       const mine = lines.filter((r) => (r.ptid || r.tid) === tid);
