@@ -965,12 +965,13 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
 
 
   // ---------- DATE RANGE (rebuilt from box scores) ----------
-  const RANGES = [['full', 'Full season'], ['reg', 'Regular season'], ['post', 'Playoffs'], ['m4', 'April'], ['m5', 'May'], ['m6', 'June'], ['m7', 'July'], ['m8', 'August'], ['m9', 'September'], ['custom', 'Custom dates']];
+  const RANGES = [['full', 'Full season'], ['reg', 'Regular season'], ['post', 'Playoffs'], ['h1', 'First half'], ['h2', 'Second half'], ['m4', 'April'], ['m5', 'May'], ['m6', 'June'], ['m7', 'July'], ['m8', 'August'], ['m9', 'September'], ['custom', 'Custom dates']];
   function rangeSpec() {
     if (typeof L.season !== 'number' || L.range === 'full') return null;
     const y = L.season;
     if (L.range === 'reg') return { po: 0 };
     if (L.range === 'post') return { po: 1 };
+    if (L.range === 'h1' || L.range === 'h2') return { po: 0, half: Number(L.range[1]) };
     if (L.range[0] === 'm') {
       const m = Number(L.range.slice(1)), mm = String(m).padStart(2, '0');
       return { from: `${y}-${mm}-01`, to: `${y}-${mm}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0')}` };
@@ -1021,8 +1022,25 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     const gc = new Map();
     for (const r of guts) if (r.Season === season) gc.set(r.Division, r);
     const TG = new Map(), acc = new Map(), games = new Set();
+    // halves are per team: each team's regular-season games in date order, split at its own midpoint (schedules differ)
+    let inHalf = null;
+    if (sp.half) {
+      const byTeam = new Map();
+      for (const r of box) {
+        if (r.PO !== 0) continue;
+        const t = r.ptid || r.tid;
+        let g = byTeam.get(t); if (!g) byTeam.set(t, g = new Map());
+        g.set(r.gameId, r.Date);
+      }
+      inHalf = new Set();
+      for (const [t, g] of byTeam) {
+        const order = [...g].sort((a, b) => a[1].localeCompare(b[1]) || Number(a[0]) - Number(b[0])), cut = Math.ceil(order.length / 2);
+        for (const [gid] of sp.half === 1 ? order.slice(0, cut) : order.slice(cut)) inHalf.add(t + '|' + gid);
+      }
+    }
     for (const r of box) {
       if (sp.po != null && r.PO !== sp.po) continue;
+      if (inHalf && !inHalf.has((r.ptid || r.tid) + '|' + r.gameId)) continue;
       if (sp.from && r.Date < sp.from) continue;
       if (sp.to && r.Date > sp.to) continue;
       games.add(r.gameId);

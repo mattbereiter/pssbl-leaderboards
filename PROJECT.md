@@ -20,7 +20,9 @@ There are four tabs plus a shortcut. All are rendered by `src/page.html` (one sc
   - **Filters:** season (2015–2026, no 2020), "All seasons" (every single-season line, with a Year column) or Career,
     division (a multi-select: any mix of divisions), team, min PA/IP (default "Qualified"; a team view defaults to 0+ and drops the Div column), name search
     (accents folded, any word order; ranks are counted before the search), and a **date range** (full season, regular
-    season, playoffs, a month, or custom From/To, which only show once a range is picked).
+    season, playoffs, first or second half, a month, or custom From/To, which only show once a range is picked).
+    Halves are per team: each team's regular-season games in date order, split at its own midpoint (odd counts give
+    the first half the extra game), because divisions play different schedules.
   - **Filters explain themselves:** active division/team/search show as chips with ✕ under the heading; a team is kept
     across Batting/Pitching and across seasons by name; when a filter can't carry over (no such team that season, a
     bad season in a link) a one-line notice says so. The browser tab title names the view.

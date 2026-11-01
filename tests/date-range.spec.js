@@ -27,6 +27,34 @@ test.describe('Date range (rebuilt from box scores)', () => {
     expect(errors).toEqual([]);
   });
 
+  test('first and second half split each team\'s regular season', async ({ page }) => {
+    const errors = trackErrors(page);
+    const line = async (range) => {
+      await openSite(page, `leaders?season=2025&min=0&q=bereiter&range=${range}`);
+      await expect(leaderRows(page).first()).toBeVisible();
+      return leaderTable(page);
+    };
+    const reg = await line('reg'), h1 = await line('h1');
+    await expect(page.locator('#lb-title')).toHaveText(/· First half$/);
+    const h2 = await line('h2');
+    await expect(page.locator('#lb-title')).toHaveText(/· Second half$/);
+    await expect(page.locator('#lb-range')).toHaveValue('h2');
+    for (const c of ['PA', 'H', 'HR', 'BB']) expect(sum(h1, c) + sum(h2, c)).toBe(sum(reg, c));
+    expect(sum(h1, 'PA')).toBeGreaterThan(0);
+    expect(sum(h2, 'PA')).toBeGreaterThan(0);
+    // league-wide the halves are about the same size (a game can fall in one team's first half and the other's second)
+    const games = async (range) => {
+      await openSite(page, `leaders?season=2025&min=0&range=${range}`);
+      await expect(page.locator('#lb-note')).toContainText('box scores');
+      return Number(((await page.locator('#lb-note').textContent()) || '').replace(/,/g, '').match(/from (\d+) box/)[1]);
+    };
+    const n1 = await games('h1'), n2 = await games('h2'), nr = await games('reg');
+    expect(n1 + n2).toBeGreaterThanOrEqual(nr);
+    expect(n1 / n2).toBeGreaterThan(0.85);
+    expect(n1 / n2).toBeLessThan(1.15);
+    expect(errors).toEqual([]);
+  });
+
   test('a month fills From/To with that month', async ({ page }) => {
     await openSite(page);
     const season = await page.locator('#lb-season').inputValue();
