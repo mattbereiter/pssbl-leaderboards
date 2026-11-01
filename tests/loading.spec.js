@@ -39,7 +39,7 @@ test.describe('Loading', () => {
     await page.route('**/data/batting_current.csv*', (r) => r.fulfill({ status: 500, body: '' }));
     page.on('console', () => {}); // the loader logs the failure; that's expected here
     await page.goto('/');
-    await expect(page.locator('#lb-wrap .pg-failed')).toHaveText('Failed to load');
+    await expect(page.locator('#lb-wrap .pg-failed')).toContainText('Failed to load');
   });
 });
 
