@@ -70,7 +70,7 @@ test.describe('Journey polish: filters', () => {
     await page.locator('#lb-to').fill(`${season}-01-20`);
     await page.locator('#lb-to').dispatchEvent('change');
     await expect(page.locator('#lb-table caption')).toHaveText('No games were played in this range.');
-    await expect(page.locator('#lb-cards .pg-empty')).toHaveCount(1);
+    await expect(page.locator('#lb-cards .pg-nohits')).toHaveText('No games were played in this range.');
     await expect(page.locator('#lb-div')).toHaveAttribute('data-value', 'Adams');
   });
 
@@ -187,7 +187,7 @@ test.describe('Journey polish: states and small things', () => {
     await page.goto('/#leaders?season=All&sort=wRC%2B&div=Adams');
     await expect(leaderRows(page).first()).toBeVisible();
     await expect(page.locator('#lb-table thead th[data-col="Season"]')).toHaveText('Year');
-    const years = await page.locator('#lb-table tbody tr td:nth-child(5)').allTextContents();
+    const years = (await leaderTable(page)).map((r) => r.Year);
     expect(new Set(years).size).toBeGreaterThan(3);
     await page.locator('#lb-season').selectOption('Career');
     await expect(page.locator('#lb-min option[value="1000"]')).toHaveCount(1);

@@ -1,6 +1,7 @@
 <style>
 #dash-root { --dash-gutter: clamp(0.75rem, 2.5vw, 2rem); }
-.pg { --fg-green: #378029; --fg-green-base: #4caf32; --fg-star: #c69331; --fg-on-green: #fff;
+.pg { --fg-green: #378029; --fg-green-base: #4caf32; --fg-star: #c69331; --fg-on-green: #fff; --ctl-h: 2rem;
+  --fg-star-ink: color-mix(in srgb, var(--fg-star) 70%, var(--color-fg)); /* gold as text: the plain gold is about 2.8:1 on white */
   --fg-green-ink: color-mix(in srgb, var(--fg-green-base) 55%, var(--color-fg)); --fg-gold: color-mix(in srgb, var(--fg-star) 24%, var(--color-panel)); --fg-sort: color-mix(in srgb, var(--fg-green-base) 9%, var(--color-panel)); --fg-hover: color-mix(in srgb, var(--color-fg) 5%, var(--color-panel));
   font-family: var(--font-anthropic-sans); color: var(--color-fg); max-width: 1500px; margin-inline: auto; font-size: var(--cds-font-size-body); container-type: inline-size; }
 .pg *, .pg *::before, .pg *::after { box-sizing: border-box; }
@@ -21,7 +22,7 @@
 .pg-note { margin: 0 0 var(--cds-gap-sm); color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
 .pg-ctrls { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm) var(--cds-gap-md); align-items: end; margin-bottom: var(--cds-gap-sm); }
 .pg-ctrl { display: flex; flex-direction: column; gap: 2px; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
-.pg-ctrl select, .pg-ctrl input { font: inherit; font-size: var(--cds-font-size-body); color: var(--color-fg); background: var(--color-bg); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: 4px 8px; min-height: 2rem; max-width: 100%; }
+.pg-ctrl select, .pg-ctrl input { font: inherit; font-size: var(--cds-font-size-body); color: var(--color-fg); background: var(--color-bg); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: 4px 8px; min-height: var(--ctl-h); max-width: 100%; }
 .pg-seg { display: inline-flex; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); overflow: hidden; }
 .pg-seg button { all: unset; cursor: pointer; padding: 5px 12px; font-size: var(--cds-font-size-caption); font-weight: 600; color: var(--color-fg); min-height: 2rem; box-sizing: border-box; display: inline-flex; align-items: center; }
 .pg-seg button + button { border-left: 1px solid var(--color-border-line); }
@@ -70,7 +71,7 @@
 .pg-failed::before { content: ""; width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); }
 .pg-leaders { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: var(--cds-gap-sm); margin-bottom: var(--cds-gap-md); }
 .pg-lcard { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-sm) var(--cds-pad-md); min-height: 9.5rem; }
-.pg-lcard h4 { margin: 0 0 4px; font-size: var(--cds-font-size-caption); text-transform: uppercase; letter-spacing: .05em; color: var(--fg-green-ink); font-weight: 700; }
+.pg-lcard h4 { margin: 0 0 4px; font-size: var(--cds-font-size-body); color: var(--fg-green-ink); font-weight: 700; }
 .pg-lcard ol { margin: 0; padding: 0; list-style: none; font-size: var(--cds-font-size-caption); }
 .pg-lcard li { display: flex; gap: 6px; padding: 2px 0; border-bottom: 1px dotted var(--color-border-line); align-items: baseline; }
 .pg-lcard li:last-child { border-bottom: 0; }
@@ -79,9 +80,21 @@
 .pg-lcard li .v { font-variant-numeric: tabular-nums; font-weight: 700; }
 .pg-lcard li:first-child .v { color: var(--fg-green-ink); }
 .pg-lcard li.me { background: var(--fg-gold); }
+.pg-lcard li.me .n a::after { content: "★"; display: inline-block; margin-left: .3em; color: var(--fg-star); }
+.pg-lcard h4 .q { font-weight: 400; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+.pg-leaders.none { display: block; min-height: 0; }
+.pg-nohits { padding: 6px 10px; border: 1px dashed var(--color-border-line); border-radius: var(--cds-radius); color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); background: var(--color-panel); }
+.pg-lbhead { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 2px 0 var(--cds-gap-sm); }
+.pg-lbhead h2 { margin: 0; font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); }
+.pg-lbhead .pg-chips { margin: 0; }
+.pg-back { display: inline-block; margin-bottom: var(--cds-gap-xs); font-size: var(--cds-font-size-caption); font-weight: 600; color: var(--fg-green-ink); text-decoration: none; }
+.pg-back:hover { text-decoration: underline; }
+.pg-back:focus-visible { outline: 2px solid var(--fg-green-ink); outline-offset: 2px; }
+/* phone Leaders: the team as a second line under the name (its own cell steps aside, see renderLeaders) */
+.pg-tbl.fold .fold-x { display: none; }
+.pg-tbl.fold td.name[data-team]::after { content: attr(data-team); display: block; font-size: .6875rem; line-height: 1.2; color: var(--color-fg-muted); font-weight: 400; }
 .pg-lcard li:focus-within { outline: 2px solid var(--fg-green-ink); outline-offset: -2px; }
 .pg-lcard li a:focus-visible { outline: none; }
-.pg-cards-empty { grid-column: 1 / -1; align-self: center; }
 .pg-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 6px; }
 .pg-chips:empty { display: none; }
 .pg-x { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: var(--cds-font-size-caption); font-weight: 600; padding: 3px 10px; min-height: 1.75rem; box-sizing: border-box; border-radius: 999px; background: var(--fg-sort); color: var(--color-fg); border: 1px solid var(--color-border-line); }
@@ -164,7 +177,8 @@
 /* stats card: Batting/Pitching tabs, column sets, one table per role */
 #p-type { margin-bottom: var(--cds-gap-sm); }
 #p-type[hidden] { display: none; }
-.pg-colsets { margin-bottom: var(--cds-gap-sm); }
+#p-stats .pg-seasons { width: auto; border-top: 0; border-radius: 0 0 var(--cds-radius) var(--cds-radius); }
+#p-stats .pg-seasons .pg-tbl { width: 100%; }
 .pg-seasons { width: fit-content; max-width: 100%; }
 .pg-seasons.tall { max-height: 70vh; }
 .pg-seasons .sticky1 { box-shadow: 1px 0 0 var(--color-border-line); }
@@ -194,7 +208,7 @@
 
 /* reserve the space data will fill, so the page doesn't jump while it loads */
 #lb-season { min-width: 167px; } #lb-range { min-width: 138px; } #lb-div { min-width: 116px; } #lb-team { min-width: 204px; } #lb-min { min-width: 98px; }
-#lb-cards { min-height: 9.5rem; }
+#lb-cards:not(.none) { min-height: 9.5rem; }
 #lb-wrap.dash-skeleton { min-height: 72vh; }
 .pg-pager { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; padding-top: var(--cds-pad-sm); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
 .pg-pager label { display: inline-flex; gap: 6px; align-items: center; margin-right: auto; }
@@ -272,17 +286,17 @@
   .pg-tbl .sticky2 { left: 2rem; }
   .pg-tblwrap { max-height: 64vh; }
   .pg-grouptabs .pg-count { flex-basis: 100%; margin: 4px 0 2px; order: 9; }
-  .pg-grouptabs button { flex: 1; text-align: center; }
+  .pg-page { --ctl-h: 40px; }
+  .pg-grouptabs button { min-height: var(--ctl-h); padding: 0 12px; display: inline-flex; align-items: center; }
   .pg-pname { font-size: 1.5rem; }
-  .pg-seg button, .pg-grouptabs button, .pg-more { min-height: 44px; }
+  .pg-seg button, .pg-more, .pg-multi > button, .pg-pager select, .pg-pager button { min-height: var(--ctl-h); }
+  .pg-pager button { min-width: var(--ctl-h); }
   .pg-search input { font-size: 16px; min-height: 44px; }
   .pg-sugg button { padding: 12px 10px; }
   .pg-quick { gap: var(--cds-gap-sm); }
   .pg-ql { font-size: var(--cds-font-size-caption); }
   .pg-ql th, .pg-ql td { padding: 3px 5px; }
   .pg-pbar { grid-template-columns: 3rem minmax(0, 1fr) 1.8rem 3rem; gap: 8px; }
-  .pg-colsets { grid-template-columns: 1fr; }
-  .pg-colsets .pg-seg { width: 100%; }
   .gm-teams .pg-tbl td.name { max-width: none; }
   .pg-pager label { flex-basis: 100%; }
 }
@@ -318,10 +332,9 @@
       <label class="pg-ctrl">Player<input id="lb-q" type="search" placeholder="Search name" aria-label="Search player"></label>
     </div>
     <p class="pg-notice" id="lb-notice" role="status" hidden></p>
+    <div class="pg-lbhead"><h2 id="lb-title">Batting leaders</h2><div class="pg-chips" id="lb-chips"></div></div>
     <div class="pg-leaders" id="lb-cards"></div>
     <div class="pg-card" id="lb-card" style="padding-bottom: var(--cds-pad-sm)">
-      <h2 id="lb-title">Batting leaders</h2>
-      <div class="pg-chips" id="lb-chips"></div>
       <p class="pg-note" id="lb-note">Click a column to sort, a name for the player page.</p>
       <details class="pg-defs" id="lb-defs"><summary>What the columns mean</summary><dl class="pg-gloss" id="lb-defs-list"></dl></details>
       <div class="pg-grouptabs" id="lb-group"><button data-v="dash" aria-pressed="true">Dashboard</button><button data-v="std" aria-pressed="false">Standard</button><button data-v="adv" aria-pressed="false">Advanced</button><span class="pg-count" id="lb-count"></span></div>
@@ -356,7 +369,7 @@
     </div>
     <div class="pg-card" id="p-stats" hidden>
       <div class="pg-grouptabs" id="p-type" role="group" aria-label="Stats"><button data-v="bat" aria-pressed="true">Batting</button><button data-v="pit" aria-pressed="false">Pitching</button></div>
-      <div class="pg-ctrls pg-colsets"><div class="pg-seg" id="p-group" role="group" aria-label="Columns"><button data-v="dash" aria-pressed="true">Dashboard</button><button data-v="std" aria-pressed="false">Standard</button><button data-v="adv" aria-pressed="false">Advanced</button></div></div>
+      <div class="pg-colsets"><div class="pg-grouptabs" id="p-group" role="group" aria-label="Columns"><button data-v="dash" aria-pressed="true">Dashboard</button><button data-v="std" aria-pressed="false">Standard</button><button data-v="adv" aria-pressed="false">Advanced</button></div></div>
       <div id="p-bat">
         <div class="pg-stack pg-seasons" id="p-bat-tables" tabindex="0" role="region" aria-label="Batting by season"></div>
         <div class="pg-chead"><p class="pg-note">wRC+ by season, every team that year combined. 100 is division average; up is better.</p><div class="pg-seg pg-chartview" role="group" aria-label="Chart"><button data-chart="season" aria-pressed="true">Seasons</button><button data-chart="team" aria-pressed="false">Teams</button></div></div>
@@ -389,6 +402,7 @@
   <!-- GAME (box score) -->
   <section class="pg-page" id="pg-game" hidden>
     <div class="pg-card" id="gm-head">
+      <div id="gm-back-wrap"></div>
       <div class="pg-psub" id="gm-meta"></div>
       <div class="gm-score" id="gm-score"><span class="dash-skeleton">—</span></div>
     </div>
@@ -596,6 +610,8 @@
   let notice = '', hlPid = null, hlScroll = false, wantTeam = null, quietTeam = false, resetX = false, revealSort = false;
   const teamNames = new Map(), teamDivs = new Map();
   const pages = ['leaders', 'players', 'standings', 'guts', 'game'];
+  // phone layout, the same 760px the container query uses (the page is its own container)
+  const narrow = () => document.querySelector('.pg').clientWidth <= 760;
 
   function showTab(t) {
     if (t === 'me') { P.pid = MATT; t = 'players'; }
@@ -603,7 +619,7 @@
     if (from === 'players' && t === 'game') backY = scrollY;
     tab = t;
     pages.forEach((p) => { $('#pg-' + p).hidden = p !== t; });
-    const sel = t === 'players' && P.pid === MATT ? 'me' : t;
+    const sel = t === 'players' && P.pid === MATT ? 'me' : t === 'game' && GM.hl ? (GM.hl === MATT ? 'me' : 'players') : t;
     document.querySelectorAll('.pg-nav button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === sel)));
     render();
     // Back from a box score lands where the game log was (popstate and hashchange both fire; keep the second from undoing it)
@@ -730,6 +746,8 @@
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.pg')) return;
     if (newTab(e) && e.target.closest('a[href^="#"]')) return;
+    // back to the game log: a real Back step when that's where we came from, so its scroll position comes back too
+    if (e.target.closest('#gm-back') && !newTab(e) && backY != null) { e.preventDefault(); history.back(); return; }
     const gm = e.target.closest('a[data-game]');
     if (gm) { e.preventDefault(); GM.id = gm.dataset.game; GM.hl = gm.dataset.hl || null; showTab('game'); return; }
     const a = e.target.closest('[data-pid]');
@@ -999,22 +1017,30 @@
 
     const sortAttr = (c) => c === L.sort ? ` aria-sort="${L.dir > 0 ? 'ascending' : 'descending'}"` : '';
     const fa = (c) => ` data-col="${esc(c)}"${cite ? ` data-field="${esc(c)}"` : ''}`;
+    // on a phone the stat you sorted by comes right after the name (it was ten columns off-screen) and the team folds
+    // under the name; every cell is still there, so links and citations don't change
+    const fold = narrow(), lead = fold && cols.includes(L.sort) ? [L.sort] : [], rest = cols.filter((c) => !lead.includes(c));
+    const statTh = (c) => `<th${fa(c)}${sortAttr(c)} title="${esc(DEF[c] || c)}"><button type="button">${esc(c)}</button></th>`;
+    const statTd = (r, c) => `<td${c === L.sort ? ' class="srt"' : ''}>${esc(cell(L.type, c, r))}</td>`;
+    const fx = (c) => (fold && c !== L.sort ? ' fold-x' : '');
+    table.classList.toggle('fold', fold);
     const thead = `<thead><tr><th class="rk sticky1">#</th>`
       + `<th${fa('Name')} class="l sticky2"${sortAttr('Name')}><button type="button">Name</button></th>`
-      + `<th${fa('Team')} class="l"${sortAttr('Team')}><button type="button">${career ? 'Last team' : 'Team'}</button></th>`
+      + lead.map(statTh).join('')
+      + `<th${fa('Team')} class="l${fx('Team')}"${sortAttr('Team')}><button type="button">${career ? 'Last team' : 'Team'}</button></th>`
       + `<th${fa('Division')} class="l col-div"${sortAttr('Division')}><button type="button">${proj ? 'From' : 'Div'}</button></th>`
       + `<th${fa('Age')}${sortAttr('Age')} title="${esc(DEF.Age)}"><button type="button">Age</button></th>`
       + (career ? `<th${fa('Seasons')}${sortAttr('Seasons')}><button type="button">Yrs</button></th>` : '')
       + (allS ? `<th${fa('Season')}${sortAttr('Season')}><button type="button">Year</button></th>` : '')
-      + cols.map((c) => `<th${fa(c)}${sortAttr(c)} title="${esc(DEF[c] || c)}"><button type="button">${esc(c)}</button></th>`).join('')
+      + rest.map(statTh).join('')
       + `</tr></thead>`;
     let body = '';
     for (let i = 0; i < slice.length; i++) {
       const r = slice[i];
       const cls = [r.pid === MATT ? 'me' : '', r.pid === hlPid ? 'hl' : ''].filter(Boolean).join(' ');
       const teamCell = allS || proj ? esc(r.Team) : `<a href="${href('leaders', { ...L, team: r.tid, page: 0, min: L.min === 'q' ? '0' : L.min })}" data-tid="${esc(r.tid)}">${esc(r.Team)}</a>`;
-      body += `<tr data-key="${esc(r.key)}"${cls ? ` class="${cls}"` : ''}><td class="rk sticky1">${rankOf.get(r)}</td><td class="l sticky2 name"><a href="#players/${esc(r.pid)}" data-pid="${esc(r.pid)}">${esc(r.Name)}</a></td><td class="l">${teamCell}</td><td class="l dim col-div">${esc(r.Division)}</td><td class="age${L.sort === 'Age' ? ' srt' : ''}">${r.Age == null ? '' : r.Age}</td>${career ? `<td>${r.Seasons}</td>` : ''}${allS ? `<td>${r.Season}</td>` : ''}`;
-      for (const c of cols) body += `<td${c === L.sort ? ' class="srt"' : ''}>${esc(cell(L.type, c, r))}</td>`;
+      body += `<tr data-key="${esc(r.key)}"${cls ? ` class="${cls}"` : ''}><td class="rk sticky1">${rankOf.get(r)}</td><td class="l sticky2 name"${fold ? ` data-team="${esc(r.Team)}"` : ''}><a href="#players/${esc(r.pid)}" data-pid="${esc(r.pid)}">${esc(r.Name)}</a></td>${lead.map((c) => statTd(r, c)).join('')}<td class="l${fx('Team')}">${teamCell}</td><td class="l dim col-div">${esc(r.Division)}</td><td class="age${L.sort === 'Age' ? ' srt' : ''}">${r.Age == null ? '' : r.Age}</td>${career ? `<td>${r.Seasons}</td>` : ''}${allS ? `<td>${r.Season}</td>` : ''}`;
+      for (const c of rest) body += statTd(r, c);
       body += '</tr>';
     }
     const noGames = sp && rangeGames === 0;
@@ -1030,7 +1056,7 @@
     pager.querySelector('[data-p=next]').disabled = pager.querySelector('[data-p=last]').disabled = L.page >= nPages - 1;
     if ($('#lb-size').value !== String(L.size)) $('#lb-size').value = String(L.size);
     // cards follow the name search too, so they never contradict the table
-    if (noGames) { const h = '<div class="pg-empty pg-cards-empty">No games were played in this range.</div>'; setHTML(cards, h); }
+    if (noGames) { cards.classList.add('none'); setHTML(cards, '<div class="pg-nohits">No games were played in this range.</div>'); }
     else renderLeaderCards(inQ, cite ? id : null, !!proj);
     // after the draw: start Pitching at the left edge, keep a just-sorted column clear of the sticky names, and show the row you came from
     if (resetX) { wrap.scrollLeft = 0; resetX = false; }
@@ -1072,7 +1098,8 @@
 
   function renderLeaderCards(pool, id, proj) {
     const box = $('#lb-cards');
-    const html = memoize('cards', [pool, L.type, id, proj], () => {
+    box.classList.toggle('none', !pool.length);
+    const html = !pool.length ? `<div class="pg-nohits">No players match${L.q ? ` “${esc(L.q)}”` : ' these filters'}.</div>` : memoize('cards', [pool, L.type, id, proj], () => {
       const q = pool.filter((r) => r.Qual === true);
       const defs = proj ? (L.type === 'bat'
         ? [['wRC+', -1, q], ['wOBA', -1, q], ['OBP', -1, q], ['SLG', -1, q], ['AVG', -1, q]]
@@ -1089,7 +1116,7 @@
         const mk = (r, fld) => id ? ` data-source="${id}" data-field="${esc(fld)}" data-where="key=${enc(r.key)}"` : '';
         const items = top.map((r) => `<li${r.pid === MATT ? ' class="me"' : ''}><span class="n"><a class="pg-link" href="#players/${esc(r.pid)}" data-pid="${esc(r.pid)}"${mk(r, 'Name')}>${esc(r.Name)}</a> <span class="t">${esc(r.Team)}</span></span><span class="v"${mk(r, f)}>${esc(fmt(f, r[f]))}</span></li>`).join('');
         const qual = set === q ? (proj ? ' · projected' : ' · qualified') : '';
-        return `<div class="pg-lcard"><h4>${esc(f)}<span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--color-fg-muted)">${qual}</span></h4><ol>${items || `<li class="t">${!pool.length ? 'No players match' : set === q ? 'No qualifiers yet' : 'None on file'}</li>`}</ol></div>`;
+        return `<div class="pg-lcard"><h4>${esc(f)}<span class="q">${qual}</span></h4><ol>${items || `<li class="t">${!pool.length ? 'No players match' : set === q ? 'No qualifiers yet' : 'None on file'}</li>`}</ol></div>`;
       }).join('');
     });
     setHTML(box, html);
@@ -1408,7 +1435,7 @@
     if (cv != null) {
       const col = me ? 'var(--fg-star)' : 'var(--fg-green-ink)';
       svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(clamp(cv))).attr('y2', y(clamp(cv))).attr('stroke', col).attr('stroke-dasharray', '2 4');
-      svg.append('text').attr('x', W - m.r + 6).attr('y', y(clamp(cv)) + (Math.abs(y(cv) - y(100)) < 12 ? (y(cv) < y(100) ? -4 : 13) : 4)).style('fill', col).attr('class', 'cap').text(`${me ? '★ ' : ''}career ${cv}`);
+      svg.append('text').attr('x', W - m.r + 6).attr('y', y(clamp(cv)) + (Math.abs(y(cv) - y(100)) < 12 ? (y(cv) < y(100) ? -4 : 13) : 4)).style('fill', me ? 'var(--fg-star-ink)' : col).attr('class', 'cap').text(`${me ? '★ ' : ''}career ${cv}`);
     }
     // years: every one that fits
     const span = x1 - x0 + 1, step = Math.max(1, Math.ceil(span / Math.floor((W - m.l - m.r) / 40)));
@@ -1666,6 +1693,7 @@
   function renderGame() {
     const meta = $('#gm-meta'), score = $('#gm-score'), note = $('#gm-note'), teams = $('#gm-teams');
     const set = (el, html) => { setHTML(el, html); };
+    if (!GM.hl) set($('#gm-back-wrap'), '');
     if (bad('games')) { failed(score); return; }
     const games = rowsOf('games');
     if (!games) return;
@@ -1683,6 +1711,8 @@
     if (!box) { teams.classList.add('dash-skeleton'); teams.style.minHeight = '20rem'; return; }
     teams.classList.remove('dash-skeleton'); teams.style.minHeight = '';
     const lines = memoize('game' + g.gameId, [box], () => box.filter((r) => r.gameId === g.gameId));
+    const who = GM.hl && lines.find((r) => r.pid === GM.hl);
+    set($('#gm-back-wrap'), who ? `<a class="pg-back" id="gm-back" href="#players/${esc(who.pid)}" data-pid="${esc(who.pid)}">← ${esc(who.Name)}’s game log</a>` : '');
     if (!lines.length) return none();
     // season W-L and saves through this game, for the decision tags
     const recs = memoize('gamerec' + g.gameId, [box], () => {
@@ -1975,7 +2005,7 @@
   // ---------- render loop: redraw only when something this view uses changed ----------
   const root = document.querySelector('.pg');
   let lastSig = '';
-  const sig = () => JSON.stringify([tab, L, P, S, G, GM, [...touched].sort().map((id) => { const d = dash.data(id); return [id, d.status, d.refreshing ? 1 : 0, refId(d.data)]; }), tab === 'players' ? Math.round(root.clientWidth / 8) : 0]);
+  const sig = () => JSON.stringify([tab, L, P, S, G, GM, [...touched].sort().map((id) => { const d = dash.data(id); return [id, d.status, d.refreshing ? 1 : 0, refId(d.data)]; }), tab === 'players' ? Math.round(root.clientWidth / 8) : tab === 'leaders' ? narrow() : 0]);
   function render() {
     touched = new Set();
     renderLede();
