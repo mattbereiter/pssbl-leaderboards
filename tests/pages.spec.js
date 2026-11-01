@@ -65,6 +65,15 @@ test.describe('Standings', () => {
     await expect(page.locator('#lb-team')).toHaveAttribute('data-value', String(tid));
     expect(errors).toEqual([]);
   });
+
+  test('divisions run Adams, Sierra, then Cascade, Denali, Rocky, Smoky, then the rest', async ({ page }) => {
+    await openSite(page, 'standings?season=2026');
+    await expect(page.locator('#st-grid .pg-card h3').first()).toBeVisible();
+    expect(await page.locator('#st-grid .pg-card h3').allTextContents())
+      .toEqual(['Adams', 'Sierra', 'Cascade', 'Denali', 'Rocky', 'Smoky', 'Everest', 'Teton', 'Rainier', 'Adirondack']);
+    await page.locator('#st-season').selectOption('2015'); // no Denali or Rainier yet; Olympic only that year, last
+    await expect(page.locator('#st-grid .pg-card h3')).toHaveText(['Adams', 'Sierra', 'Cascade', 'Rocky', 'Smoky', 'Everest', 'Teton', 'Adirondack', 'Olympic']);
+  });
 });
 
 test.describe('Guts', () => {

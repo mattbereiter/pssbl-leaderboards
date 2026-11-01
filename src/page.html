@@ -1950,6 +1950,11 @@
   // ---------- STANDINGS ----------
   const ST_COLS = ['GP', 'W', 'L', 'T', 'Pct', 'GB', 'RS', 'RA', 'Diff', 'pythW', 'Luck', 'wRC+', 'FIP', 'oWAR', 'pWAR'];
   const ST_LABEL = { pythW: 'xW' };
+  // Matt's divisions first, then the ones he's likeliest to play in: Cascade, Denali, Rocky, Smoky, then the rest by
+  // how close their level is to Adams/Sierra (two-division players' wOBA gap, analysis/output/division_difficulty.csv).
+  // Olympic only existed in 2015, so it goes last; anything new sorts after these, by name.
+  const DIV_ORDER = ['Adams', 'Sierra', 'Cascade', 'Denali', 'Rocky', 'Smoky', 'Everest', 'Teton', 'Rainier', 'Adirondack', 'Olympic'];
+  const divRank = (d) => { const i = DIV_ORDER.indexOf(d); return i < 0 ? DIV_ORDER.length : i; };
   function renderStandings() {
     const grid = $('#st-grid');
     if (bad('standings')) { failed(grid); return; }
@@ -1958,7 +1963,7 @@
     if (S.season == null || !seasons.includes(S.season)) S.season = seasons[0];
     fillSelect($('#st-season'), seasons.map((s) => [s, s]), S.season);
     $('#st-title').textContent = `Standings · ${S.season}`;
-    const html = memoize('stand' + S.season, [rows], () => d3.groups(rows.filter((r) => r.Season === S.season), (r) => r.Division).sort((a, b) => a[0].localeCompare(b[0])).map(([d, rs]) => {
+    const html = memoize('stand' + S.season, [rows], () => d3.groups(rows.filter((r) => r.Season === S.season), (r) => r.Division).sort((a, b) => divRank(a[0]) - divRank(b[0]) || a[0].localeCompare(b[0])).map(([d, rs]) => {
       rs.sort((a, b) => a.Rank - b.Rank);
       const head = `<thead><tr><th data-field="Team" class="l sticky1">Team</th>${ST_COLS.map((c) => `<th data-field="${c}" title="${esc(DEF[c] || '')}">${ST_LABEL[c] || c}</th>`).join('')}</tr></thead>`;
       const body = rs.map((r) => `<tr data-key="${esc(r.key)}"${r.Champion ? ' class="champ"' : ''}><td class="l name sticky1"><a href="${teamHref('bat', r.Season, r.Division, r.tid)}" data-tid="${esc(r.tid)}" data-season="${r.Season}" data-div="${esc(r.Division)}">${esc(r.Team)}</a>${r.Champion ? '<span class="champ-i" role="img" aria-label="Champion" title="Won the division\'s last playoff game">🏆</span>' : ''}</td>${ST_COLS.map((c) => `<td>${esc(fmt(c, r[c]))}</td>`).join('')}</tr>`).join('');
