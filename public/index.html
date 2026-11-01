@@ -46,17 +46,17 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
 /* room under the footer so a fixed corner badge (Netlify's, when it's switched on) never sits over the last controls */
 @media (max-width: 760px) { .site-foot { padding-bottom: 88px; } }
 </style>
-<script src="d3.min.js"></script>
 <script>
 /* Stand-in for the Claude dashboard runtime: loads the files listed in data/manifest.json
-   and tells the page whenever one arrives or the width changes. */
+   and tells the page whenever one arrives or the width changes. It runs before d3.min.js so the manifest request
+   starts at once instead of waiting for d3; anything that needs d3 waits for it with withD3(). */
 (() => {
+  const withD3 = (fn) => (window.d3 ? Promise.resolve().then(fn) : new Promise((ok) => addEventListener('DOMContentLoaded', () => ok(fn()))));
   const listeners = [], store = {};
   let manifest = null;
   const manifestP = fetch('data/manifest.json', { cache: 'no-cache' }).then((r) => r.json()).then((m) => {
     manifest = m;
-    const f = document.getElementById('site-updated');
-    if (f && m.updated) f.textContent = 'Data updated ' + d3.utcFormat('%b %-d, %Y')(new Date(m.updated + 'T00:00:00Z'));
+    if (m.updated) withD3(() => { const f = document.getElementById('site-updated'); if (f) f.textContent = 'Data updated ' + d3.utcFormat('%b %-d, %Y')(new Date(m.updated + 'T00:00:00Z')); });
     return m;
   });
   let queued = false;
@@ -76,7 +76,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       // the version stamp changes on every data update, so a browser never pairs a new page with stale cached data
       return fetch('data/' + file + (m.version ? '?v=' + encodeURIComponent(m.version) : '')).then((r) => {
         if (!r.ok) throw new Error(file + ': HTTP ' + r.status);
-        return file.endsWith('.json') ? r.json() : r.text().then((t) => d3.csvParse(t));
+        return file.endsWith('.json') ? r.json() : r.text().then((t) => withD3(() => d3.csvParse(t)));
       });
     }).then((d) => {
       store[id] = { status: 'ok', data: Array.isArray(d) ? d : (d.rows || d.data || d), message: '', refreshing: false };
@@ -104,22 +104,24 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   });
 })();
 </script>
+<script src="d3.min.js"></script>
 </head>
 <body>
 <div id="dash-root">
 <style>
 #dash-root { --dash-gutter: clamp(0.75rem, 2.5vw, 2rem); }
-.pg { --fg-green: #378029; --fg-green-ink: color-mix(in srgb, #4caf32 55%, var(--color-fg)); --fg-gold: color-mix(in srgb, #c69331 24%, var(--color-panel)); --fg-sort: color-mix(in srgb, #4caf32 9%, var(--color-panel)); --fg-hover: color-mix(in srgb, var(--color-fg) 5%, var(--color-panel));
-  font-family: var(--font-anthropic-sans); color: var(--color-fg); max-width: 1500px; margin-inline: auto; font-size: var(--cds-font-size-body); }
+.pg { --fg-green: #378029; --fg-green-base: #4caf32; --fg-star: #c69331; --fg-on-green: #fff;
+  --fg-green-ink: color-mix(in srgb, var(--fg-green-base) 55%, var(--color-fg)); --fg-gold: color-mix(in srgb, var(--fg-star) 24%, var(--color-panel)); --fg-sort: color-mix(in srgb, var(--fg-green-base) 9%, var(--color-panel)); --fg-hover: color-mix(in srgb, var(--color-fg) 5%, var(--color-panel));
+  font-family: var(--font-anthropic-sans); color: var(--color-fg); max-width: 1500px; margin-inline: auto; font-size: var(--cds-font-size-body); container-type: inline-size; }
 .pg *, .pg *::before, .pg *::after { box-sizing: border-box; }
-.pg-top { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; background: var(--fg-green); color: #fff; border-radius: var(--cds-radius); overflow: hidden; overflow: clip; min-width: 0; }
+.pg-top { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; background: var(--fg-green); color: var(--fg-on-green); border-radius: var(--cds-radius); overflow: hidden; overflow: clip; min-width: 0; }
 .pg-brand { display: flex; align-items: baseline; gap: .4rem; padding: var(--cds-pad-sm) var(--cds-pad-md); font-weight: 700; letter-spacing: -.01em; font-size: var(--cds-font-size-heading); white-space: nowrap; }
 .pg-brand small { font-weight: 400; opacity: .85; font-size: var(--cds-font-size-caption); }
 .pg-nav { display: flex; flex-wrap: wrap; margin-left: auto; }
-.pg-nav button { all: unset; cursor: pointer; padding: var(--cds-pad-sm) var(--cds-pad-md); font-weight: 600; font-size: var(--cds-font-size-caption); text-transform: uppercase; letter-spacing: .04em; color: #fff; opacity: .88; }
+.pg-nav button { all: unset; cursor: pointer; padding: var(--cds-pad-sm) var(--cds-pad-md); font-weight: 600; font-size: var(--cds-font-size-caption); text-transform: uppercase; letter-spacing: .04em; color: var(--fg-on-green); opacity: .88; }
 .pg-nav button:hover { opacity: 1; background: rgba(0,0,0,.12); }
-.pg-nav button[aria-selected="true"] { opacity: 1; background: rgba(0,0,0,.25); box-shadow: inset 0 -3px 0 #fff; }
-.pg-nav button:focus-visible { outline: 2px solid #fff; outline-offset: -4px; }
+.pg-nav button[aria-selected="true"] { opacity: 1; background: rgba(0,0,0,.25); box-shadow: inset 0 -3px 0 var(--fg-on-green); }
+.pg-nav button:focus-visible { outline: 2px solid var(--fg-on-green); outline-offset: -4px; }
 .pg-lede { margin: var(--cds-gap-md) 0 var(--cds-gap-md); color: var(--color-fg-muted); line-height: 1.5; min-height: 1.5em; }
 .pg-lede b { color: var(--color-fg); font-weight: 600; }
 .pg-lede[hidden] ~ .pg-page { margin-top: var(--cds-gap-md); }
@@ -133,12 +135,13 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
 .pg-seg { display: inline-flex; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); overflow: hidden; }
 .pg-seg button { all: unset; cursor: pointer; padding: 5px 12px; font-size: var(--cds-font-size-caption); font-weight: 600; color: var(--color-fg); min-height: 2rem; box-sizing: border-box; display: inline-flex; align-items: center; }
 .pg-seg button + button { border-left: 1px solid var(--color-border-line); }
-.pg-seg button[aria-pressed="true"] { background: var(--fg-green); color: #fff; }
+.pg-seg button[aria-pressed="true"] { background: var(--fg-green); color: var(--fg-on-green); }
 .pg-seg button:focus-visible { outline: 2px solid var(--fg-green-ink); outline-offset: -2px; }
 .pg-grouptabs { display: flex; gap: 0; border-bottom: 2px solid var(--fg-green); margin-bottom: 0; flex-wrap: wrap; }
 .pg-grouptabs[hidden] { display: none; }
 .pg-grouptabs button { all: unset; cursor: pointer; padding: 6px 14px; font-size: var(--cds-font-size-caption); font-weight: 600; color: var(--color-fg-muted); border-radius: var(--cds-radius) var(--cds-radius) 0 0; }
-.pg-grouptabs button[aria-pressed="true"] { background: var(--fg-green); color: #fff; }
+.pg-grouptabs button[aria-pressed="true"] { background: var(--fg-green); color: var(--fg-on-green); }
+.pg-grouptabs button:focus-visible { outline: 2px solid var(--fg-green-ink); outline-offset: -2px; }
 .pg-grouptabs .pg-count { margin-left: auto; align-self: center; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); padding: 0 4px; }
 .pg-tblwrap { max-height: 72vh; overflow: auto; border: 1px solid var(--color-border-line); border-top: 0; border-radius: 0 0 var(--cds-radius) var(--cds-radius); min-height: 8rem; position: relative; }
 .pg-tblwrap.short { max-height: none; min-height: 0; }
@@ -158,16 +161,17 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
 .pg-tbl td.srt { background: var(--fg-sort); font-weight: 600; }
 .pg-tbl tbody tr:hover td { background: var(--fg-hover); }
 .pg-tbl tr.me td { background: var(--fg-gold); }
-.pg-tbl tr.me td.name a::after { content: " ★"; color: #c69331; }
+.pg-tbl tr.me td.name a::after { content: " ★"; color: var(--fg-star); }
 .pg-tbl .champ-i { margin-left: 4px; cursor: help; }
 .pg-tbl tr.hl td { background: var(--fg-sort); }
 .pg-tbl tr.hl td.name { box-shadow: inset 3px 0 0 var(--fg-green); }
 .pg-tbl.no-div .col-div { display: none; }
 .pg-tbl tr.career td { font-weight: 700; border-top: 2px solid var(--color-fg-muted); }
-.pg-tbl a, .pg-link, .pg-chip { color: var(--fg-green-ink); text-decoration: none; font-weight: 600; cursor: pointer; background: none; border: 0; padding: 0; font: inherit; }
+.pg-tbl a, .pg-link, .pg-chip { color: var(--fg-green-ink); text-decoration: none; cursor: pointer; background: none; border: 0; padding: 0; font: inherit; }
 .pg-tbl a:hover, .pg-link:hover { text-decoration: underline; }
 .pg-tbl .dim { color: var(--color-fg-muted); }
-#p-log-wrap { border-top: 1px solid var(--color-border-line); border-radius: var(--cds-radius); max-height: none; }
+.pg-tblwrap.solo { border-top: 1px solid var(--color-border-line); border-radius: var(--cds-radius); }
+#p-log-wrap { max-height: none; }
 .pg-tbl tfoot td { position: sticky; bottom: 0; font-weight: 700; border-top: 2px solid var(--color-fg-muted); border-bottom: 0; }
 .pg-tbl td.res-W { color: var(--color-ok); } .pg-tbl td.res-L { color: var(--color-bad); }
 .pg-tbl .po { font-size: .6875rem; font-weight: 700; color: var(--fg-green-ink); margin-left: 4px; }
@@ -183,6 +187,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
 .pg-lcard li .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pg-lcard li .t { color: var(--color-fg-muted); }
 .pg-lcard li .v { font-variant-numeric: tabular-nums; font-weight: 700; }
+.pg-lcard li:first-child .v { color: var(--fg-green-ink); }
 .pg-lcard li.me { background: var(--fg-gold); }
 .pg-lcard li:focus-within { outline: 2px solid var(--fg-green-ink); outline-offset: -2px; }
 .pg-lcard li a:focus-visible { outline: none; }
@@ -196,7 +201,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
 .pg-notice { margin: 0 0 var(--cds-gap-sm); padding: 6px 10px; border-left: 3px solid var(--color-warn); background: color-mix(in srgb, var(--color-warn) 10%, var(--color-panel)); border-radius: 4px; font-size: var(--cds-font-size-caption); }
 .pg-notice[hidden] { display: none; }
 .pg-skip { position: absolute; left: -9999px; }
-.pg-skip:focus { position: static; display: inline-block; margin-bottom: var(--cds-gap-sm); padding: 4px 10px; border-radius: var(--cds-radius); background: var(--fg-green); color: #fff; font: inherit; font-size: var(--cds-font-size-caption); border: 0; }
+.pg-skip:focus { position: static; display: inline-block; margin-bottom: var(--cds-gap-sm); padding: 4px 10px; border-radius: var(--cds-radius); background: var(--fg-green); color: var(--fg-on-green); font: inherit; font-size: var(--cds-font-size-caption); border: 0; }
 .pg-defs { margin: 0 0 var(--cds-gap-sm); font-size: var(--cds-font-size-caption); }
 .pg-defs summary { cursor: pointer; color: var(--fg-green-ink); font-weight: 600; width: fit-content; padding: 4px 0; }
 .pg-defs .pg-gloss { margin-top: 4px; }
@@ -205,10 +210,9 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
 .pg-prank b { font-weight: 700; }
 .pg-prank .dim { color: var(--color-fg-muted); }
 .pg-chip { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--fg-sort); font-weight: 600; }
-.pg-lcard li:first-child .v { color: var(--fg-green-ink); }
-.pg-phead { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); align-items: end; justify-content: space-between; }
+.pg-phead { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); align-items: start; justify-content: space-between; }
 .pg-pname { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; line-height: 1.1; }
-.pg-pname.me::after { content: " ★"; color: #c69331; }
+.pg-pname.me::after { content: " ★"; color: var(--fg-star); }
 .pg-psub { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); margin-top: 4px; }
 .pg-search { position: relative; min-width: min(100%, 18rem); }
 .pg-search input { width: 100%; }
@@ -226,7 +230,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
 .pg-tip .h { color: var(--cds-text-secondary); }
 .pg-legend { display: flex; gap: var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin-bottom: 4px; flex-wrap: wrap; }
 .pg-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
-.pg-divgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 36rem), 1fr)); gap: var(--cds-gap-md); }
+.pg-divgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 44rem), 1fr)); gap: var(--cds-gap-md); }
 .pg-divgrid .pg-card { margin: 0; }
 .pg-gloss { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 2px var(--cds-gap-lg); font-size: var(--cds-font-size-caption); line-height: 1.45; margin: 0; }
 .pg-gloss div { padding: 5px 0; border-bottom: 1px dotted var(--color-border-line); }
@@ -237,7 +241,6 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
 [data-dash-source-state=empty] { color: transparent; }
 
 /* players: header with Quick Look */
-.pg-phead { align-items: start; }
 .pg-who { min-width: 0; flex: 1 1 22rem; }
 .pg-roles { display: flex; gap: 6px; margin-top: 6px; }
 .pg-roles:empty { display: none; }
@@ -272,7 +275,6 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
 #p-type { margin-bottom: var(--cds-gap-sm); }
 #p-type[hidden] { display: none; }
 .pg-colsets { margin-bottom: var(--cds-gap-sm); }
-.pg-grouptabs button:focus-visible { outline: 2px solid var(--fg-green-ink); outline-offset: -2px; }
 .pg-seasons { width: fit-content; max-width: 100%; }
 .pg-seasons.tall { max-height: 70vh; }
 .pg-seasons .sticky1 { box-shadow: 1px 0 0 var(--color-border-line); }
@@ -300,7 +302,6 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
 .pg-rosters li .t { font-variant-numeric: tabular-nums; }
 .pg-recent { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
 
-.pg { container-type: inline-size; }
 /* reserve the space data will fill, so the page doesn't jump while it loads */
 #lb-season { min-width: 167px; } #lb-range { min-width: 138px; } #lb-div { min-width: 116px; } #lb-team { min-width: 204px; } #lb-min { min-width: 98px; }
 #lb-cards { min-height: 9.5rem; }
@@ -313,7 +314,6 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
 .pg-pager button:not(:disabled):hover { background: var(--fg-hover); }
 .pg-pager button:focus-visible { outline: 2px solid var(--fg-green-ink); }
 .pg-pager .pi { font-variant-numeric: tabular-nums; padding: 0 4px; color: var(--color-fg); }
-.pg-tbl .ghost th { height: 0; padding-top: 0; padding-bottom: 0; line-height: 0; font-size: 0; border: 0; visibility: hidden; }
 .pg-stack { overflow: auto; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); }
 .pg-stack .pg-tbl { width: auto; }
 .pg-stack .pg-tbl + .pg-tbl tbody tr:first-child td { border-top: 0; }
@@ -351,11 +351,10 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
 .pg-multi { position: relative; }
 .pg-multi > button { font: inherit; font-size: var(--cds-font-size-body); color: var(--color-fg); background: var(--color-bg); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: 4px 26px 4px 8px; min-height: 2rem; max-width: 100%; width: 100%; text-align: left; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: relative; }
 .pg-multi > button::after { content: ''; position: absolute; right: 9px; top: 50%; width: 6px; height: 6px; border: solid var(--color-fg-muted); border-width: 0 1.5px 1.5px 0; transform: translateY(-70%) rotate(45deg); }
-.pg-multi-pop { position: absolute; z-index: 20; top: calc(100% + 2px); left: 0; min-width: 100%; background: var(--color-bg); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); box-shadow: 0 4px 14px rgb(0 0 0 / .15); padding: 4px 0; font-size: var(--cds-font-size-body); color: var(--color-fg); }
-.pg-multi-pop label, .pg-multi-pop button { display: flex; gap: 8px; align-items: center; padding: 5px 12px; white-space: nowrap; cursor: pointer; }
+.pg-multi-pop { position: absolute; z-index: 20; top: calc(100% + 2px); left: 0; min-width: 100%; max-height: min(60vh, 420px); overflow-y: auto; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: 4px 0; font-size: var(--cds-font-size-body); color: var(--color-fg); }
+.pg-multi-pop label { display: flex; gap: 8px; align-items: center; padding: 5px 12px; white-space: nowrap; cursor: pointer; }
 .pg-multi-pop button { all: unset; display: block; box-sizing: border-box; width: 100%; padding: 5px 12px; cursor: pointer; color: var(--fg-green-ink); font-weight: 700; border-bottom: 1px solid var(--color-border-line); margin-bottom: 2px; }
 .pg-multi-pop label:hover, .pg-multi-pop button:hover { background: var(--fg-hover); }
-.pg-multi-pop { max-height: min(60vh, 420px); overflow-y: auto; }
 .pg-multi-pop hr { border: 0; border-top: 1px solid var(--color-border-line); margin: 2px 0; }
 .pg-ctrl .pg-multi-pop input { accent-color: var(--fg-green-ink); margin: 0; width: 16px; height: 16px; min-height: 0; padding: 0; flex: none; }
 @container (max-width: 760px) {
@@ -370,7 +369,6 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   #lb-wrap.dash-skeleton { min-height: 64vh; }
   .pg-ctrls { display: grid; grid-template-columns: 1fr 1fr; gap: var(--cds-gap-sm); }
   .pg-ctrl.wide { grid-column: 1 / -1; }
-  #lb-from-ctrl, #lb-to-ctrl { grid-column: auto; }
   .pg-ctrl select, .pg-ctrl input { width: 100%; }
   .pg-seg { display: flex; }
   .pg-seg button { flex: 1; justify-content: center; }
@@ -393,7 +391,9 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   .pg-ql { font-size: var(--cds-font-size-caption); }
   .pg-ql th, .pg-ql td { padding: 3px 5px; }
   .pg-pbar { grid-template-columns: 3rem minmax(0, 1fr) 1.8rem 3rem; gap: 8px; }
+  .pg-colsets { grid-template-columns: 1fr; }
   .pg-colsets .pg-seg { width: 100%; }
+  .gm-teams .pg-tbl td.name { max-width: none; }
   .pg-pager label { flex-basis: 100%; }
 }
 </style>
@@ -485,7 +485,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
         <div class="pg-ctrl" id="p-log-type-ctrl">Stats<div class="pg-seg" id="p-log-type"><button data-v="bat" aria-pressed="true">Batting</button><button data-v="pit" aria-pressed="false">Pitching</button></div></div>
       </div>
       <p class="pg-note" id="p-log-note"></p>
-      <div class="pg-tblwrap" id="p-log-wrap" tabindex="0" role="region" aria-label="Game log"><table class="pg-tbl" id="p-log-table" data-row-key="key"></table></div>
+      <div class="pg-tblwrap solo" id="p-log-wrap" tabindex="0" role="region" aria-label="Game log"><table class="pg-tbl" id="p-log-table" data-row-key="key"></table></div>
       <button type="button" class="pg-more" id="p-log-more" hidden></button>
     </div>
     <details class="pg-card" id="p-proj" hidden>
@@ -553,7 +553,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       <h2>Guts! — league constants</h2>
       <p class="pg-note">Every division-season is its own run environment (like the AL and NL), so wRC+, FIP, ERA- and WAR are always measured against the player's own division that year.</p>
       <div class="pg-ctrls"><label class="pg-ctrl">Season<select id="gu-season" aria-label="Season" data-source="guts"></select></label></div>
-      <div class="pg-tblwrap" id="gu-wrap" style="border-top:1px solid var(--color-border-line); border-radius: var(--cds-radius)"><table class="pg-tbl" id="gu-table" data-row-key="key"></table></div>
+      <div class="pg-tblwrap solo" id="gu-wrap"><table class="pg-tbl" id="gu-table" data-row-key="key"></table></div>
     </div>
   </section>
   </main>
@@ -576,24 +576,34 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   const memo = new Map();
   const statusOf = (id) => { touched.add(id); return dash.data(id).status; };
   const bad = (id) => { const s = statusOf(id); return s === 'error' || s === 'declined'; };
+  const typed = (k, v) => {
+    if (STR.has(k)) return v == null ? '' : String(v);
+    if (v === '' || v == null) return null;
+    if (v === true || v === 'true') return true;
+    if (v === false || v === 'false') return false;
+    const n = Number(v); return Number.isNaN(n) ? v : n;
+  };
+  const makers = new Map();
+  const maker = (cols) => {
+    const key = cols.join('\u0001');
+    let f = makers.get(key);
+    if (!f) {
+      const body = cols.map((c) => `${JSON.stringify(c)}:t(${JSON.stringify(c)},r[${JSON.stringify(c)}])`).join(',');
+      f = new Function('t', `return (r) => ({${body}});`)(typed); // eslint-disable-line no-new-func
+      makers.set(key, f);
+    }
+    return f;
+  };
   const rowsOf = (id) => {
     touched.add(id);
     const d = dash.data(id);
     if (d.status !== 'ok' || !Array.isArray(d.data)) return null;
     if (cache[id] && cache[id].src === d.data) return cache[id].rows;
-    const rows = new Array(d.data.length);
-    for (let i = 0; i < d.data.length; i++) {
-      const r = d.data[i], o = {};
-      for (const k in r) {
-        const v = r[k];
-        if (STR.has(k)) o[k] = v == null ? '' : String(v);
-        else if (v === '' || v == null) o[k] = null;
-        else if (v === true || v === 'true') o[k] = true;
-        else if (v === false || v === 'false') o[k] = false;
-        else { const n = Number(v); o[k] = Number.isNaN(n) ? v : n; }
-      }
-      rows[i] = o;
-    }
+    const rows = new Array(d.data.length), cols = d.data.columns;
+    // CSV rows all share one column list, so each typed row is built as one object literal (adding 40+ keys one at a
+    // time leaves objects in V8's slow dictionary mode: about 3x the memory, and slower filters and sorts)
+    const make = cols ? maker(cols) : (r) => { const o = {}; for (const k in r) o[k] = typed(k, r[k]); return o; };
+    for (let i = 0; i < d.data.length; i++) rows[i] = make(d.data[i]);
     cache[id] = { src: d.data, rows };
     return rows;
   };
@@ -608,6 +618,8 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const enc = (s) => encodeURIComponent(String(s));
   const $ = (s) => document.querySelector(s);
+  // rewrite an element only when its HTML changed (keeps focus, scroll and open menus between redraws)
+  const setHTML = (el, html) => { if (el._html !== html) { el.innerHTML = html; el._html = html; } };
 
   // ---------- formats ----------
   const R3 = new Set(['AVG', 'OBP', 'SLG', 'OPS', 'ISO', 'BABIP', 'wOBA', 'Pct']);
@@ -655,7 +667,8 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     WP: 'Wild pitches', 'BB%p': 'Walks per batter faced', Seasons: 'Seasons played', 'Eff PA': 'Effective PA after season weights', 'Eff IP': 'Effective IP after season weights', 'Own%': "How much of the projection is the player's own numbers",
   };
   // pssbl.com records 0 HR allowed for every pitcher from 2017 on, so those cells say so instead of showing a fake 0
-  const noPitHR = (r) => !(r.Season <= 2016);
+  const pitHRUnknown = (season) => !(season <= 2016);
+  const noPitHR = (r) => pitHRUnknown(r.Season);
   const cell = (type, c, r) => (type === 'pit' && (c === 'HR' || c === 'HR/9') && noPitHR(r) ? '—' : fmt(c, r[c]));
   // search: accents and apostrophes folded ("obrien" finds O'Brien), words in any order
   const fold = (x) => String(x).normalize('NFD').replace(/[\u0300-\u036f'\u2019]/g, '').toLowerCase();
@@ -675,6 +688,10 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     return d + (a.length - i) + (b.length - j) <= 1;
   };
   const fuzzyMatch = (q) => { const toks = fold(q).split(/\s+/).filter(Boolean); return (name) => { const ws = folded(name).split(/[\s.'-]+/); return toks.every((t) => ws.some((w) => w.startsWith(t) || (t.length >= 4 && (near(t, w) || near(t, w.slice(0, t.length)))))); }; };
+  // innings as baseball writes them: 12.1 is 12⅓ (ipNum for sorting and formats, ipOuts/ipStr for text)
+  const ipNum = (outs) => Math.floor(outs / 3) + (outs % 3) / 10;
+  const ipOuts = (outs) => `${Math.floor(outs / 3)}.${outs % 3}`;
+  const ipStr = (ip) => ipOuts(Math.round(ip * 3));
   const nth = (n) => n + (['th', 'st', 'nd', 'rd'][(n % 100 - 20) % 10] || ['th', 'st', 'nd', 'rd'][n % 100] || 'th');
 
   // ---------- state ----------
@@ -847,7 +864,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     const box = ([val, label]) => `<label><input type="checkbox" value="${esc(val)}"${picked.includes(val) ? ' checked' : ''}>${esc(label)}</label>`;
     const html = `<button type="button" data-all>${esc(all)}</button>` + opts.map(box).join('') + (extra.length ? '<hr>' + extra.map(box).join('') : '');
     const list = $(`#lb-${k}-list`);
-    if (list._html !== html) { list.innerHTML = html; list._html = html; }
+    setHTML(list, html);
   }
   const renderDivMenu = (divs, picked) => renderMulti('div', divs.map((d) => [d, d]), picked, { all: 'All divisions', noun: 'divisions' });
   const fillSelect = (el, opts, value) => {
@@ -863,7 +880,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     if (typeof x === 'string') return dir * x.localeCompare(y);
     return dir * (x - y);
   };
-  const failed = (el) => { el.classList.remove('dash-skeleton'); el.innerHTML = '<div class="pg-failed">Failed to load</div>'; };
+  const failed = (el) => { el.classList.remove('dash-skeleton'); el.innerHTML = '<div class="pg-failed">Failed to load</div>'; el._html = null; };
   const sourceFor = (type, season, latest) => season === 'Career' ? DS[type].career : (season === latest ? DS[type].cur : DS[type].hist);
 
 
@@ -913,7 +930,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     }
     const lob = H + BB + HBP - 1.4 * HR, bip = H - HR + outs - SO, ab = tbf - BB - HBP;
     return { key: a.key, Season: a.Season, pid: a.pid, Name: a.Name, Team: a.Team, tid: a.tid, Division: a.Division, TG: tg, W: s.W, L: s.L, SV: s.SV, HLD: null, G, GS: s.GS, CG: s.CG, SHO: null,
-      IP: Math.floor(outs / 3) + (outs % 3) / 10, Outs: outs, TBF: tbf, H, R: s.R, ER: s.ER, HR, BB, IBB: s.IBB, SO, HBP, WP: s.WP,
+      IP: ipNum(outs), Outs: outs, TBF: tbf, H, R: s.R, ER: s.ER, HR, BB, IBB: s.IBB, SO, HBP, WP: s.WP,
       'K/9': ip ? rd(9 * SO / ip, 2) : null, 'BB/9': ip ? rd(9 * BB / ip, 2) : null, 'HR/9': ip ? rd(9 * HR / ip, 2) : null,
       'K%': tbf ? rd(100 * SO / tbf, 1) : null, 'BB%': tbf ? rd(100 * BB / tbf, 1) : null, 'K-BB%': tbf ? rd(100 * (SO - BB) / tbf, 1) : null,
       AVG: ab > 0 ? rd(H / ab, 3) : null, WHIP: ip ? rd((H + BB) / ip, 2) : null, BABIP: bip > 0 ? rd((H - HR) / bip, 3) : null, 'LOB%': lob > 0 ? rd(100 * (H + BB + HBP - s.R) / lob, 1) : null,
@@ -969,6 +986,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     fillSelect($('#lb-min'), [['q', 'Qualified'], ...mins.map((m) => [m, `${m}+`])], L.min);
     const wrap = $('#lb-wrap'), table = $('#lb-table');
     const seasons = seasonsAvail();
+    if (L.season == null) statusOf(DS[L.type].cur); // the default view is the latest season: fetch it beside guts, not after
     if (!seasons) { if (bad('guts')) failed(wrap); return; }
     if (L.season == null || (L.season !== 'Career' && L.season !== 'All' && !isProj(L.season) && !seasons.includes(L.season))) {
       if (L.season != null) notice = `There's no ${L.season} season on file, so this shows ${seasons[0]}.`;
@@ -1069,7 +1087,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     for (const t of team) chips.push(chip('team:' + t, tName(t)));
     if (L.q) chips.push(chip('q', `“${L.q}”`));
     const chEl = $('#lb-chips'), chHtml = chips.join('');
-    if (chEl._html !== chHtml) { chEl.innerHTML = chHtml; chEl._html = chHtml; }
+    setHTML(chEl, chHtml);
     const cols = proj ? PROJ[L.type].board : (L.type === 'bat' ? BAT : PIT)[L.group];
     const fixed = ['Name', 'Team', 'Division', 'Age', ...(career ? ['Seasons'] : []), ...(allS ? ['Season'] : [])];
     if (proj && !cols.includes(L.sort) && !fixed.includes(L.sort)) { L.sort = projSort(L.type); L.dir = L.type === 'pit' ? 1 : -1; }
@@ -1122,7 +1140,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     pager.querySelector('[data-p=next]').disabled = pager.querySelector('[data-p=last]').disabled = L.page >= nPages - 1;
     if ($('#lb-size').value !== String(L.size)) $('#lb-size').value = String(L.size);
     // cards follow the name search too, so they never contradict the table
-    if (noGames) { const h = '<div class="pg-empty pg-cards-empty">No games were played in this range.</div>'; if (cards._html !== h) { cards.innerHTML = h; cards._html = h; } }
+    if (noGames) { const h = '<div class="pg-empty pg-cards-empty">No games were played in this range.</div>'; setHTML(cards, h); }
     else renderLeaderCards(inQ, cite ? id : null, !!proj);
     // after the draw: start Pitching at the left edge, keep a just-sorted column clear of the sticky names, and show the row you came from
     if (resetX) { wrap.scrollLeft = 0; resetX = false; }
@@ -1140,7 +1158,11 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   const allRows = (type) => { const h = rowsOf(DS[type].hist), c = rowsOf(DS[type].cur); return h && c && memoize('all' + type, [h, c], () => [...c, ...h]); };
   // "What the columns mean": the definitions for the columns on screen, plus what counts as good in this view
   const GOOD_SKIP = new Set(['G', 'GS', 'W', 'L', 'SV', 'HLD', 'CG', 'SHO', 'TBF', 'Eff PA', 'Eff IP', 'Own%']);
+  let defsArgs = null;
+  $('#lb-defs').addEventListener('toggle', () => { if (defsArgs) renderDefs(...defsArgs); });
   function renderDefs(cols, pool) {
+    defsArgs = [cols, pool];
+    if (!$('#lb-defs').open) return; // the cut-offs sort every column of the pool, so only while it's open
     const el = $('#lb-defs-list');
     const html = memoize('defs', [cols, pool, L.type], () => {
       const q = pool.filter((r) => r.Qual === true);
@@ -1148,13 +1170,14 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
         let good = '';
         const vals = q.map((r) => r[c]).filter((v) => typeof v === 'number').sort((a, b) => a - b);
         if (!GOOD_SKIP.has(c) && vals.length >= 12 && !(L.type === 'pit' && (c === 'HR' || c === 'HR/9'))) {
-          const lo = LOW[L.type].has(c), p = (x) => d3.quantile(vals, lo ? 1 - x : x);
+          const lo = LOW[L.type].has(c), plain = !R3.has(c) && !PCT.has(c) && !F2.has(c) && !F1.has(c);
+          const p = (x) => { const v = d3.quantile(vals, lo ? 1 - x : x); return plain ? Math.round(v * 10) / 10 : v; };
           good = `<span class="good">Qualified here: middle ${fmt(c, p(0.5))} · top quarter ${lo ? '≤' : '≥'} ${fmt(c, p(0.75))} · top 10% ${lo ? '≤' : '≥'} ${fmt(c, p(0.9))}</span>`;
         }
         return `<div><dt>${esc(c)}</dt><dd>${esc(DEF[c] || '')}${good}</dd></div>`;
       }).join('') + `<div><dt>More</dt><dd>Formulas and league constants are on the <a class="pg-link" href="#guts">Guts!</a> tab.</dd></div>`;
     });
-    if (el._html !== html) { el.innerHTML = html; el._html = html; }
+    setHTML(el, html);
   }
 
   function renderLeaderCards(pool, id, proj) {
@@ -1179,7 +1202,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
         return `<div class="pg-lcard"><h4>${esc(f)}<span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--color-fg-muted)">${qual}</span></h4><ol>${items || `<li class="t">${!pool.length ? 'No players match' : set === q ? 'No qualifiers yet' : 'None on file'}</li>`}</ol></div>`;
       }).join('');
     });
-    if (box._html !== html) { box.innerHTML = html; box._html = html; }
+    setHTML(box, html);
   }
 
   // ---------- LEDE ----------
@@ -1188,7 +1211,8 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     const seasons = seasonsAvail();
     // league news for the latest season, only on the unfiltered front page; once you drill in it's in the way (on a phone, literally)
     el.hidden = tab !== 'leaders' || (L.season != null && (!seasons || L.season !== seasons[0])) || L.div !== 'All' || L.team !== 'All' || !!L.q || L.range !== 'full';
-    if (!seasons || el.hidden) return;
+    if (el.hidden) return;
+    if (!seasons) { statusOf('batting'); statusOf('pitching'); return; }
     const b = rowsOf('batting'), p = rowsOf('pitching');
     if (!b || !p) { if (bad('batting')) el.textContent = ''; return; }
     const html = memoize('lede', [b, p], () => {
@@ -1199,7 +1223,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       const k = (r) => `key=${enc(r.key)}`;
       return `<b>${y}:</b> <span data-source="batting" data-field="Name" data-where="${k(tb)}">${esc(tb.Name)}</span> (${esc(tb.Team)}, ${esc(tb.Division)}) led every PSSBL hitter at <b data-source="batting" data-field="oWAR" data-where="${k(tb)}">${fmt('oWAR', tb.oWAR)}</b> oWAR; <span data-source="pitching" data-field="Name" data-where="${k(tp)}">${esc(tp.Name)}</span> (${esc(tp.Team)}, ${esc(tp.Division)}) led pitchers at <b data-source="pitching" data-field="WAR" data-where="${k(tp)}">${fmt('WAR', tp.WAR)}</b> WAR.`;
     });
-    if (el._html !== html) { el.innerHTML = html; el._html = html; }
+    setHTML(el, html);
   }
 
   // ---------- PLAYERS ----------
@@ -1212,7 +1236,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       for (const r of bc) m.set(r.pid, r);
       for (const r of pc) { const cur = m.get(r.pid); if (!cur || r.To > cur.To) m.set(r.pid, r); }
       const from = new Map(); for (const r of [...bc, ...pc]) from.set(r.pid, Math.min(from.get(r.pid) || 9999, r.From));
-      return [...m.values()].map((r) => ({ pid: r.pid, Name: r.Name, n: r.Name.toLowerCase(), Team: r.Team, Division: r.Division, From: from.get(r.pid), To: r.To }));
+      return [...m.values()].map((r) => ({ pid: r.pid, Name: r.Name, Team: r.Team, Division: r.Division, From: from.get(r.pid), To: r.To }));
     });
   };
   let sT, sWaiting = false;
@@ -1275,7 +1299,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       o['wRC+'] = lgR > 0 ? Math.round(100 * o.wRC / lgR) : null;
     } else {
       const ip = o.Outs / 3, ab = o.TBF - o.BB - o.HBP, bip = o.H - o.HR + o.Outs - o.SO, lob = o.H + o.BB + o.HBP - 1.4 * o.HR;
-      Object.assign(o, { IP: Math.floor(o.Outs / 3) + (o.Outs % 3) / 10, 'K/9': ip ? 9 * o.SO / ip : null, 'BB/9': ip ? 9 * o.BB / ip : null, 'HR/9': ip ? 9 * o.HR / ip : null,
+      Object.assign(o, { IP: ipNum(o.Outs), 'K/9': ip ? 9 * o.SO / ip : null, 'BB/9': ip ? 9 * o.BB / ip : null, 'HR/9': ip ? 9 * o.HR / ip : null,
         'K%': o.TBF ? 100 * o.SO / o.TBF : null, 'BB%': o.TBF ? 100 * o.BB / o.TBF : null, 'K-BB%': o.TBF ? 100 * (o.SO - o.BB) / o.TBF : null,
         AVG: per(o.H, ab), WHIP: ip ? (o.H + o.BB) / ip : null, BABIP: per(o.H - o.HR, bip), 'LOB%': lob > 0 ? 100 * (o.H + o.BB + o.HBP - o.R) / lob : null,
         ERA: ip ? 9 * o.ER / ip : null, FIP: wavg('FIP', 'Outs'), 'WAR/200': ip ? o.WAR * 200 / ip : null });
@@ -1300,13 +1324,13 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   function seasonTable(type, groups, careerRow, cols) {
     const ds = DS[type], [sc, sd] = P.sort[type];
     const val = (g) => (sc === 'Season' ? g.season : g.tot[sc]);
-    const gs = [...groups].sort((a, b) => { const x = val(a), y = val(b); return x == null ? 1 : y == null ? -1 : (x - y) * sd || a.season - b.season; });
+    const gs = [...groups].sort((a, b) => { const x = val(a), y = val(b); return (x == null || y == null ? (x == null) - (y == null) : (x - y) * sd) || a.season - b.season; });
     const th = (c, cls, label = c) => `<th data-field="${esc(c)}" class="${cls}"${DEF[c] ? ` title="${esc(DEF[c])}"` : ''}${sc === c ? ` aria-sort="${sd > 0 ? 'ascending' : 'descending'}"` : ''}><button type="button" data-sort="${esc(c)}">${esc(label)}</button></th>`;
     const thead = `<thead><tr>${th('Season', 'l sticky1')}<th class="l" data-field="Age" title="${esc(DEF.Age)}">Age</th><th class="l" data-field="Team">Team</th><th class="l col-div" data-field="Division">Div</th>${cols.map((c) => th(c, '')).join('')}</tr></thead>`;
     const teamA = (r) => `<a href="${teamHref(type, r.Season, r.Division, r.tid)}" data-type="${type}" data-tid="${esc(r.tid)}" data-season="${r.Season}" data-div="${esc(r.Division)}">${esc(r.Team)}</a>`;
     const line = (r, cls, team, div) => `<tr data-key="${esc(r.key)}"${cls ? ` class="${cls}"` : ''}><td class="l sticky1">${r.Season}</td><td class="l age">${r.Age == null ? '' : r.Age}</td><td class="l team">${team}</td><td class="l dim col-div">${div}</td>${cols.map((c) => `<td>${esc(cell(type, c, r))}</td>`).join('')}</tr>`;
     const body = gs.map((g) => {
-      if (g.rows.length === 1) { const r = g.rows[0]; return line(r, r.pid === MATT ? 'me-row' : '', teamA(r), esc(r.Division)); }
+      if (g.rows.length === 1) { const r = g.rows[0]; return line(r, '', teamA(r), esc(r.Division)); }
       return line({ ...g.tot, key: `${g.season}-total` }, 'tot', `${g.rows.length} teams`, esc(g.tot.Divs.length === 1 ? g.tot.Divs[0] : `${g.tot.Divs.length} divs`))
         + g.rows.map((r) => line(r, 'sub', teamA(r), esc(r.Division))).join('');
     }).join('');
@@ -1354,7 +1378,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       out.push(`<b>${tie}${nth(n)}</b> of ${div.length} ${esc(best.Division)} ${noun} in ${f} <span class="dim">(${y}, ${floor})</span>`);
     }
     const html = out.join(' · ');
-    if (el._html !== html) { el.innerHTML = html; el._html = html; }
+    setHTML(el, html);
   }
   // percentile bars: where the latest line sits among the division's hitters or pitchers that season (50 = middle)
   const PCTL = { bat: [['wRC+', 1], ['OBP', 1], ['ISO', 1], ['BB%', 1], ['K%', 0], ['oWAR', 1]], pit: [['FIP-', 0], ['ERA-', 0], ['K%', 1], ['BB%', 0], ['WAR', 1]] };
@@ -1492,7 +1516,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     svg.append('text').attr('x', m.l - 6).attr('y', y(100) + 4).attr('text-anchor', 'end').attr('class', 'cap').text('100');
     svg.append('text').attr('x', W - m.r + 6).attr('y', y(100) + 4).text('avg');
     if (cv != null) {
-      const col = me ? '#c69331' : 'var(--fg-green-ink)';
+      const col = me ? 'var(--fg-star)' : 'var(--fg-green-ink)';
       svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(clamp(cv))).attr('y2', y(clamp(cv))).attr('stroke', col).attr('stroke-dasharray', '2 4');
       svg.append('text').attr('x', W - m.r + 6).attr('y', y(clamp(cv)) + (Math.abs(y(cv) - y(100)) < 12 ? (y(cv) < y(100) ? -4 : 13) : 4)).style('fill', col).attr('class', 'cap').text(`${me ? '★ ' : ''}career ${cv}`);
     }
@@ -1518,7 +1542,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       tip.style('left', Math.max(0, Math.min(W - tw, left)) + 'px').style('top', Math.max(0, y(clamp(p.v)) - 50) + 'px');
     };
     svg.on('click', (ev) => { if (!ev.target.closest('circle')) hide(); });
-    const col = me ? '#c69331' : 'var(--fg-green)';
+    const col = me ? 'var(--fg-star)' : 'var(--fg-green)';
     svg.append('g').selectAll('circle').data(pts).join('circle').attr('class', 'dot')
       .attr('cx', (p) => x(p.s)).attr('cy', (p) => y(clamp(p.v))).attr('r', (p) => (p.small ? 3.5 : 5))
       .attr('fill', (p) => (p.small || out(p.v) ? 'var(--color-panel)' : col)).attr('stroke', col).attr('stroke-width', 2)
@@ -1535,7 +1559,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     if (sWaiting && playerIndex()) suggest(); // typed before the player list arrived
     if (P.viewFor !== P.pid) { P.viewFor = P.pid; P.type = null; P.logAll = false; P.sort = { bat: ['Season', 1], pit: ['Season', 1] }; }
     const nm = $('#p-name'), cards = ['#p-pct', '#p-stats', '#p-log', '#p-proj'];
-    const set = (el, html) => { if (el._html !== html) { el.innerHTML = html; el._html = html; } };
+    const set = (el, html) => { setHTML(el, html); };
     if (!P.pid) return renderFinder(nm, cards, set);
     $('#p-find').hidden = true;
     if (bad('bat_career') || bad('batting_hist')) { nm.textContent = ''; failed($('#p-strip')); return; }
@@ -1642,7 +1666,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       };
       bat.forEach((r) => add(r, 'PA')); pit.forEach((r) => add(r, 'Outs'));
       return [...by.values()].sort((a, b) => a.name.localeCompare(b.name)).map((t) => `<div class="pg-lcard" data-tid="${esc(t.tid)}"><h4><a class="pg-link" href="${teamHref('bat', seasons[0], P.findDiv, t.tid)}" data-type="bat" data-tid="${esc(t.tid)}" data-season="${seasons[0]}" data-div="${esc(P.findDiv)}">${esc(t.name)}</a></h4><ol>`
-        + [...t.ps.values()].sort((a, b) => b.PA + b.Outs - a.PA - a.Outs).map((p) => `<li${p.pid === MATT ? ' class="me"' : ''}><span class="n"><a href="#players/${esc(p.pid)}" data-pid="${esc(p.pid)}">${esc(p.name)}</a></span><span class="t">${[p.PA ? `${p.PA} PA` : '', p.Outs ? `${ipStr(p.Outs / 3)} IP` : ''].filter(Boolean).join(' · ')}</span></li>`).join('') + '</ol></div>').join('');
+        + [...t.ps.values()].sort((a, b) => b.PA + b.Outs - a.PA - a.Outs).map((p) => `<li${p.pid === MATT ? ' class="me"' : ''}><span class="n"><a class="pg-link" href="#players/${esc(p.pid)}" data-pid="${esc(p.pid)}">${esc(p.name)}</a></span><span class="t">${[p.PA ? `${p.PA} PA` : '', p.Outs ? `${ipStr(p.Outs / 3)} IP` : ''].filter(Boolean).join(' · ')}</span></li>`).join('') + '</ol></div>').join('');
     });
     set(teams, html);
   }
@@ -1675,7 +1699,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       const pa = s.AB + s.BB + s.HBP + s.SF + s.SH + s.CI, tb = s.H + s['2B'] + 2 * s['3B'] + 3 * s.HR, od = s.AB + s.BB + s.HBP + s.SF;
       return { PA: pa, AVG: s.AB ? s.H / s.AB : null, OBP: od ? (s.H + s.BB + s.HBP) / od : null, SLG: s.AB ? tb / s.AB : null };
     }
-    return { IP: Math.floor(s.Outs / 3) + (s.Outs % 3) / 10, ERA: s.Outs ? 27 * s.ER / s.Outs : null, Dec: s.W ? 'W' : s.L ? 'L' : s.SV ? 'SV' : '' };
+    return { IP: ipNum(s.Outs), ERA: s.Outs ? 27 * s.ER / s.Outs : null, Dec: s.W ? 'W' : s.L ? 'L' : s.SV ? 'SV' : '' };
   }
   function renderGameLog() {
     const card = $('#p-log'), wrap = $('#p-log-wrap'), tbl = $('#p-log-table'), note = $('#p-log-note'), more = $('#p-log-more');
@@ -1726,7 +1750,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     const tot = { ...run, ...logStats(type, run) };
     const pre = ['Date', 'Team', 'Opp', 'Result'];
     const thead = `<thead><tr>${pre.map((c) => `<th class="l">${c}</th>`).join('')}${cols.map((c) => `<th data-field="${esc(c)}" title="${esc(LOG_TIP[c] || DEF[c] || c)}">${esc(c)}</th>`).join('')}</tr></thead>`;
-    const hrDash = (c, v) => (type === 'pit' && c === 'HR' && season > 2016 ? '—' : fmt(c, v));
+    const hrDash = (c, v) => (type === 'pit' && c === 'HR' && pitHRUnknown(season) ? '—' : fmt(c, v));
     // the last ten games; the rest are a tap away instead of a scroll box inside the page
     const shown = P.logAll || lines.length <= 12 ? lines : lines.slice(0, 10);
     const body = shown.map(({ r, o, opp, res, rc, team, fill }) => `<tr data-key="${esc(r.gameId)}"${type === 'bat' && !o.PA ? ' class="zero" title="No plate appearance: in the game as a runner or in the field"' : ''}><td class="l"><a href="#game/${esc(r.gameId)}" data-game="${esc(r.gameId)}" data-hl="${esc(P.pid)}">${esc(fmtDay(r.Date))}</a>${r.PO ? '<span class="po" title="Playoffs">PO</span>' : ''}</td>`
@@ -1735,7 +1759,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     const foot = `<tfoot><tr><td class="l">Total</td><td class="l dim" colspan="3">${lines.length} game${lines.length === 1 ? '' : 's'}</td>${cols.map((c) => `<td>${c === 'Dec' ? esc(`${run.W}–${run.L}${run.SV ? `, ${run.SV} SV` : ''}`) : esc(hrDash(c, tot[c]))}</td>`).join('')}</tr></tfoot>`;
     const html = `${thead}<tbody>${body}</tbody>${foot}`;
     tbl.setAttribute('data-source', id);
-    if (tbl._html !== html) { tbl.innerHTML = html; tbl._html = html; }
+    setHTML(tbl, html);
     more.hidden = lines.length <= 12;
     more.textContent = P.logAll ? 'Show the last 10 games' : `Show all ${lines.length} games`;
     const fills = lines.some((l) => l.fill);
@@ -1749,10 +1773,9 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     pit: ['IP', 'H', 'R', 'ER', 'BB', 'SO', 'HR', 'HBP', 'WP'],
   };
   const fmtLong = (d) => d3.utcFormat('%A, %B %-d, %Y')(new Date(d + 'T00:00:00Z'));
-  const ipOuts = (outs) => `${Math.floor(outs / 3)}.${outs % 3}`;
   function renderGame() {
     const meta = $('#gm-meta'), score = $('#gm-score'), note = $('#gm-note'), teams = $('#gm-teams');
-    const set = (el, html) => { if (el._html !== html) { el.innerHTML = html; el._html = html; } };
+    const set = (el, html) => { setHTML(el, html); };
     if (bad('games')) { failed(score); return; }
     const games = rowsOf('games');
     if (!games) return;
@@ -1792,7 +1815,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
         const cols = BOX[kind], tot = {}, seen = new Set();
         for (const c of cols) tot[c] = 0;
         const val = (r, c) => (c === 'IP' ? r.Outs || 0 : r[c] || 0);
-        const cell = (c, v) => (c === 'IP' ? ipOuts(v) : v);
+        const cell = (c, v) => (c === 'IP' ? ipOuts(v) : kind === 'pit' && c === 'HR' && pitHRUnknown(g.Season) ? '—' : v);
         const body = rs.map((r) => {
           for (const c of cols) tot[c] += val(r, c);
           const sub = kind === 'bat' && r.Ord != null && seen.has(r.Ord);
@@ -1853,7 +1876,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
         const row = { key: `proj-${target}-${pid}`, pid, Name: last.Name, Age: last.Age == null ? null : last.Age + now - last.Season, Team: last.Team, tid: last.tid, TeamDiv: last.Division, Division: divs.join(', '), Divs: divs,
           'Own%': Math.round(100 * p.shrink), Qual: p.eff >= tr[type].k, 'K%': p['K%'], 'BB%': p['BB%'] };
         if (type === 'bat') Object.assign(row, { PA: Math.round(tot), 'Eff PA': Math.round(p.eff), AVG: p.AVG, OBP: p.OBP, SLG: p.SLG, wOBA: p.wOBA, 'wRC+': Math.round(p['wRC+']) });
-        else { const outs = Math.round(tot * 3); Object.assign(row, { Outs: outs, IP: Math.floor(outs / 3) + (outs % 3) / 10, 'Eff IP': Math.round(p.eff), 'FIP-': Math.round(p['FIP-']), FIP: p.FIP }); }
+        else { const outs = Math.round(tot * 3); Object.assign(row, { Outs: outs, IP: ipNum(outs), 'Eff IP': Math.round(p.eff), 'FIP-': Math.round(p['FIP-']), FIP: p.FIP }); }
         out.push(row);
       }
       return out;
@@ -1867,7 +1890,6 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       + `Seasons are weighted 5/4/3, translated with same-season two-division ratios, then pulled toward the ${target} average; Own% is how much is the player's own numbers. `
       + `Qualified = at least half their own (${k} effective ${u}). A rough guide: two-division players are self-selected, and there's no aging adjustment.`;
   }
-  const ipStr = (ip) => { const outs = Math.round(ip * 3); return `${Math.floor(outs / 3)}.${outs % 3}`; };
   // one line per season-division in the weighted seasons: summed PA (or IP), PA/IP-weighted rates
   function projLines(type, rows, seasons) {
     const { w, cols } = PROJ[type], acc = new Map();
@@ -1907,7 +1929,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   function renderProj() {
     const card = $('#p-proj');
     const tr = projData();
-    const raw = ['bat', 'pit'].map((type) => { const h = pidRows(DS[type].hist, P.pid), c = pidRows(DS[type].cur, P.pid); return h && c ? [...h, ...c] : null; });
+    const raw = ['bat', 'pit'].map(ownRows);
     if (!tr || raw.includes(null)) { card.hidden = true; return; }
     const lines = { bat: projLines('bat', raw[0], tr.seasons), pit: projLines('pit', raw[1], tr.seasons) };
     // a target only for players with a recent line outside it (an Adams-only player gets Sierra, and vice versa)
@@ -1936,7 +1958,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     $('#p-proj-sum').textContent = sum;
     $('#p-proj-title').textContent = `Projected in ${targets.join(' / ')}`;
     $('#p-proj-lede').textContent = `How this player's last three seasons (${span}, weighted 5/4/3) might translate to ${targets.join(' or ')}. Lines from other divisions are adjusted by how the same players hit and pitched in two divisions in the same season, then pulled toward the division average: hard when the sample is small.`;
-    const body = $('#p-proj-body'); if (body._html !== html) { body.innerHTML = html; body._html = html; }
+    const body = $('#p-proj-body'); setHTML(body, html);
     card.hidden = !html;
   }
 
@@ -1955,9 +1977,9 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       rs.sort((a, b) => a.Rank - b.Rank);
       const head = `<thead><tr><th data-field="Team" class="l sticky1">Team</th>${ST_COLS.map((c) => `<th data-field="${c}" title="${esc(DEF[c] || '')}">${ST_LABEL[c] || c}</th>`).join('')}</tr></thead>`;
       const body = rs.map((r) => `<tr data-key="${esc(r.key)}"${r.Champion ? ' class="champ"' : ''}><td class="l name sticky1"><a href="${teamHref('bat', r.Season, r.Division, r.tid)}" data-tid="${esc(r.tid)}" data-season="${r.Season}" data-div="${esc(r.Division)}">${esc(r.Team)}</a>${r.Champion ? '<span class="champ-i" role="img" aria-label="Champion" title="Won the division\'s last playoff game">🏆</span>' : ''}</td>${ST_COLS.map((c) => `<td>${esc(fmt(c, r[c]))}</td>`).join('')}</tr>`).join('');
-      return `<div class="pg-card" id="div-${esc(d)}"><h3>${esc(d)}</h3><div class="pg-tblwrap short" style="border-top:1px solid var(--color-border-line);border-radius:var(--cds-radius)"><table class="pg-tbl" data-source="standings" data-row-key="key">${head}<tbody>${body}</tbody></table></div></div>`;
+      return `<div class="pg-card" id="div-${esc(d)}"><h3>${esc(d)}</h3><div class="pg-tblwrap short solo"><table class="pg-tbl" data-source="standings" data-row-key="key">${head}<tbody>${body}</tbody></table></div></div>`;
     }).join(''));
-    if (grid._html !== html) { grid.innerHTML = html; grid._html = html; }
+    setHTML(grid, html);
   }
 
   // ---------- GUTS ----------
@@ -1974,7 +1996,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       const sel = (G.season === 'All' ? rows : rows.filter((r) => r.Season === G.season)).slice().sort((a, b) => b.Season - a.Season || a.Division.localeCompare(b.Division));
       return `<thead><tr><th data-field="Season" class="l">Season</th><th data-field="Division" class="l">Division</th>${GU_COLS.map((c) => `<th data-field="${esc(c)}">${esc(c === 'wOBAScale' ? 'wOBA scale' : c)}</th>`).join('')}</tr></thead><tbody>${sel.map((r) => `<tr data-key="${esc(r.key)}"><td class="l">${r.Season}</td><td class="l">${esc(r.Division)}</td>${GU_COLS.map((c) => `<td>${esc(fmt(c, r[c]))}</td>`).join('')}</tr>`).join('')}</tbody>`;
     });
-    if (t._html !== html) { t.innerHTML = html; t._html = html; }
+    setHTML(t, html);
   }
 
   // ---------- URL: tab, player and filters live in the hash, so links can be shared and Back works ----------
@@ -2045,7 +2067,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     L.q = (p.get('q') || '').trim().toLowerCase();
     if (GROUPS.includes(p.get('group'))) L.group = p.get('group');
     if (p.get('dir') === '1') L.dir = 1;
-    L.page = Math.max(0, (num(p.get('page')) || 1) - 1);
+    L.page = Math.max(0, Math.floor(num(p.get('page')) || 1) - 1);
     if ([25, 50, 100, 250].includes(num(p.get('size')))) L.size = num(p.get('size'));
     showTab('leaders');
   }

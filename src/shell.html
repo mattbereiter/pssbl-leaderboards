@@ -46,17 +46,17 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
 /* room under the footer so a fixed corner badge (Netlify's, when it's switched on) never sits over the last controls */
 @media (max-width: 760px) { .site-foot { padding-bottom: 88px; } }
 </style>
-<script src="d3.min.js"></script>
 <script>
 /* Stand-in for the Claude dashboard runtime: loads the files listed in data/manifest.json
-   and tells the page whenever one arrives or the width changes. */
+   and tells the page whenever one arrives or the width changes. It runs before d3.min.js so the manifest request
+   starts at once instead of waiting for d3; anything that needs d3 waits for it with withD3(). */
 (() => {
+  const withD3 = (fn) => (window.d3 ? Promise.resolve().then(fn) : new Promise((ok) => addEventListener('DOMContentLoaded', () => ok(fn()))));
   const listeners = [], store = {};
   let manifest = null;
   const manifestP = fetch('data/manifest.json', { cache: 'no-cache' }).then((r) => r.json()).then((m) => {
     manifest = m;
-    const f = document.getElementById('site-updated');
-    if (f && m.updated) f.textContent = 'Data updated ' + d3.utcFormat('%b %-d, %Y')(new Date(m.updated + 'T00:00:00Z'));
+    if (m.updated) withD3(() => { const f = document.getElementById('site-updated'); if (f) f.textContent = 'Data updated ' + d3.utcFormat('%b %-d, %Y')(new Date(m.updated + 'T00:00:00Z')); });
     return m;
   });
   let queued = false;
@@ -76,7 +76,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
       // the version stamp changes on every data update, so a browser never pairs a new page with stale cached data
       return fetch('data/' + file + (m.version ? '?v=' + encodeURIComponent(m.version) : '')).then((r) => {
         if (!r.ok) throw new Error(file + ': HTTP ' + r.status);
-        return file.endsWith('.json') ? r.json() : r.text().then((t) => d3.csvParse(t));
+        return file.endsWith('.json') ? r.json() : r.text().then((t) => withD3(() => d3.csvParse(t)));
       });
     }).then((d) => {
       store[id] = { status: 'ok', data: Array.isArray(d) ? d : (d.rows || d.data || d), message: '', refreshing: false };
@@ -104,6 +104,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   });
 })();
 </script>
+<script src="d3.min.js"></script>
 </head>
 <body>
 <div id="dash-root">
