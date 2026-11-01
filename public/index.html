@@ -625,6 +625,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   const bad = (id) => { const s = statusOf(id); return s === 'error' || s === 'declined'; };
   const typed = (k, v) => {
     if (STR.has(k)) return v == null ? '' : String(v);
+    if (Array.isArray(v)) return v; // JSON lists (guts BoxMonths): Number([4]) would turn a one-month list into 4
     if (v === '' || v == null) return null;
     if (v === true || v === 'true') return true;
     if (v === false || v === 'false') return false;
@@ -662,7 +663,8 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
   // box scores come one file per month (box_2026_05); each season's guts rows list its months. boxIds gives the files
   // that cover from..to (either may be blank), boxOf their lines as one list (null while any is loading)
   const boxMonths = (season) => { const g = rowsOf('guts'); if (!g) return null; const r = g.find((x) => x.Season === season); return r && Array.isArray(r.BoxMonths) ? r.BoxMonths : []; };
-  const boxIds = (season, from, to) => (boxMonths(season) || []).filter((m) => (!from || m >= Number(from.slice(5, 7))) && (!to || m <= Number(to.slice(5, 7)))).map((m) => `box_${season}_${String(m).padStart(2, '0')}`);
+  const boxIds = (season, from, to) => (boxMonths(season) || []).map((m) => `${season}-${String(m).padStart(2, '0')}`)
+    .filter((ym) => (!from || `${ym}-31` >= from) && (!to || `${ym}-01` <= to)).map((ym) => `box_${ym.replace('-', '_')}`);
   const boxOf = (ids) => { const parts = ids.map(rowsOf); return parts.includes(null) ? null : memoize('box|' + ids.join(), parts, () => parts.flat()); };
   const seasonRows = (id, season) => { const rows = rowsOf(id); return rows && memoize(id + '|' + season, [rows], () => rows.filter((r) => r.Season === season)); };
   // the Players page reads one player at a time from two shared files: player_NN (every pid ending in NN; finished
@@ -1672,7 +1674,7 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     const set = (el, html) => { setHTML(el, html); };
     if (!P.pid) return renderFinder(nm, cards, set);
     $('#p-find').hidden = true;
-    const src = bucketsOf(P.pid).join(' ');
+    const src = bucketsOf(P.pid)[1]; // career rows live in playernow_NN
     if (mineBad()) { nm.textContent = ''; failed($('#p-strip')); return; }
     const bc = mineOf('bc'), pc = mineOf('pc');
     if (!bc || !pc) { nm.classList.add('dash-skeleton'); set($('#p-strip'), '<div class="dash-skeleton"></div>'); }
@@ -1894,9 +1896,10 @@ span.dash-skeleton { display: inline-block; min-width: 12rem; }
     set(score, side(g.away, g.awayName, g.awayDiv, g.ar, g.hr) + side(g.home, g.homeName, g.homeDiv, g.hr, g.ar));
     const months = boxMonths(g.Season), id = `box_${g.Season}_${g.Date.slice(5, 7)}`;
     const none = () => { teams.classList.remove('dash-skeleton'); teams.style.minHeight = ''; set(note, ''); set(teams, '<div class="pg-card pg-empty" id="gm-none">No box score on file for this game.</div>'); };
-    if (months && !months.includes(Number(g.Date.slice(5, 7)))) return none();
-    if (bad(id) || bad('guts')) return none();
-    const box = months && rowsOf(id);
+    if (bad('guts')) return none();
+    if (!months) { teams.classList.add('dash-skeleton'); teams.style.minHeight = '20rem'; return; }
+    if (!months.includes(Number(g.Date.slice(5, 7))) || bad(id)) return none();
+    const box = rowsOf(id);
     if (!box) { teams.classList.add('dash-skeleton'); teams.style.minHeight = '20rem'; return; }
     teams.classList.remove('dash-skeleton'); teams.style.minHeight = '';
     const lines = memoize('game' + g.gameId, [box], () => box.filter((r) => r.gameId === g.gameId));

@@ -85,3 +85,19 @@ test.describe('Data by month and the precomputed lede', () => {
     expect(files).toEqual(['box_2025_06.csv']);
   });
 });
+
+test('a season with box scores for one month only still finds them', async ({ page }) => {
+  // the first weeks after a new season starts: guts lists a single month, e.g. BoxMonths [6]
+  await page.route('**/data/guts.json*', async (route) => {
+    const rows = await (await route.fetch()).json();
+    for (const r of rows) if (r.Season === 2025) r.BoxMonths = [6];
+    await route.fulfill({ json: rows });
+  });
+  const files = [];
+  page.on('request', (r) => { const m = r.url().match(/\/data\/(box_[^?]+)/); if (m) files.push(m[1]); });
+  await openSite(page, 'leaders?season=2025&range=reg');
+  await expect(page.locator('#lb-note')).toContainText('box scores in this range');
+  await expect(page.locator('#lb-table tbody tr').first()).toBeVisible();
+  await expect(page.locator('#lb-note')).not.toContainText('Added up from 0 box scores');
+  expect(files).toEqual(['box_2025_06.csv']);
+});
