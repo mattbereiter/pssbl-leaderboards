@@ -41,6 +41,13 @@ def finished_games():
 BAT = [('ab','AB'),('r','R'),('h','H'),('d','2B'),('t','3B'),('hr','HR'),('rbi','RBI'),('sb','SB'),('cs','CS'),('bb','BB'),('so','SO'),('gdp','GDP'),('hbp','HBP'),('sh','SH'),('sf','SF'),('ci','CI')]
 PIT = [('outs','Outs'),('w','W'),('l','L'),('sv','SV'),('cg','CG'),('h','H'),('r','R'),('er','ER'),('hr','HR'),('ibb','IBB'),('bb','BB'),('so','SO'),('hbp','HBP'),('wp','WP')]
 
+BROKEN = set()  # games with a box-score file that's missing or won't parse; build_box lists them as having no box score
+
+def _load_box(typ, gid):
+    try: return load(f'{RAW}/box/{typ}_{gid}.json')
+    except Exception:
+        BROKEN.add(gid); return None
+
 @functools.lru_cache(None)
 def box_lines():
     """gameId -> that game's player lines, or None when pssbl.com has no box score for it. A line is one player's
@@ -48,9 +55,7 @@ def box_lines():
     (lineup / pitching slot; subs share the starter's slot and are listed after him)}."""
     out = {}
     for gid in finished_games():
-        try:
-            b = load(f'{RAW}/box/BattingStats_{gid}.json'); p = load(f'{RAW}/box/PitchingStats_{gid}.json')
-        except Exception: b, p = [], []
+        b, p = ([] if (x := _load_box(typ, gid)) is None else x for typ in ('BattingStats', 'PitchingStats'))
         if not b and not p: out[gid] = None; continue
         agg = {}
         for kind, rows, cols, order in (('b', b, BAT, 'battingOrder'), ('p', p, PIT, 'pitchingOrder')):
